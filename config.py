@@ -2,8 +2,8 @@ import numpy as np
 
 #training params
 num_epochs=10                       #times for the use of all training data
-batch_size=32                       #number of images for one batch
-learning_rate=0.0003
+batch_size=64                       #number of images for one batch
+learning_rate=0.01
 learning_rate_decay_factor=0.94     #decay factor for exponential decay
 weight_decay=5e-4                   # weight decay (L2 penalty)
 num_epochs_per_decay=2.5
@@ -29,7 +29,7 @@ imagenet['validation_set_path']='/home/victorfang/Desktop/imagenet所有数据/i
 
 #model saving params
 #how often to write summary and checkpoint
-checkpoint_step=10
+checkpoint_step=4000
 
 # Path for tf.summary.FileWriter and to store model checkpoints
 root_path='/home/victorfang/Desktop/pytorch_'
