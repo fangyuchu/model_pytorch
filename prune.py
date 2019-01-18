@@ -9,6 +9,7 @@ def replace_layers(model, i, indexes, layers):
     return model[i]
 
 
+
 def prune_conv_layer(model, layer_index, filter_index):
     ''' layer_index:要删的是哪一层中的filter，这个layer_index指向的必须要是conv
         filter_index:要删layer_index层中的哪个filter
@@ -39,7 +40,9 @@ def prune_conv_layer(model, layer_index, filter_index):
 
     new_weights[: filter_index, :, :, :] = old_weights[: filter_index, :, :, :]     #将索引前的filer复制到新conv中
     new_weights[filter_index:, :, :, :] = old_weights[filter_index + 1:, :, :, :]   #将索引后一个直至最后的所有filter复制到新conv中
-    new_conv.weight.data = torch.from_numpy(new_weights).cpu()                      #todo:可改成根据设备决定
+    new_conv.weight.data = torch.from_numpy(new_weights)
+    if torch.cuda.is_available():
+        new_conv.weight.data=new_conv.weight.data.cuda()
 
     if conv.bias is not None:
         bias_numpy = conv.bias.data.cpu().numpy()
@@ -47,8 +50,9 @@ def prune_conv_layer(model, layer_index, filter_index):
         bias = np.zeros(shape=(bias_numpy.shape[0] - 1), dtype=np.float32)
         bias[:filter_index] = bias_numpy[:filter_index]
         bias[filter_index:] = bias_numpy[filter_index + 1:]
-        new_conv.bias.data = torch.from_numpy(bias).cpu()                           #todo:可改成根据设备决定
-
+        new_conv.bias.data = torch.from_numpy(bias)
+        if torch.cuda.is_available():
+            new_conv.bias.data=new_conv.bias.data.cuda()
     if not next_conv is None:                                                       #next_conv中需要把对应的通道也删了
         next_new_conv = \
             torch.nn.Conv2d(in_channels=next_conv.in_channels - 1,
@@ -65,7 +69,9 @@ def prune_conv_layer(model, layer_index, filter_index):
 
         new_weights[:, : filter_index, :, :] = old_weights[:, : filter_index, :, :]
         new_weights[:, filter_index:, :, :] = old_weights[:, filter_index + 1:, :, :]
-        next_new_conv.weight.data = torch.from_numpy(new_weights).cpu()                           #todo:可改成根据设备决定
+        next_new_conv.weight.data = torch.from_numpy(new_weights).cpu()
+        if torch.cuda.is_available():
+            next_new_conv.weight.data=next_new_conv.weight.data.cuda()
         if next_conv.bias is not None:
             next_new_conv.bias.data = next_conv.bias.data
 
@@ -123,6 +129,35 @@ def prune_conv_layer(model, layer_index, filter_index):
 
     return model
 
+def select_and_prune_filter(model,layer_index,num_to_prune,ord):
+    '''
+
+    :param model: net model
+    :param layer_index: layer in which the filters being pruned
+    :param num_to_prune: number of filters to prune
+    :param ord: which norm to compute as the standard. Support l1 and l2 norm
+    :return: filter indexes in the [layer_index] layer
+    '''
+    if ord!=1 and ord !=2:
+        raise TypeError('unsupported type of norm')
+    _, conv = list(model.features._modules.items())[layer_index]            #get conv module
+    weights = conv.weight.data.cpu().numpy()                                #get weight of all filters
+
+    filter_norm=np.linalg.norm(weights,ord=ord,axis=(2,3))                            #compute filters' norm
+    if ord==1:
+        filter_norm=np.sum(filter_norm,axis=1)
+    elif ord==2:
+        filter_norm=np.square(filter_norm)
+        filter_norm=np.sum(filter_norm,axis=1)
+
+    filter_norm_sorted_index=np.argsort(filter_norm)
+
+    model=prune_conv_layer(model,layer_index,filter_norm_sorted_index[0:num_to_prune])
+    return model
+
+
+
 if __name__ == "__main__":
     model= vgg.vgg11(False)
+    select_and_prune_filter(model,layer_index=3,num_to_prune=2,ord=2)
     prune_conv_layer(model,layer_index=3,filter_index=1)

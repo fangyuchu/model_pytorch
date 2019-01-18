@@ -8,6 +8,7 @@ import resnet
 import vgg
 import os
 from datetime import datetime
+from prune import select_and_prune_filter
 
 
 def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay_steps,decay_rate):
