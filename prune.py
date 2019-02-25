@@ -35,6 +35,7 @@ def prune_conv_layer(model, layer_index, filter_index):
                                 groups=conv.groups,
                                 bias=(conv.bias is not None))
 
+
     old_weights = conv.weight.data.cpu().numpy()
     new_weights = new_conv.weight.data.cpu().numpy()
 
@@ -53,6 +54,8 @@ def prune_conv_layer(model, layer_index, filter_index):
         new_conv.bias.data = torch.from_numpy(bias)
         if torch.cuda.is_available():
             new_conv.bias.data=new_conv.bias.data.cuda()
+
+
     if not next_conv is None:                                                       #next_conv中需要把对应的通道也删了
         next_new_conv = \
             torch.nn.Conv2d(in_channels=next_conv.in_channels - 1,
@@ -83,7 +86,10 @@ def prune_conv_layer(model, layer_index, filter_index):
 
         model.features = features
         #todo：为什么要把relu改成batchnorm？
-        model.features[layer_index + 1] = torch.nn.BatchNorm2d(model.features[layer_index].out_channels)
+        if torch.cuda.is_available():
+            model.features[layer_index + 1] = torch.nn.BatchNorm2d(model.features[layer_index].out_channels).cuda()
+        else:
+            model.features[layer_index + 1] = torch.nn.BatchNorm2d(model.features[layer_index].out_channels)
 
     else:
         # Prunning the last conv layer. This affects the first linear layer of the classifier.
@@ -117,7 +123,9 @@ def prune_conv_layer(model, layer_index, filter_index):
 
         new_linear_layer.bias.data = old_linear_layer.bias.data
 
-        new_linear_layer.weight.data = torch.from_numpy(new_weights).cuda()
+        new_linear_layer.weight.data = torch.from_numpy(new_weights)
+        if torch.cuda.is_available():
+            new_linear_layer.weight.data=new_linear_layer.weight.data.cuda()
 
         classifier = torch.nn.Sequential(
             *(replace_layers(model.classifier, i, [layer_index], [new_linear_layer]) for i, _ in enumerate(model.classifier)))
@@ -152,12 +160,16 @@ def select_and_prune_filter(model,layer_index,num_to_prune,ord):
 
     filter_norm_sorted_index=np.argsort(filter_norm)
 
-    model=prune_conv_layer(model,layer_index,filter_norm_sorted_index[0:num_to_prune])
+    #model=prune_conv_layer(model,layer_index,filter_norm_sorted_index[0:num_to_prune])
+    #todo: prune_conv_layer不支持一次删多个卷积核
+    model=prune_conv_layer(model,layer_index,filter_norm_sorted_index[0])
+
+
     return model
 
 
 
 if __name__ == "__main__":
     model= vgg.vgg11(False)
-    select_and_prune_filter(model,layer_index=3,num_to_prune=2,ord=2)
+    select_and_prune_filter(model,layer_index=3,num_to_prune=1,ord=2)
     prune_conv_layer(model,layer_index=3,filter_index=1)

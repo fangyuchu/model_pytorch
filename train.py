@@ -194,7 +194,7 @@ def train_resnet_50(
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ',end='')
-    print(device)
+    print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
         # Data loading code
     transform = transforms.Compose([
@@ -449,7 +449,7 @@ def train_vgg_11(
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ',end='')
-    print(device)
+    print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
 
 
@@ -496,24 +496,6 @@ def train_vgg_11(
     for epoch in range(num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
-
-        print("{} Start validation".format(datetime.now()))
-        print("{} global step = {}".format(datetime.now(), global_step))
-        with torch.no_grad():
-            correct = 0
-            total = 0
-            for val_data in validation_loader:
-                net.eval()
-                images, labels = val_data
-                images, labels = images.to(device), labels.to(device)
-                outputs = net(images)
-                # 取得分最高的那个类 (outputs.data的索引号)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum()
-            correct = float(correct.cpu().numpy().tolist())
-            accuracy = correct / total
-            print("{} Validation Accuracy = {:.4f}".format(datetime.now(), accuracy))
 
         #one epoch for one loop
         for step, data in enumerate(train_loader, 0):
