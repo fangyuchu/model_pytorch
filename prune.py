@@ -17,6 +17,7 @@ def prune_conv_layer(model, layer_index, filter_index):
     ''' layer_index:要删的卷基层的索引
         filter_index:要删layer_index层中的哪个filter
     '''
+    #todo:batchnorm部分需要改
     moduleList=list(model.features._modules.items())
     conv=None                                                               #获取要删filter的那层conv
     next_conv=None                                                          #如果有的话：获取要删的那层后一层的conv，用于删除对应通道
@@ -141,7 +142,14 @@ def select_and_prune_filter(model,layer_index,num_to_prune,ord):
     if ord!=1 and ord !=2:
         raise TypeError('unsupported type of norm')
     while num_to_prune>0:                                                   #todo:同时删多个卷积核可以写的更精简，暂时懒得改了
-        _, conv = list(model.features._modules.items())[layer_index]  # get conv module
+        moduleList = list(model.features._modules.items())
+        i = 0
+        for mod in moduleList:
+            if isinstance(mod[1], torch.nn.modules.conv.Conv2d):
+                i += 1
+                if i == layer_index:  # 要删filter的conv
+                    conv = mod[1]
+        #_, conv = list(model.features._modules.items())[layer_index]  # get conv module
         weights = conv.weight.data.cpu().numpy()  # get weight of all filters
         num_to_prune-=1
         filter_norm=np.linalg.norm(weights,ord=ord,axis=(2,3))                            #compute filters' norm
@@ -158,6 +166,6 @@ def select_and_prune_filter(model,layer_index,num_to_prune,ord):
 
 
 if __name__ == "__main__":
-    model= vgg.vgg11(False)
-    select_and_prune_filter(model,layer_index=8,num_to_prune=1,ord=2)
+    model= vgg.vgg16_bn(pretrained=True)
+    select_and_prune_filter(model,layer_index=4,num_to_prune=1,ord=2)
     prune_conv_layer(model,layer_index=3,filter_index=1)
