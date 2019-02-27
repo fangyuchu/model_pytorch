@@ -45,7 +45,7 @@ def train_vgg(
 
 
     #define the model
-    net = vgg.vgg16(pretrained).to(device)
+    net = vgg.vgg16_bn(pretrained).to(device)
 
     #define loss function and optimizer
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
@@ -89,27 +89,12 @@ def train_vgg(
         #         correct += (predicted == labels).sum()
         #     correct = float(correct.cpu().numpy().tolist())
         #     accuracy = correct / total
-        #     print("{} Validation Accuracy = {:.4f}".format(datetime.now(), accuracy))
+        #     print("{} Validation Accuracy before pruned= {:.4f}".format(datetime.now(), accuracy))
 
-
-        with torch.no_grad():
-            correct = 0
-            total = 0
-            for val_data in validation_loader:
-                net.eval()
-                images, labels = val_data
-                images, labels = images.to(device), labels.to(device)
-                outputs = net(images)
-                # 取得分最高的那个类 (outputs.data的索引号)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum()
-            correct = float(correct.cpu().numpy().tolist())
-            accuracy = correct / total
-            print("{} Validation Accuracy after pruned = {:.4f}".format(datetime.now(), accuracy))
 
 
         net=select_and_prune_filter(net,layer_index=3,num_to_prune=2,ord=2)                     #减掉部分卷积核
+
         with torch.no_grad():
             correct = 0
             total = 0
@@ -125,6 +110,7 @@ def train_vgg(
             correct = float(correct.cpu().numpy().tolist())
             accuracy = correct / total
             print("{} Validation Accuracy after pruned = {:.4f}".format(datetime.now(), accuracy))
+
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
             # 准备数据

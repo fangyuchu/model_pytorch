@@ -17,17 +17,23 @@ def prune_conv_layer(model, layer_index, filter_index):
     ''' layer_index:要删的卷基层的索引
         filter_index:要删layer_index层中的哪个filter
     '''
-    #todo:batchnorm部分需要改
+    #todo:batchnorm有问题
     moduleList=list(model.features._modules.items())
     conv=None                                                               #获取要删filter的那层conv
+    batch_norm=None                                                         #如果有的话：获取要删的conv后的batch normalization层
     next_conv=None                                                          #如果有的话：获取要删的那层后一层的conv，用于删除对应通道
     i=0
     for mod in moduleList:
+        if conv is not None:
+            if isinstance(mod[1], torch.nn.modules.conv.Conv2d):            #要删的filter后一层的conv
+                next_conv = mod[1]
+                break
+            elif isinstance(mod[1],torch.nn.modules.BatchNorm2d):             #要删的filter后一层的batch normalization
+                batch_norm=mod[1]
+            else:
+                continue
         if isinstance(mod[1],torch.nn.modules.conv.Conv2d):
             i+=1
-            if conv is not None:                                            #要删的filter后一层的conv
-                next_conv=mod[1]
-                break
             if i==layer_index:                                              #要删filter的conv
                 conv=mod[1]
 
@@ -43,23 +49,40 @@ def prune_conv_layer(model, layer_index, filter_index):
 
     old_weights = conv.weight.data.cpu().numpy()
     new_weights = new_conv.weight.data.cpu().numpy()
-                                                                                    #删除卷积核
+    #复制其他filter
     new_weights[: filter_index, :, :, :] = old_weights[: filter_index, :, :, :]     #将索引前的filer复制到新conv中
     new_weights[filter_index:, :, :, :] = old_weights[filter_index + 1:, :, :, :]   #将索引后一个直至最后的所有filter复制到新conv中
-    new_conv.weight.data = torch.from_numpy(new_weights)
-    if torch.cuda.is_available():
-        new_conv.weight.data=new_conv.weight.data.cuda()
     if conv.bias is not None:
-        bias_numpy = conv.bias.data.cpu().numpy()
-        bias = np.zeros(shape=(bias_numpy.shape[0] - 1), dtype=np.float32)
-        bias[:filter_index] = bias_numpy[:filter_index]
-        bias[filter_index:] = bias_numpy[filter_index + 1:]
-        new_conv.bias.data = torch.from_numpy(bias)
+        old_bias = conv.bias.data.cpu().numpy()
+        new_bias = np.zeros(shape=(old_bias.shape[0] - 1), dtype=np.float32)
+        new_bias[:filter_index] = old_bias[:filter_index]
+        new_bias[filter_index:] = old_bias[filter_index + 1:]
+    if torch.cuda.is_available():
+        new_conv.cuda()
+    model.features = torch.nn.Sequential(                                           #生成替换为new_conv的features
+        *(replace_layers(mod, [conv], [new_conv]) for mod in model.features))
+
+    if batch_norm is not None:
+        new_batch_norm=torch.nn.BatchNorm2d(new_conv.out_channels)
+
+        old_weights = batch_norm.weight.data.cpu().numpy()                                      #删除weight
+        new_weights = new_batch_norm.weight.data.cpu().numpy()
+        new_weights[: filter_index] = old_weights[: filter_index]
+        new_weights[filter_index:] = old_weights[filter_index + 1:]
+        #todo不写似乎也没关系
+
+        old_bias=batch_norm.bias.data.cpu().numpy()                                             #删除bias
+        new_bias=new_batch_norm.bias.data.cpu().numpy()
+        new_bias[:filter_index] = old_bias[:filter_index]
+        new_bias[filter_index:] = old_bias[filter_index + 1:]
+
         if torch.cuda.is_available():
-            new_conv.bias.data=new_conv.bias.data.cuda()
+            new_batch_norm.cuda()
+        model.features = torch.nn.Sequential(
+            *(replace_layers(mod, [batch_norm], [new_batch_norm]) for mod in model.features))
+        
 
-
-    if not next_conv is None:                                                       #next_conv中需要把对应的通道也删了
+    if next_conv is not None:                                                       #next_conv中需要把对应的通道也删了
         next_new_conv = \
             torch.nn.Conv2d(in_channels=next_conv.in_channels - 1,
                             out_channels=next_conv.out_channels,
@@ -74,27 +97,15 @@ def prune_conv_layer(model, layer_index, filter_index):
         new_weights = next_new_conv.weight.data.cpu().numpy()
         new_weights[:, : filter_index, :, :] = old_weights[:, : filter_index, :, :]
         new_weights[:, filter_index:, :, :] = old_weights[:, filter_index + 1:, :, :]
-        next_new_conv.weight.data = torch.from_numpy(new_weights).cpu()
-        if torch.cuda.is_available():
-            next_new_conv.weight.data=next_new_conv.weight.data.cuda()
         if next_conv.bias is not None:
             next_new_conv.bias.data = next_conv.bias.data
-
-        model.features=torch.nn.Sequential(                                               #生成替换为新conv的feature
-            *(replace_layers(mod,[conv,next_conv],[new_conv,next_new_conv]) for mod in model.features))
-
-        #为什么要把relu改成batchnorm？
-        # if torch.cuda.is_available():
-        #     model.features[layer_index + 1] = torch.nn.BatchNorm2d(model.features[layer_index].out_channels).cuda()
-        # else:
-        #     model.features[layer_index + 1] = torch.nn.BatchNorm2d(model.features[layer_index].out_channels)
+        if torch.cuda.is_available():
+            next_new_conv.cuda()
+        model.features=torch.nn.Sequential(                                               #生成替换为new_next_conv的features
+            *(replace_layers(mod,[next_conv],[next_new_conv]) for mod in model.features))
 
     else:
         # Prunning the last conv layer. This affects the first linear layer of the classifier.
-        model.features = torch.nn.Sequential(
-            *(replace_layers(mod, [conv], [new_conv]) for mod in model.features))
-        # model.features[layer_index + 1] = torch.nn.BatchNorm2d(model.features[layer_index].out_channels)
-
         layer_index = 0
         old_linear_layer = None
         for _, module in model.classifier._modules.items():
@@ -121,9 +132,8 @@ def prune_conv_layer(model, layer_index, filter_index):
 
         new_linear_layer.bias.data = old_linear_layer.bias.data
 
-        new_linear_layer.weight.data = torch.from_numpy(new_weights)
         if torch.cuda.is_available():
-            new_linear_layer.weight.data=new_linear_layer.weight.data.cuda()
+            new_linear_layer.cuda()
 
         model.classifier = torch.nn.Sequential(
             *(replace_layers(mod, [old_linear_layer], [new_linear_layer]) for mod in model.classifier))
@@ -149,7 +159,6 @@ def select_and_prune_filter(model,layer_index,num_to_prune,ord):
                 i += 1
                 if i == layer_index:  # 要删filter的conv
                     conv = mod[1]
-        #_, conv = list(model.features._modules.items())[layer_index]  # get conv module
         weights = conv.weight.data.cpu().numpy()  # get weight of all filters
         num_to_prune-=1
         filter_norm=np.linalg.norm(weights,ord=ord,axis=(2,3))                            #compute filters' norm
@@ -167,5 +176,5 @@ def select_and_prune_filter(model,layer_index,num_to_prune,ord):
 
 if __name__ == "__main__":
     model= vgg.vgg16_bn(pretrained=True)
-    select_and_prune_filter(model,layer_index=4,num_to_prune=1,ord=2)
-    prune_conv_layer(model,layer_index=3,filter_index=1)
+    select_and_prune_filter(model,layer_index=3,num_to_prune=2,ord=2)
+    # prune_conv_layer(model,layer_index=3,filter_index=1)
