@@ -11,6 +11,8 @@ from datetime import datetime
 from prune import select_and_prune_filter
 
 
+#todo:可以改写为根据字符串创建对应模型，参见prune_and_train中，等有时间记得改过来
+
 def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay_steps,decay_rate):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     lr = learning_rate *decay_rate ** int(global_step / decay_steps)
