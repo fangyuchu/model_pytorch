@@ -33,13 +33,6 @@ def prune_and_train(
                     ord=2,
                   ):
     #implemented according to "Pruning Filters For Efficient ConvNets" by Hao Li
-    if dataset_name is 'imagenet':
-        train_set_size=conf.imagenet['train_set_size']
-        mean=conf.imagenet['mean']
-        std=conf.imagenet['std']
-        train_set_path=conf.imagenet['train_set_path']
-        validation_set_path=conf.imagenet['validation_set_path']
-
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ',end='')
@@ -56,15 +49,24 @@ def prune_and_train(
     for mod in net.features:
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv+=1
-    for i in range(1,num_conv+1):
-        net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=percent_of_pruning, ord=ord)  # prune the model
+        net = select_and_prune_filter(net, layer_index=3, num_to_prune=2,
+                                      ord=ord)  # prune the model
+    # for i in range(1,num_conv+1):
+    #     net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=percent_of_pruning, ord=ord)  # prune the model
 
     #define loss function and optimizer
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
     optimizer = optim.SGD(net.parameters(), lr=learning_rate
                           )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
 
-        # Data loading code
+    #prepare the data
+    if dataset_name is 'imagenet':
+        train_set_size=conf.imagenet['train_set_size']
+        mean=conf.imagenet['mean']
+        std=conf.imagenet['std']
+        train_set_path=conf.imagenet['train_set_path']
+        validation_set_path=conf.imagenet['validation_set_path']
+    # Data loading code
     transform = transforms.Compose([
         transforms.RandomResizedCrop(default_image_size),
         transforms.RandomHorizontalFlip(),
@@ -78,16 +80,27 @@ def prune_and_train(
 
     global_step=0
 
-
-
-
-
-
-
-
     print("{} Start training vgg-11...".format(datetime.now()))
     for epoch in range(num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
+
+        print("{} Start validation".format(datetime.now()))
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for val_data in validation_loader:
+                net.eval()
+                images, labels = val_data
+                images, labels = images.to(device), labels.to(device)
+                outputs = net(images)
+                # 取得分最高的那个类 (outputs.data的索引号)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum()
+            correct = float(correct.cpu().numpy().tolist())
+            accuracy = correct / total
+            print("{} Validation Accuracy = {:.4f}".format(datetime.now(), accuracy))
+
 
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
@@ -133,4 +146,4 @@ def prune_and_train(
 
 
 if __name__ == "__main__":
-    prune_and_train(model_name='vgg16_bn',pretrained=True,checkpoint_step=20)
+    prune_and_train(model_name='vgg16_bn',pretrained=True,checkpoint_step=20,percent_of_pruning=0.1)

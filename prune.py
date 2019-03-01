@@ -98,7 +98,7 @@ def prune_conv_layer(model, layer_index, filter_index):
 
         old_weights = next_conv.weight.data.cpu().numpy()
         new_weights = next_new_conv.weight.data.cpu().numpy()
-        new_weights[:] = old_weights[:,[i for i in range(old_weights.shape[0]) if i not in filter_index],:,:]  # 复制剩余的filters的weight
+        new_weights[:] = old_weights[:,[i for i in range(old_weights.shape[1]) if i not in filter_index],:,:]  # 复制剩余的filters的weight
 
         if next_conv.bias is not None:
             next_new_conv.bias.data = next_conv.bias.data
@@ -123,16 +123,24 @@ def prune_conv_layer(model, layer_index, filter_index):
         params_per_input_channel = int(old_linear_layer.in_features / conv.out_channels)
 
         new_linear_layer = \
-            torch.nn.Linear(old_linear_layer.in_features - params_per_input_channel,
+            torch.nn.Linear(old_linear_layer.in_features - len(filter_index)*params_per_input_channel,
                             old_linear_layer.out_features)
 
         old_weights = old_linear_layer.weight.data.cpu().numpy()
         new_weights = new_linear_layer.weight.data.cpu().numpy()
 
-        new_weights[:, : filter_index * params_per_input_channel] = \
-            old_weights[:, : filter_index * params_per_input_channel]
-        new_weights[:, filter_index * params_per_input_channel:] = \
-            old_weights[:, (filter_index + 1) * params_per_input_channel:]
+        # node_index=filter_index
+        node_index=[]
+        for f in filter_index:
+            node_index.extend([i for i in range(f*params_per_input_channel,(f+1)*params_per_input_channel)])
+
+        new_weights[:] = old_weights[:,[i for i in range(old_weights.shape[1]) if i not in node_index]]  # 复制剩余的filters的weight
+
+        #
+        # new_weights[:, : filter_index * params_per_input_channel] = \
+        #     old_weights[:, : filter_index * params_per_input_channel]
+        # new_weights[:, filter_index * params_per_input_channel:] = \
+        #     old_weights[:, (filter_index + 1) * params_per_input_channel:]
 
         new_linear_layer.bias.data = old_linear_layer.bias.data
 
@@ -187,5 +195,5 @@ def select_and_prune_filter(model,ord,layer_index=0,num_to_prune=0,percent_of_pr
 
 if __name__ == "__main__":
     model= vgg.vgg16_bn(pretrained=True)
-    select_and_prune_filter(model,layer_index=3,num_to_prune=2,ord=2,percent_of_pruning=0.3)
+    select_and_prune_filter(model,layer_index=3,num_to_prune=2,ord=2)
     # prune_conv_layer(model,layer_index=3,filter_index=1)
