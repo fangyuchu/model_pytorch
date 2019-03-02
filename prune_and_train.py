@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
+import math
 import resnet
 import vgg
 import os
@@ -60,6 +61,7 @@ def prune_and_train(
         mean=conf.imagenet['mean']
         std=conf.imagenet['std']
         train_set_path=conf.imagenet['train_set_path']
+        train_set_size=conf.imagenet['train_set_size']
         validation_set_path=conf.imagenet['validation_set_path']
     # Data loading code
     transform = transforms.Compose([
@@ -116,11 +118,14 @@ def prune_and_train(
             print("{} Validation Accuracy after pruned = {:.4f}".format(datetime.now(), accuracy))
 
     print("{} Start training ".format(datetime.now())+model_name+"...")
-    for epoch in range(num_epochs):
+    for epoch in range(math.floor(global_step*batch_size/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
+            if global_step % math.ceil(train_set_size / batch_size)==0:
+                break
+
             # 准备数据
             images, labels = data
             images, labels = images.to(device), labels.to(device)
@@ -167,8 +172,8 @@ def prune_and_train(
                         f.write(str(global_step))
                         print("{} model saved at global step = {}".format(datetime.now(), global_step))
                         f.close()
-                        print('{} continue training'.format(datetime.now()))
+                    print('{} continue training'.format(datetime.now()))
 
 
 if __name__ == "__main__":
-    prune_and_train(model_name='vgg16_bn',pretrained=True,checkpoint_step=1000,percent_of_pruning=0.1,num_epochs=20)
+    prune_and_train(model_name='vgg16_bn',pretrained=True,checkpoint_step=5000,percent_of_pruning=0.1,num_epochs=20)
