@@ -17,7 +17,6 @@ def prune_conv_layer(model, layer_index, filter_index):
     ''' layer_index:要删的卷基层的索引
         filter_index:要删layer_index层中的哪个filter
     '''
-    moduleList=list(model.features._modules.items())
     conv=None                                                               #获取要删filter的那层conv
     batch_norm=None                                                         #如果有的话：获取要删的conv后的batch normalization层
     next_conv=None                                                          #如果有的话：获取要删的那层后一层的conv，用于删除对应通道

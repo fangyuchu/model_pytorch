@@ -116,7 +116,6 @@ def train_resnet_18(
         #one epoch for one loop
         for step, data in enumerate(train_loader, 0):
             # 准备数据
-            length = len(train_loader)
             images, labels = data
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()

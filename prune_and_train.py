@@ -19,13 +19,10 @@ def prune_and_train(
                     learning_rate=conf.learning_rate,
                     num_epochs=conf.num_epochs,
                     batch_size=conf.batch_size,
-                    learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                    weight_decay=conf.weight_decay,
-                    num_epochs_per_decay=conf.num_epochs_per_decay,
                     checkpoint_step=conf.checkpoint_step,
-                    checkpoint_path=conf.root_path+'vgg_11'+conf.checkpoint_path,
-                    highest_accuracy_path=conf.root_path+'vgg_11'+conf.highest_accuracy_path,
-                    global_step_path=conf.root_path+'vgg_11'+conf.global_step_path,
+                    checkpoint_path=None,
+                    highest_accuracy_path=None,
+                    global_step_path=None,
                     default_image_size=224,
                     momentum=conf.momentum,
                     num_workers=conf.num_workers,
@@ -49,10 +46,9 @@ def prune_and_train(
     for mod in net.features:
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv+=1
-        net = select_and_prune_filter(net, layer_index=3, num_to_prune=2,
-                                      ord=ord)  # prune the model
-    # for i in range(1,num_conv+1):
-    #     net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=percent_of_pruning, ord=ord)  # prune the model
+
+    for i in range(1,num_conv+1):
+        net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=percent_of_pruning, ord=ord)  # prune the model
 
     #define loss function and optimizer
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
@@ -61,7 +57,6 @@ def prune_and_train(
 
     #prepare the data
     if dataset_name is 'imagenet':
-        train_set_size=conf.imagenet['train_set_size']
         mean=conf.imagenet['mean']
         std=conf.imagenet['std']
         train_set_path=conf.imagenet['train_set_path']
@@ -78,14 +73,33 @@ def prune_and_train(
     train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     validation_loader = torch.utils.data.DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
+    if checkpoint_path is None:
+        checkpoint_path=conf.root_path+model_name+','+str(percent_of_pruning)+'pruned'+'/checkpoint'
+    if highest_accuracy_path is None:
+        highest_accuracy_path=conf.root_path+model_name+','+str(percent_of_pruning)+'pruned'+'/highest_accuracy.txt'
+    if global_step_path is None:
+        global_step_path=conf.root_path+model_name+','+str(percent_of_pruning)+'pruned'+'/global_step.txt'
+    if not os.path.exists(checkpoint_path):
+        os.makedirs(checkpoint_path,exist_ok=True)
+
+    highest_accuracy = 0
+    if os.path.exists(highest_accuracy_path):
+        f = open(highest_accuracy_path, 'r')
+        highest_accuracy = float(f.read())
+        f.close()
+        print('highest accuracy from previous training is %f' % highest_accuracy)
     global_step=0
-
-    print("{} Start training vgg-11...".format(datetime.now()))
-    for epoch in range(num_epochs):
-        print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
-
-        print("{} Start validation".format(datetime.now()))
-        with torch.no_grad():
+    if os.path.exists(global_step_path):
+        f = open(global_step_path, 'r')
+        global_step = int(f.read())
+        f.close()
+        print('global_step at present is %d' % global_step)
+        model_saved_at=checkpoint_path+'/global_step='+str(global_step)+'.pth'
+        print('load model from'+model_saved_at)
+        net.load_state_dict(torch.load(model_saved_at))
+    else:
+        print('{} test the model after pruned'.format(datetime.now()))                      #no previous checkpoint
+        with torch.no_grad():                                                               #test the firstly pruned model
             correct = 0
             total = 0
             for val_data in validation_loader:
@@ -99,13 +113,15 @@ def prune_and_train(
                 correct += (predicted == labels).sum()
             correct = float(correct.cpu().numpy().tolist())
             accuracy = correct / total
-            print("{} Validation Accuracy = {:.4f}".format(datetime.now(), accuracy))
+            print("{} Validation Accuracy after pruned = {:.4f}".format(datetime.now(), accuracy))
 
-
+    print("{} Start training ".format(datetime.now())+model_name+"...")
+    for epoch in range(num_epochs):
+        print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
+        net.train()
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
             # 准备数据
-            length = len(train_loader)
             images, labels = data
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -116,10 +132,7 @@ def prune_and_train(
             loss.backward()
             optimizer.step()
 
-            # decay learning rate
             global_step += 1
-            decay_steps = int(train_set_size / batch_size * num_epochs_per_decay)
-
 
             if step % checkpoint_step == 0 and step != 0:
                 print("{} Start validation".format(datetime.now()))
@@ -139,11 +152,23 @@ def prune_and_train(
                     correct = float(correct.cpu().numpy().tolist())
                     accuracy = correct / total
                     print("{} Validation Accuracy = {:.4f}".format(datetime.now(), accuracy))
-
-
-
-
+                    if accuracy>highest_accuracy:
+                        highest_accuracy=accuracy
+                        #save model
+                        print("{} Saving model...".format(datetime.now()))
+                        torch.save(net.state_dict(), '%s/global_step=%d.pth' % (checkpoint_path, global_step))
+                        print("{} Model saved ".format(datetime.now()))
+                        #save highest accuracy
+                        f = open(highest_accuracy_path, 'w')
+                        f.write(str(highest_accuracy))
+                        f.close()
+                        #save global step
+                        f=open(global_step_path,'w')
+                        f.write(str(global_step))
+                        print("{} model saved at global step = {}".format(datetime.now(), global_step))
+                        f.close()
+                        print('{} continue training'.format(datetime.now()))
 
 
 if __name__ == "__main__":
-    prune_and_train(model_name='vgg16_bn',pretrained=True,checkpoint_step=20,percent_of_pruning=0.1)
+    prune_and_train(model_name='vgg16_bn',pretrained=True,checkpoint_step=1000,percent_of_pruning=0.1,num_epochs=20)

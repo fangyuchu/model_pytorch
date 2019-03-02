@@ -32,7 +32,7 @@ imagenet['validation_set_path']='/home/victorfang/Desktop/imagenet所有数据/i
 checkpoint_step=4000
 
 # Path for tf.summary.FileWriter and to store model checkpoints
-root_path='/home/victorfang/Desktop/pytorch_'
+root_path='/home/victorfang/Desktop/pytorch_model/'
 checkpoint_path = "_model_saved/checkpoints"
 highest_accuracy_path='_model_saved/accuracy.txt'
 global_step_path='_model_saved/global_step.txt'
