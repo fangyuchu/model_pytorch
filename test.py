@@ -11,40 +11,35 @@ from prune import select_and_prune_filter
 import numpy as np
 import config as conf
 
-
-pretrained = False
-dataset_name = 'imagenet'
-learning_rate = conf.learning_rate
-num_epochs = conf.num_epochs
-batch_size = conf.batch_size
-checkpoint_step = conf.checkpoint_step
-checkpoint_path = None
-highest_accuracy_path = None
-global_step_path = None
-default_image_size = 224
-momentum = conf.momentum
-num_workers = conf.num_workers
-percent_of_pruning = 0.3
-ord = 2
-
-#prepare the data
-if dataset_name is 'imagenet':
-    mean=conf.imagenet['mean']
-    std=conf.imagenet['std']
-    train_set_path=conf.imagenet['train_set_path']
-    train_set_size=conf.imagenet['train_set_size']
-    validation_set_path=conf.imagenet['validation_set_path']
-# Data loading code
-transform = transforms.Compose([
-    transforms.RandomResizedCrop(default_image_size),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=mean,std=std),
-])
-train = datasets.ImageFolder(train_set_path, transform)
-val = datasets.ImageFolder(validation_set_path, transform)
-validation_loader = torch.utils.data.DataLoader(val, batch_size=256, shuffle=False, num_workers=num_workers)
-i=0
-for step, data in enumerate(validation_loader, 0):
-    i+=1
-    print(i)
+print("{} Start validation".format(datetime.now()))
+                print("{} global step = {}".format(datetime.now(), global_step))
+                with torch.no_grad():
+                    correct = 0
+                    total = 0
+                    for val_data in validation_loader:
+                        net.eval()
+                        images, labels = val_data
+                        images, labels = images.to(device), labels.to(device)
+                        outputs = net(images)
+                        # 取得分最高的那个类 (outputs.data的索引号)
+                        _, predicted = torch.max(outputs.data, 1)
+                        total += labels.size(0)
+                        correct += (predicted == labels).sum()
+                    correct = float(correct.cpu().numpy().tolist())
+                    accuracy = correct / total
+                    print("{} Validation Accuracy = {:.4f}".format(datetime.now(), accuracy))
+                    if accuracy>highest_accuracy:
+                        highest_accuracy=accuracy
+                        #save model
+                        print("{} Saving model...".format(datetime.now()))
+                        torch.save(net.state_dict(), '%s/global_step=%d.pth' % (checkpoint_path, global_step))
+                        print("{} Model saved ".format(datetime.now()))
+                        #save highest accuracy
+                        f = open(highest_accuracy_path, 'w')
+                        f.write(str(highest_accuracy))
+                        f.close()
+                        #save global step
+                        f=open(global_step_path,'w')
+                        f.write(str(global_step))
+                        print("{} model saved at global step = {}".format(datetime.now(), global_step))
+                        f.close()
