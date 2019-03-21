@@ -230,6 +230,14 @@ def show_feature_map(
                     layer_indexes,
                     num_image_show=36
                      ):
+    '''
+    show the feature converted feature maps of a cnn
+    :param model: full network model
+    :param data_loader: data_loader to load data
+    :param layer_indexes: list of indexes of conv layer whose feature maps will be extracted and showed
+    :param num_image_show: number of feature maps showed in one conv_layer. Supposed to be a square number
+    :return:
+    '''
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
