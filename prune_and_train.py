@@ -30,15 +30,18 @@ def evaluate_model(net,
     :param global_step: global step of the current trained model
     '''
     if save_model:
-        if checkpoint_path is None or not os.path.exists(checkpoint_path):
-            raise AttributeError('checkpoint path is wrong')
-        if highest_accuracy_path is None or not os.path.exists(highest_accuracy_path):
-            raise AttributeError('highest_accuracy path is wrong')
-        if global_step_path is None or not os.path.exists(global_step_path):
-            raise AttributeError('global_step path is wrong')
-        f = open(highest_accuracy_path, 'r')
-        highest_accuracy = float(f.read())
-        f.close()
+        if checkpoint_path is None :
+            raise AttributeError('please input checkpoint path')
+        if highest_accuracy_path is None :
+            raise AttributeError('please input highest_accuracy path')
+        if global_step_path is None :
+            raise AttributeError('please input global_step path')
+        if os.path.exists(highest_accuracy_path):
+            f = open(highest_accuracy_path, 'r')
+            highest_accuracy = float(f.read())
+            f.close()
+        else:
+            highest_accuracy=0
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -202,4 +205,9 @@ def prune_and_train(
 
 
 if __name__ == "__main__":
-    prune_and_train(model_name='vgg16_bn',pretrained=True,checkpoint_step=5000,percent_of_pruning=0.1,num_epochs=20)
+    prune_and_train(model_name='vgg16_bn',
+                    pretrained=True,
+                    checkpoint_step=5000,
+                    percent_of_pruning=0.9,
+                    num_epochs=20,
+                    learning_rate=0.005)
