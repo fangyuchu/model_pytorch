@@ -107,7 +107,6 @@ def prune_conv_layer(model, layer_index, filter_index):
             *(replace_layers(mod,[next_conv],[next_new_conv]) for mod in model.features))
 
     else:
-        #todo:不对
         # Prunning the last conv layer. This affects the first linear layer of the classifier.
         layer_index = 0
         old_linear_layer = None

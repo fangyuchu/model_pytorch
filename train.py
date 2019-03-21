@@ -4,16 +4,18 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
+import numpy as np
 import resnet
 import vgg
 import os
 from datetime import datetime
 import re
 import math
+from PIL import Image
+import matplotlib.pyplot as plt
 
 
 
-#todo:可以改写为根据字符串创建对应模型，参见prune_and_train中，等有时间记得改过来
 
 def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay_steps,decay_rate):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
@@ -91,6 +93,24 @@ def evaluate_model(net,
             print("{} model saved at global step = {}".format(datetime.now(), global_step))
             f.close()
 
+def create_data_loader(
+                    dataset_path,
+                    default_image_size,
+                    mean,
+                    std,
+                    batch_size,
+                    num_workers,
+                    ):
+    transform = transforms.Compose([
+        transforms.RandomResizedCrop(default_image_size),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std),
+    ])
+    folder = datasets.ImageFolder(dataset_path, transform)
+    data_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    return data_loader
+
 def train(
                     model_name,
                     pretrained=False,
@@ -136,17 +156,9 @@ def train(
         train_set_path=conf.imagenet['train_set_path']
         train_set_size=conf.imagenet['train_set_size']
         validation_set_path=conf.imagenet['validation_set_path']
-    # Data loading code
-    transform = transforms.Compose([
-        transforms.RandomResizedCrop(default_image_size),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean,std=std),
-    ])
-    train = datasets.ImageFolder(train_set_path, transform)
-    val = datasets.ImageFolder(validation_set_path, transform)
-    train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    validation_loader = torch.utils.data.DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+    train_loader=create_data_loader(train_set_path,default_image_size,mean,std,batch_size,num_workers)
+    validation_loader=create_data_loader(validation_set_path,default_image_size,mean,std,batch_size,num_workers)
 
     if checkpoint_path is None:
         checkpoint_path=conf.root_path+model_name+'/checkpoint'
@@ -212,8 +224,87 @@ def train(
                 print('{} continue training'.format(datetime.now()))
 
 
+def show_feature_map(
+                    model,
+                    data_loader,
+                    layer_indexes,
+                    num_image_show=36
+                     ):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+    conv_index = [0 for i in layer_indexes]  # index of the conv in model.features
+    sub_model=[]
+    # for mod in model.features:
+    #     conv_index += 1
+    #     if isinstance(mod, torch.nn.modules.conv.Conv2d):
+    #         i += 1
+    #         if i == layer_index:  # hit the conv to be pruned
+    #             break
+    conv_index = 0
+    ind_in_features=-1
+    j=0
+    for mod in model.features:
+        ind_in_features+=1
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            conv_index+=1
+            if conv_index in layer_indexes:
+                sub_model.append(nn.Sequential(*list(model.children())[0][:ind_in_features+1]))
+                j+=1
+    
+    #sub_model = nn.Sequential(*list(model.children())[0][:conv_index+1])
+    for step, data in enumerate(data_loader, 0):
+        # 准备数据
+        images, labels = data
+        images, labels = images.to(device), labels.to(device)
+        for i in range(len(layer_indexes)):
+            # forward
+            sub_model[i].eval()
+            outputs = sub_model[i](images)
+            outputs=outputs.detach().numpy()
+            outputs=outputs[0,:num_image_show,:,:]
+            outputs=transform(outputs)
+            plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i])
+
+            for j in range(num_image_show):
+                im=Image.fromarray(outputs[j])
+                plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),j+1)
+                plt.imshow(im,cmap='Greys_r')
+                #plt.imshow(im)
+            plt.title(label='conv_layer:'+str(layer_indexes[i]))
+            #plt.show()
+
+            # plt.figure(figsize=[14,20],clear=True)
+            # for i in range(num_image_show):
+            #     im=Image.fromarray(outputs[i])
+            #     plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),i+1)
+            #     #plt.imshow(im,cmap='Greys_r')
+            #     plt.imshow(im)
+        #plt.title(label='conv_layer:' + str(layer_indexes[0]),loc='left',fontsize='large')
+
+        plt.show()
+
+        break
+
+def transform(feature_maps):
+    #把feature maps数值移至0-255区间
+    mean = feature_maps.mean()
+    transform = 255 / 2 - mean
+    feature_maps = feature_maps + transform  # 把所有像素提至255的中点附近
+    max = feature_maps.max()
+    min = feature_maps.min()
+    mean = feature_maps.mean()
+    if max - mean > mean - min:
+        ratio = (255 - mean) / (max - mean)
+    else:
+        ratio = mean / (mean - min)
+    feature_maps = ratio * (feature_maps - mean) + mean  # 把像素划入0-255
+    return feature_maps
 
 
 if __name__ == "__main__":
-    train(model_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.005)
+    #train(model_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.005)
+    model=vgg.vgg16_bn(pretrained=True)
+    data_loader=create_data_loader('/home/victorfang/Desktop/imagenet_validation_part',224,conf.imagenet['mean'],conf.imagenet['std'],1,1)
+    show_feature_map(model,data_loader,[2,5,10])
 
