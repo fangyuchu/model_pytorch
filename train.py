@@ -17,13 +17,11 @@ import matplotlib.pyplot as plt
 
 
 
-def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay_steps,decay_rate):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = learning_rate *decay_rate ** int(global_step / decay_steps)
-    if lr!=learning_rate:
-        print('--------------------------------------------------------------------------------')
-        print('learning rate at present is %f'%lr)
-        print('--------------------------------------------------------------------------------')
+def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay_steps,learning_rate_decay_factor):
+    """Sets the learning rate to the initial LR decayed by learning_rate_decay_factor every decay_steps"""
+    lr = learning_rate *learning_rate_decay_factor ** int(global_step / decay_steps)
+    if global_step%decay_steps==0:
+        print('{} learning rate at present is {}'.format(datetime.now(),lr))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -125,6 +123,8 @@ def train(
                     default_image_size=224,
                     momentum=conf.momentum,
                     num_workers=conf.num_workers,
+                    learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                    weight_decay=conf.weight_decay
                   ):
     #implemented according to "Pruning Filters For Efficient ConvNets" by Hao Li
     # gpu or not
@@ -139,14 +139,9 @@ def train(
     #define the model
     net=getattr(globals()[model],model_name)(pretrained=pretrained).to(device)
 
-    num_conv=0                                                                  #num of conv layers in the net
-    for mod in net.features:
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv+=1
-
     #define loss function and optimizer
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
-    optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum
+    optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,weight_decay=weight_decay
                           )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
 
     #prepare the data
@@ -188,13 +183,16 @@ def train(
     else:
         print('{} test the model'.format(datetime.now()))                      #no previous checkpoint
         evaluate_model(net,validation_loader,save_model=False)
+
+    step_one_epoch=math.ceil(train_set_size / batch_size)
+
     print("{} Start training ".format(datetime.now())+model_name+"...")
     for epoch in range(math.floor(global_step*batch_size/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
-            if global_step / math.ceil(train_set_size / batch_size)==epoch+1:               #one epoch of training finished
+            if global_step / step_one_epoch==epoch+1:               #one epoch of training finished
                 evaluate_model(net,validation_loader,
                                save_model=True,
                                checkpoint_path=checkpoint_path,
@@ -206,6 +204,12 @@ def train(
             # 准备数据
             images, labels = data
             images, labels = images.to(device), labels.to(device)
+
+            exponential_decay_learning_rate(optimizer=optimizer,
+                                            learning_rate=learning_rate,
+                                            global_step=global_step,
+                                            decay_steps=step_one_epoch*2,
+                                            learning_rate_decay_factor=learning_rate_decay_factor)
             optimizer.zero_grad()
             # forward + backward
             outputs = net(images)
@@ -240,15 +244,7 @@ def show_feature_map(
     '''
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-    conv_index = [0 for i in layer_indexes]  # index of the conv in model.features
     sub_model=[]
-    # for mod in model.features:
-    #     conv_index += 1
-    #     if isinstance(mod, torch.nn.modules.conv.Conv2d):
-    #         i += 1
-    #         if i == layer_index:  # hit the conv to be pruned
-    #             break
     conv_index = 0
     ind_in_features=-1
     j=0
@@ -273,28 +269,14 @@ def show_feature_map(
             outputs=outputs[0,:num_image_show,:,:]
             outputs=transform(outputs)
             plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i])
-
             for j in range(num_image_show):
                 im=Image.fromarray(outputs[j])
                 plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),j+1)
                 plt.imshow(im,cmap='Greys_r')
-                #plt.imshow(im)
-            plt.title(label='conv_layer:'+str(layer_indexes[i]))
-            #plt.show()
-
-            # plt.figure(figsize=[14,20],clear=True)
-            # for i in range(num_image_show):
-            #     im=Image.fromarray(outputs[i])
-            #     plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),i+1)
-            #     #plt.imshow(im,cmap='Greys_r')
-            #     plt.imshow(im)
-        #plt.title(label='conv_layer:' + str(layer_indexes[0]),loc='left',fontsize='large')
-
         plt.show()
-
         break
 
-def transform(feature_maps):
+def pixel_transform(feature_maps):
     #把feature maps数值移至0-255区间
     mean = feature_maps.mean()
     transform = 255 / 2 - mean
@@ -311,8 +293,5 @@ def transform(feature_maps):
 
 
 if __name__ == "__main__":
-    #train(model_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.005)
-    model=vgg.vgg16_bn(pretrained=True)
-    data_loader=create_data_loader('/home/victorfang/Desktop/imagenet_validation_part',224,conf.imagenet['mean'],conf.imagenet['std'],1,1)
-    show_feature_map(model,data_loader,[2,5,10])
+    train(model_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
 
