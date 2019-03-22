@@ -141,7 +141,7 @@ def train(
 
     #define loss function and optimizer
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
-    optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,weight_decay=weight_decay
+    optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,#weight_decay=weight_decay
                           )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
 
     #prepare the data
@@ -267,7 +267,7 @@ def show_feature_map(
             outputs = sub_model[i](images)
             outputs=outputs.detach().numpy()
             outputs=outputs[0,:num_image_show,:,:]
-            outputs=transform(outputs)
+            outputs=pixel_transform(outputs)
             plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i])
             for j in range(num_image_show):
                 im=Image.fromarray(outputs[j])
