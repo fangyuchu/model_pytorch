@@ -141,7 +141,7 @@ def train(
 
     #define loss function and optimizer
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
-    optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,#weight_decay=weight_decay
+    optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,weight_decay=weight_decay,nesterov=True
                           )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
 
     #prepare the data
@@ -180,7 +180,7 @@ def train(
         model_saved_at=checkpoint_path+'/global_step='+str(global_step)+'.pth'
         print('load model from'+model_saved_at)
         net.load_state_dict(torch.load(model_saved_at))
-    else:
+    elif pretrained is True:
         print('{} test the model'.format(datetime.now()))                      #no previous checkpoint
         evaluate_model(net,validation_loader,save_model=False)
 
@@ -293,5 +293,5 @@ def pixel_transform(feature_maps):
 
 
 if __name__ == "__main__":
-    train(model_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
+    train(model_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40)
 
