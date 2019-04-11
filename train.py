@@ -25,24 +25,24 @@ def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def evaluate_model(net,
+def evaluate_net(net,
                    data_loader,
-                   save_model,
+                   save_net,
                    checkpoint_path=None,
                    highest_accuracy_path=None,
                    global_step_path=None,
                    global_step=0,
                    ):
     '''
-    :param net: model of NN
+    :param net: net of NN
     :param data_loader: data loader of test set
-    :param save_model: Boolean. Whether or not to save the model.
+    :param save_net: Boolean. Whether or not to save the net.
     :param checkpoint_path: 
     :param highest_accuracy_path: 
     :param global_step_path: 
-    :param global_step: global step of the current trained model
+    :param global_step: global step of the current trained net
     '''
-    if save_model:
+    if save_net:
         if checkpoint_path is None :
             raise AttributeError('please input checkpoint path')
         if highest_accuracy_path is None :
@@ -75,12 +75,12 @@ def evaluate_model(net,
         correct = float(correct.cpu().numpy().tolist())
         accuracy = correct / total
         print("{} Accuracy = {:.4f}".format(datetime.now(), accuracy))
-        if save_model and accuracy > highest_accuracy:
+        if save_net and accuracy > highest_accuracy:
             highest_accuracy = accuracy
-            # save model
-            print("{} Saving model...".format(datetime.now()))
+            # save net
+            print("{} Saving net...".format(datetime.now()))
             torch.save(net.state_dict(), '%s/global_step=%d.pth' % (checkpoint_path, global_step))
-            print("{} Model saved ".format(datetime.now()))
+            print("{} net saved ".format(datetime.now()))
             # save highest accuracy
             f = open(highest_accuracy_path, 'w')
             f.write(str(highest_accuracy))
@@ -88,7 +88,7 @@ def evaluate_model(net,
             # save global step
             f = open(global_step_path, 'w')
             f.write(str(global_step))
-            print("{} model saved at global step = {}".format(datetime.now(), global_step))
+            print("{} net saved at global step = {}".format(datetime.now(), global_step))
             f.close()
 
 def create_data_loader(
@@ -109,9 +109,21 @@ def create_data_loader(
     data_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     return data_loader
 
+def create_net(net_name,pretrained):
+    temp = re.search(r'(\d+)', net_name).span()[0]
+    net = net_name[:temp]  # name of the net.ex: vgg,resnet...
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # define the net
+    net = getattr(globals()[net], net_name)(pretrained=pretrained).to(device)
+    return net
+    
+    
+
 def train(
-                    model_name,
-                    pretrained=False,
+                    net,
+                    net_name,
                     dataset_name='imagenet',
                     learning_rate=conf.learning_rate,
                     num_epochs=conf.num_epochs,
@@ -130,14 +142,10 @@ def train(
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ',end='')
-    print(torch.cuda.get_device_name(torch.cuda.current_device()))
-
-
-    temp=re.search(r'(\d+)',model_name).span()[0]
-    model=model_name[:temp]                                                     #name of the model.ex: vgg,resnet...
-    del temp
-    #define the model
-    net=getattr(globals()[model],model_name)(pretrained=pretrained).to(device)
+    if torch.cuda.is_available():
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))
+    else:
+        print(device)
 
     #define loss function and optimizer
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
@@ -156,11 +164,11 @@ def train(
     validation_loader=create_data_loader(validation_set_path,default_image_size,mean,std,batch_size,num_workers)
 
     if checkpoint_path is None:
-        checkpoint_path=conf.root_path+model_name+'/checkpoint'
+        checkpoint_path=conf.root_path+net_name+'/checkpoint'
     if highest_accuracy_path is None:
-        highest_accuracy_path=conf.root_path+model_name+'/highest_accuracy.txt'
+        highest_accuracy_path=conf.root_path+net_name+'/highest_accuracy.txt'
     if global_step_path is None:
-        global_step_path=conf.root_path+model_name+'/global_step.txt'
+        global_step_path=conf.root_path+net_name+'/global_step.txt'
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path,exist_ok=True)
 
@@ -177,24 +185,24 @@ def train(
         global_step = int(f.read())
         f.close()
         print('global_step at present is %d' % global_step)
-        model_saved_at=checkpoint_path+'/global_step='+str(global_step)+'.pth'
-        print('load model from'+model_saved_at)
-        net.load_state_dict(torch.load(model_saved_at))
+        net_saved_at=checkpoint_path+'/global_step='+str(global_step)+'.pth'
+        print('load net from'+net_saved_at)
+        net.load_state_dict(torch.load(net_saved_at))
     else:
-        print('{} test the model'.format(datetime.now()))                      #no previous checkpoint
-        evaluate_model(net,validation_loader,save_model=False)
+        print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
+        evaluate_net(net,validation_loader,save_net=False)
 
     step_one_epoch=math.ceil(train_set_size / batch_size)
 
-    print("{} Start training ".format(datetime.now())+model_name+"...")
+    print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(global_step*batch_size/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
             if global_step / step_one_epoch==epoch+1:               #one epoch of training finished
-                evaluate_model(net,validation_loader,
-                               save_model=True,
+                evaluate_net(net,validation_loader,
+                               save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
                                global_step_path=global_step_path,
@@ -219,8 +227,8 @@ def train(
             global_step += 1
 
             if step % checkpoint_step == 0 and step != 0:
-                evaluate_model(net,validation_loader,
-                               save_model=True,
+                evaluate_net(net,validation_loader,
+                               save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
                                global_step_path=global_step_path,
@@ -229,14 +237,14 @@ def train(
 
 
 def show_feature_map(
-                    model,
+                    net,
                     data_loader,
                     layer_indexes,
                     num_image_show=36
                      ):
     '''
     show the feature converted feature maps of a cnn
-    :param model: full network model
+    :param net: full network net
     :param data_loader: data_loader to load data
     :param layer_indexes: list of indexes of conv layer whose feature maps will be extracted and showed
     :param num_image_show: number of feature maps showed in one conv_layer. Supposed to be a square number
@@ -244,27 +252,27 @@ def show_feature_map(
     '''
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    sub_model=[]
+    sub_net=[]
     conv_index = 0
     ind_in_features=-1
     j=0
-    for mod in model.features:
+    for mod in net.features:
         ind_in_features+=1
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             conv_index+=1
             if conv_index in layer_indexes:
-                sub_model.append(nn.Sequential(*list(model.children())[0][:ind_in_features+1]))
+                sub_net.append(nn.Sequential(*list(net.children())[0][:ind_in_features+1]))
                 j+=1
     
-    #sub_model = nn.Sequential(*list(model.children())[0][:conv_index+1])
+    #sub_net = nn.Sequential(*list(net.children())[0][:conv_index+1])
     for step, data in enumerate(data_loader, 0):
         # 准备数据
         images, labels = data
         images, labels = images.to(device), labels.to(device)
         for i in range(len(layer_indexes)):
             # forward
-            sub_model[i].eval()
-            outputs = sub_model[i](images)
+            sub_net[i].eval()
+            outputs = sub_net[i](images)
             outputs=outputs.detach().numpy()
             outputs=outputs[0,:num_image_show,:,:]
             outputs=pixel_transform(outputs)
@@ -291,7 +299,43 @@ def pixel_transform(feature_maps):
     feature_maps = ratio * (feature_maps - mean) + mean  # 把像素划入0-255
     return feature_maps
 
+def start_train(    net_name,
+                    pretrained=False,
+                    dataset_name='imagenet',
+                    learning_rate=conf.learning_rate,
+                    num_epochs=conf.num_epochs,
+                    batch_size=conf.batch_size,
+                    checkpoint_step=conf.checkpoint_step,
+                    checkpoint_path=None,
+                    highest_accuracy_path=None,
+                    global_step_path=None,
+                    default_image_size=224,
+                    momentum=conf.momentum,
+                    num_workers=conf.num_workers,
+                    learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                    weight_decay=conf.weight_decay
+                    ):
+    net=create_net(net_name,pretrained)
+    train(net=net,
+          net_name=net_name,
+          dataset_name=dataset_name,
+          learning_rate=learning_rate,
+          num_epochs=num_epochs,
+          batch_size=batch_size,
+          checkpoint_step=checkpoint_step,
+          checkpoint_path=checkpoint_path,
+          highest_accuracy_path=highest_accuracy_path,
+          global_step_path=global_step_path,
+          default_image_size=default_image_size,
+          momentum=momentum,
+          num_workers=num_workers,
+          learning_rate_decay_factor=learning_rate_decay_factor,
+          weight_decay=weight_decay)
 
 if __name__ == "__main__":
-    train(model_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
+    #train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
+    start_train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
+    net=vgg.vgg16_bn(pretrained=True)
+    data_loader=create_data_loader('/home/victorfang/Desktop/imagenet_validation_part',224,conf.imagenet['mean'],conf.imagenet['std'],1,1)
+    show_feature_map(net,data_loader,[2,5,10])
 
