@@ -13,6 +13,7 @@ import re
 import math
 from PIL import Image
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA           #加载PCA算法包
 
 
 
@@ -240,7 +241,7 @@ def show_feature_map(
                     net,
                     data_loader,
                     layer_indexes,
-                    num_image_show=36
+                    num_image_show=64
                      ):
     '''
     show the feature converted feature maps of a cnn
@@ -276,6 +277,23 @@ def show_feature_map(
             outputs=outputs.detach().numpy()
             outputs=outputs[0,:num_image_show,:,:]
             outputs=pixel_transform(outputs)
+
+            #using pca to reduce the num of channels
+            image_dim_reduced=np.swapaxes(np.swapaxes(outputs,0,1),1,2)
+            shape=image_dim_reduced.shape
+            image_dim_reduced=np.resize(image_dim_reduced,(shape[0]*shape[1],shape[2]))
+            pca = PCA(n_components=32)#int(image_dim_reduced.shape[1]*0.5))  # 加载PCA算法，设置降维后主成分数目为2
+            image_dim_reduced = pca.fit_transform(image_dim_reduced)  # 对样本进行降维
+            image_dim_reduced=np.resize(image_dim_reduced,(shape[0],shape[1],image_dim_reduced.shape[1]))
+            image_dim_reduced = np.swapaxes(np.swapaxes(image_dim_reduced, 1, 2), 0, 1)
+            image_dim_reduced=pixel_transform(image_dim_reduced)
+            plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i]+100)
+            for j in range(32):
+                im=Image.fromarray(image_dim_reduced[j])
+                plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),j+1)
+                plt.imshow(im,cmap='Greys_r')
+
+
             plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i])
             for j in range(num_image_show):
                 im=Image.fromarray(outputs[j])
@@ -334,8 +352,8 @@ def start_train(    net_name,
 
 if __name__ == "__main__":
     #train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
-    start_train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
+    #start_train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
     net=vgg.vgg16_bn(pretrained=True)
     data_loader=create_data_loader('/home/victorfang/Desktop/imagenet_validation_part',224,conf.imagenet['mean'],conf.imagenet['std'],1,1)
-    show_feature_map(net,data_loader,[2,5,10])
+    show_feature_map(net,data_loader,[2,4,8])
 

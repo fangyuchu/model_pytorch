@@ -10,36 +10,17 @@ from datetime import datetime
 from prune import select_and_prune_filter
 import numpy as np
 import config as conf
+from sklearn.decomposition import PCA           #加载PCA算法包
 
-print("{} Start validation".format(datetime.now()))
-                print("{} global step = {}".format(datetime.now(), global_step))
-                with torch.no_grad():
-                    correct = 0
-                    total = 0
-                    for val_data in validation_loader:
-                        net.eval()
-                        images, labels = val_data
-                        images, labels = images.to(device), labels.to(device)
-                        outputs = net(images)
-                        # 取得分最高的那个类 (outputs.data的索引号)
-                        _, predicted = torch.max(outputs.data, 1)
-                        total += labels.size(0)
-                        correct += (predicted == labels).sum()
-                    correct = float(correct.cpu().numpy().tolist())
-                    accuracy = correct / total
-                    print("{} Validation Accuracy = {:.4f}".format(datetime.now(), accuracy))
-                    if accuracy>highest_accuracy:
-                        highest_accuracy=accuracy
-                        #save model
-                        print("{} Saving model...".format(datetime.now()))
-                        torch.save(net.state_dict(), '%s/global_step=%d.pth' % (checkpoint_path, global_step))
-                        print("{} Model saved ".format(datetime.now()))
-                        #save highest accuracy
-                        f = open(highest_accuracy_path, 'w')
-                        f.write(str(highest_accuracy))
-                        f.close()
-                        #save global step
-                        f=open(global_step_path,'w')
-                        f.write(str(global_step))
-                        print("{} model saved at global step = {}".format(datetime.now(), global_step))
-                        f.close()
+
+a=np.array([[[[1,2,3],[4,5,6],[7,8,9]],[[10,11,12],[13,14,15],[16,17,18]],[[19,20,21],[22,23,24],[25,26,27]],[[28,29,30],[31,32,33],[34,35,36]]]])
+b=np.swapaxes(a[0],0,1)
+c=np.swapaxes(b,1,2)
+d=np.resize(c,(9,4))
+pca=PCA(n_components=2)     #加载PCA算法，设置降维后主成分数目为2
+e=pca.fit_transform(d)#对样本进行降维
+f=np.resize(e,(3,3,2))
+g=np.swapaxes(f,1,2)
+h=np.swapaxes(g,0,1)
+
+print(h)
