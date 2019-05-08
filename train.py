@@ -352,7 +352,7 @@ def start_train(    net_name,
 
 if __name__ == "__main__":
     #train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
-    #start_train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
+    start_train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
     net=vgg.vgg16_bn(pretrained=True)
     data_loader=create_data_loader('/home/victorfang/Desktop/imagenet_validation_part',224,conf.imagenet['mean'],conf.imagenet['std'],1,1)
     show_feature_map(net,data_loader,[2,4,8])

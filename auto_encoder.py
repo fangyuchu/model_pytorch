@@ -4,6 +4,10 @@ import torch.utils.data as Data
 import torchvision
 from torch.autograd import Variable
 import numpy as np
+from datetime import datetime
+import vgg
+from train import create_net
+
 
 # 超参数
 EPOCH = 10
@@ -13,12 +17,12 @@ DOWNLOAD_MNIST = False
 N_TEST_IMG = 5
 
 # 下载MNIST数据
-train_data = torchvision.datasets.MNIST(
-    root='./mnist/',
-    train=True,
-    transform=torchvision.transforms.ToTensor(),
-    download=DOWNLOAD_MNIST,
-)
+# train_data = torchvision.datasets.MNIST(
+#     root='./mnist/',
+#     train=True,
+#     transform=torchvision.transforms.ToTensor(),
+#     download=DOWNLOAD_MNIST,
+# )
 
 # 输出一个样本
 # print(train_data.train_data.size())
@@ -28,7 +32,7 @@ train_data = torchvision.datasets.MNIST(
 # plt.show()
 
 # Dataloader
-train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True)
+#train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True)
 
 
 class AutoEncoder(nn.Module):
@@ -63,39 +67,60 @@ class AutoEncoder(nn.Module):
         return encoded, decoded
 
 
-autoencoder = AutoEncoder()
-optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LR)
-loss_func = nn.MSELoss()
+def train(x,y):
+    auto_encoder = AutoEncoder()
+    optimizer = torch.optim.Adam(auto_encoder.parameters(), lr=LR)
+    loss_func = nn.MSELoss()
 
 
 
-# original data (first row) for viewing
-view_data = train_data.train_data[:N_TEST_IMG].view(-1, 28 * 28).type(torch.FloatTensor) / 255.
 
 
-for epoch in range(EPOCH):
-    for step, (x, y) in enumerate(train_loader):
-        b_x = Variable(x.view(-1, 28 * 28))
-        b_y = Variable(x.view(-1, 28 * 28))
-        b_label = Variable(y)
 
-        encoded, decoded = autoencoder(b_x)
+    # for epoch in range(EPOCH):
+    #     for step, (x, y) in enumerate(train_loader):
+    #
+    #         encoded, decoded = auto_encoder(x)
+    #
+    #         loss = loss_func(decoded, y)
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         optimizer.step()
+    #         print("{}loss is:{}".format(datetime.now(),loss))
+    #
+    #         if step % 100 == 0:
+    #             print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy())
+    #
+    #             # plotting decoded image (second row)
 
-        loss = loss_func(decoded, b_y)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        if step % 100 == 0:
-            print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy())
-
-            # plotting decoded image (second row)
-            _, decoded_data = autoencoder(Variable(view_data))
-            #for i in range(N_TEST_IMG):
+                #for i in range(N_TEST_IMG):
 
           
 
+model_urls = [
 
+    'vgg11',
+    'vgg13',
+    'vgg16',
+    'vgg19',
+    'vgg11_bn',
+    'vgg13_bn',
+    'vgg16_bn',
+    'vgg19_bn'
+]
 
+root='/home/victorfang/PycharmProjects/model_pytorch/data/model_params/'
 
+def download_weight():
+    for net_name in model_urls:
+        net=create_net(net_name,pretrained=True)
+        for i in range(len(net.features)):
+            mod=net.features[i]
+            if isinstance(mod, torch.nn.modules.conv.Conv2d):
+                weight=mod.weight.data.cpu().numpy()
+                np.save(root+'weight/'+net_name+','+str(i),weight)
+                bias=mod.bias.data.cpu().numpy()
+                np.save(root+'bias/'+net_name+','+str(i),bias)
 
+if __name__ == "__main__":
+    download_weight()
