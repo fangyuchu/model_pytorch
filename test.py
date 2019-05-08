@@ -1,26 +1,21 @@
+import pretrainedmodels
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-import resnet
-import vgg
-import os
-from datetime import datetime
-from prune import select_and_prune_filter
-import numpy as np
+import train
 import config as conf
-from sklearn.decomposition import PCA           #加载PCA算法包
+print(pretrainedmodels.model_names)
+model_name = 'vgg16_bn' # could be fbresnet152 or inceptionresnetv2
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-a=np.array([[[[1,2,3],[4,5,6],[7,8,9]],[[10,11,12],[13,14,15],[16,17,18]],[[19,20,21],[22,23,24],[25,26,27]],[[28,29,30],[31,32,33],[34,35,36]]]])
-b=np.swapaxes(a[0],0,1)
-c=np.swapaxes(b,1,2)
-d=np.resize(c,(9,4))
-pca=PCA(n_components=2)     #加载PCA算法，设置降维后主成分数目为2
-e=pca.fit_transform(d)#对样本进行降维
-f=np.resize(e,(3,3,2))
-g=np.swapaxes(f,1,2)
-h=np.swapaxes(g,0,1)
+model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet').to(device)
+model.eval()
 
-print(h)
+mean = conf.imagenet['mean']
+std = conf.imagenet['std']
+train_set_path = conf.imagenet['train_set_path']
+train_set_size = conf.imagenet['train_set_size']
+#validation_set_path = conf.imagenet['validation_set_path']
+validation_set_path='/home/victorfang/Desktop/imagenet_validation_part'
+
+validation_loader=train.create_data_loader(validation_set_path,224,mean,std,conf.batch_size,conf.num_workers)
+train.evaluate_net(model,validation_loader,save_net=False)

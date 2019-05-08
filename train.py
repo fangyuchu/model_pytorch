@@ -26,7 +26,7 @@ def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def evaluate_net(net,
+def evaluate_net(  net,
                    data_loader,
                    save_net,
                    checkpoint_path=None,
