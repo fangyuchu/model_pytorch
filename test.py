@@ -7,7 +7,7 @@ import torchvision.transforms as transforms
 
 
 print(pretrainedmodels.model_names)
-model_name = 'vgg16_bn' # could be fbresnet152 or inceptionresnetv2
+model_name = 'alexnet' # could be fbresnet152 or inceptionresnetv2
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
