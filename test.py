@@ -2,6 +2,10 @@ import pretrainedmodels
 import torch
 import train
 import config as conf
+import torchvision.datasets as datasets
+import torchvision.transforms as transforms
+
+
 print(pretrainedmodels.model_names)
 model_name = 'vgg16_bn' # could be fbresnet152 or inceptionresnetv2
 
@@ -17,5 +21,16 @@ train_set_size = conf.imagenet['train_set_size']
 #validation_set_path = conf.imagenet['validation_set_path']
 validation_set_path='/home/victorfang/Desktop/imagenet_validation_part'
 
-validation_loader=train.create_data_loader(validation_set_path,224,mean,std,conf.batch_size,conf.num_workers)
+#validation_loader=train.create_data_loader(validation_set_path,224,mean,std,conf.batch_size,conf.num_workers)
+
+validation_loader = torch.utils.data.DataLoader(
+    datasets.ImageFolder(validation_set_path, transforms.Compose([
+        transforms.CenterCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std),
+    ])),
+    batch_size=conf.batch_size, shuffle=True,
+    num_workers=conf.num_workers, pin_memory=True)
+
 train.evaluate_net(model,validation_loader,save_net=False)
