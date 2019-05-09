@@ -14,6 +14,8 @@ import math
 from PIL import Image
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA           #加载PCA算法包
+import evaluate
+import data_loader
 
 
 
@@ -26,89 +28,11 @@ def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def evaluate_net(  net,
-                   data_loader,
-                   save_net,
-                   checkpoint_path=None,
-                   highest_accuracy_path=None,
-                   global_step_path=None,
-                   global_step=0,
-                   ):
-    '''
-    :param net: net of NN
-    :param data_loader: data loader of test set
-    :param save_net: Boolean. Whether or not to save the net.
-    :param checkpoint_path: 
-    :param highest_accuracy_path: 
-    :param global_step_path: 
-    :param global_step: global step of the current trained net
-    '''
-    if save_net:
-        if checkpoint_path is None :
-            raise AttributeError('please input checkpoint path')
-        if highest_accuracy_path is None :
-            raise AttributeError('please input highest_accuracy path')
-        if global_step_path is None :
-            raise AttributeError('please input global_step path')
-        if os.path.exists(highest_accuracy_path):
-            f = open(highest_accuracy_path, 'r')
-            highest_accuracy = float(f.read())
-            f.close()
-        else:
-            highest_accuracy=0
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    print("{} Start Evaluation".format(datetime.now()))
-    print("{} global step = {}".format(datetime.now(), global_step))
-    with torch.no_grad():
-        correct = 0
-        total = 0
-        for val_data in data_loader:
-            net.eval()
-            images, labels = val_data
-            images, labels = images.to(device), labels.to(device)
-            outputs = net(images)
-            # 取得分最高的那个类 (outputs.data的索引号)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum()
-        correct = float(correct.cpu().numpy().tolist())
-        accuracy = correct / total
-        print("{} Accuracy = {:.4f}".format(datetime.now(), accuracy))
-        if save_net and accuracy > highest_accuracy:
-            highest_accuracy = accuracy
-            # save net
-            print("{} Saving net...".format(datetime.now()))
-            torch.save(net.state_dict(), '%s/global_step=%d.pth' % (checkpoint_path, global_step))
-            print("{} net saved ".format(datetime.now()))
-            # save highest accuracy
-            f = open(highest_accuracy_path, 'w')
-            f.write(str(highest_accuracy))
-            f.close()
-            # save global step
-            f = open(global_step_path, 'w')
-            f.write(str(global_step))
-            print("{} net saved at global step = {}".format(datetime.now(), global_step))
-            f.close()
 
-def create_data_loader(
-                    dataset_path,
-                    default_image_size,
-                    mean,
-                    std,
-                    batch_size,
-                    num_workers,
-                    ):
-    transform = transforms.Compose([
-        transforms.RandomResizedCrop(default_image_size),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std),
-    ])
-    folder = datasets.ImageFolder(dataset_path, transform)
-    data_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    return data_loader
+
+
 
 def create_net(net_name,pretrained):
     temp = re.search(r'(\d+)', net_name).span()[0]
@@ -120,7 +44,7 @@ def create_net(net_name,pretrained):
     net = getattr(globals()[net], net_name)(pretrained=pretrained).to(device)
     return net
     
-    
+
 
 def train(
                     net,
@@ -161,8 +85,8 @@ def train(
         train_set_size=conf.imagenet['train_set_size']
         validation_set_path=conf.imagenet['validation_set_path']
 
-    train_loader=create_data_loader(train_set_path,default_image_size,mean,std,batch_size,num_workers)
-    validation_loader=create_data_loader(validation_set_path,default_image_size,mean,std,batch_size,num_workers)
+    train_loader=data_loader.create_train_loader(train_set_path,default_image_size,mean,std,batch_size,num_workers)
+    validation_loader=data_loader.create_validation_loader(validation_set_path,default_image_size,mean,std,batch_size,num_workers)
 
     if checkpoint_path is None:
         checkpoint_path=conf.root_path+net_name+'/checkpoint'
@@ -191,7 +115,7 @@ def train(
         net.load_state_dict(torch.load(net_saved_at))
     else:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
-        evaluate_net(net,validation_loader,save_net=False)
+        evaluate.evaluate_net(net,validation_loader,save_net=False)
 
     step_one_epoch=math.ceil(train_set_size / batch_size)
 
@@ -202,7 +126,7 @@ def train(
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
             if global_step / step_one_epoch==epoch+1:               #one epoch of training finished
-                evaluate_net(net,validation_loader,
+                evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
@@ -228,7 +152,7 @@ def train(
             global_step += 1
 
             if step % checkpoint_step == 0 and step != 0:
-                evaluate_net(net,validation_loader,
+                evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
@@ -353,7 +277,8 @@ def start_train(    net_name,
 if __name__ == "__main__":
     #train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
     #start_train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
-    net=vgg.vgg16_bn(pretrained=True)
-    data_loader=create_data_loader('/home/victorfang/Desktop/imagenet_validation_part',224,conf.imagenet['mean'],conf.imagenet['std'],1,1)
+    net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',224,conf.imagenet['mean'],conf.imagenet['std'],1,1)
+    evaluate.evaluate_net(net,data_loader,False)
     show_feature_map(net,data_loader,[2,4,8])
 
