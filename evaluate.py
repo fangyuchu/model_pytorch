@@ -34,7 +34,7 @@ def validate(val_loader, model):
             end = time.time()
 
 
-        print(' {} Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+        print(' {} Acc@1 {top1.avg:} Acc@5 {top5.avg:}'
               .format(datetime.now(),top1=top1, top5=top5))
 
         return top1.avg, top5.avg
@@ -51,7 +51,7 @@ def accuracy(output, target, topk=(1,)):
     res = []
     for k in topk:
         correct_k = correct[:k].view(-1).float().sum(0)
-        res.append(correct_k.mul_(1 / batch_size))                  #each item is one k_accuracy 
+        res.append(correct_k.mul_(1 / batch_size))                  #each item is one k_accuracy
     return res
 
 
