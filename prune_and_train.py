@@ -11,72 +11,12 @@ import os
 import re
 from datetime import datetime
 from prune import select_and_prune_filter
+import train
+import evaluate
 
-def evaluate_model(net,
-                   data_loader,
-                   save_model,
-                   checkpoint_path=None,
-                   highest_accuracy_path=None,
-                   global_step_path=None,
-                   global_step=0,
-                   ):
-    '''
-    :param net: model of NN
-    :param data_loader: data loader of test set
-    :param save_model: Boolean. Whether or not to save the model.
-    :param checkpoint_path: 
-    :param highest_accuracy_path: 
-    :param global_step_path: 
-    :param global_step: global step of the current trained model
-    '''
-    if save_model:
-        if checkpoint_path is None :
-            raise AttributeError('please input checkpoint path')
-        if highest_accuracy_path is None :
-            raise AttributeError('please input highest_accuracy path')
-        if global_step_path is None :
-            raise AttributeError('please input global_step path')
-        if os.path.exists(highest_accuracy_path):
-            f = open(highest_accuracy_path, 'r')
-            highest_accuracy = float(f.read())
-            f.close()
-        else:
-            highest_accuracy=0
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#todo:太老了，有时间改吧
 
-    print("{} Start Evaluation".format(datetime.now()))
-    print("{} global step = {}".format(datetime.now(), global_step))
-    with torch.no_grad():
-        correct = 0
-        total = 0
-        for val_data in data_loader:
-            net.eval()
-            images, labels = val_data
-            images, labels = images.to(device), labels.to(device)
-            outputs = net(images)
-            # 取得分最高的那个类 (outputs.data的索引号)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum()
-        correct = float(correct.cpu().numpy().tolist())
-        accuracy = correct / total
-        print("{} Accuracy = {:.4f}".format(datetime.now(), accuracy))
-        if save_model and accuracy > highest_accuracy:
-            highest_accuracy = accuracy
-            # save model
-            print("{} Saving model...".format(datetime.now()))
-            torch.save(net.state_dict(), '%s/global_step=%d.pth' % (checkpoint_path, global_step))
-            print("{} Model saved ".format(datetime.now()))
-            # save highest accuracy
-            f = open(highest_accuracy_path, 'w')
-            f.write(str(highest_accuracy))
-            f.close()
-            # save global step
-            f = open(global_step_path, 'w')
-            f.write(str(global_step))
-            print("{} model saved at global step = {}".format(datetime.now(), global_step))
-            f.close()
 
 def prune_and_train(
                     model_name,
@@ -167,7 +107,7 @@ def prune_and_train(
         net.load_state_dict(torch.load(model_saved_at))
     else:
         print('{} test the model after pruned'.format(datetime.now()))                      #no previous checkpoint
-        evaluate_model(net,validation_loader,save_model=False)
+        evaluate.evaluate_net(net,validation_loader,save_net=False)
     print("{} Start training ".format(datetime.now())+model_name+"...")
     for epoch in range(math.floor(global_step*batch_size/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
@@ -175,8 +115,8 @@ def prune_and_train(
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
             if global_step / math.ceil(train_set_size / batch_size)==epoch+1:               #one epoch of training finished
-                evaluate_model(net,validation_loader,
-                               save_model=True,
+                evaluate.evaluate_net(net,validation_loader,
+                               save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
                                global_step_path=global_step_path,
@@ -195,8 +135,8 @@ def prune_and_train(
             global_step += 1
 
             if step % checkpoint_step == 0 and step != 0:
-                evaluate_model(net,validation_loader,
-                               save_model=True,
+                evaluate.evaluate_net(net,validation_loader,
+                               save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
                                global_step_path=global_step_path,
@@ -205,9 +145,24 @@ def prune_and_train(
 
 
 if __name__ == "__main__":
-    prune_and_train(model_name='vgg16_bn',
-                    pretrained=True,
-                    checkpoint_step=5000,
-                    percent_of_pruning=0.9,
-                    num_epochs=20,
-                    learning_rate=0.005)
+    net=train.create_net('vgg16_bn',True)
+
+    num_conv = 0  # num of conv layers in the net
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+
+    for i in range(1, num_conv + 1):
+        net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.5,
+                                      ord=2)  # prune the model
+
+    train.train(net=net,
+                net_name='vgg16_bn,0.5 pruned',
+                num_epochs=40,
+                )
+    # prune_and_train(model_name='vgg16_bn',
+    #                 pretrained=True,
+    #                 checkpoint_step=5000,
+    #                 percent_of_pruning=0.9,
+    #                 num_epochs=20,
+    #                 learning_rate=0.005)

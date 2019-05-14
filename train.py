@@ -2,8 +2,6 @@ import config as conf
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
 import numpy as np
 import resnet
 import vgg
@@ -42,6 +40,11 @@ def create_net(net_name,pretrained):
 
     # define the net
     net = getattr(globals()[net], net_name)(pretrained=pretrained).to(device)
+    print('{} Net {} created,'.format(datetime.now(),net_name),end='')
+    if pretrained:
+        print('using pretrained weight.')
+    else:
+        print('initiate weight.')
     return net
     
 
@@ -60,6 +63,7 @@ def train(
                     default_image_size=224,
                     momentum=conf.momentum,
                     num_workers=conf.num_workers,
+                    learning_rate_decay=False,
                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
                     weight_decay=conf.weight_decay
                   ):
@@ -74,8 +78,9 @@ def train(
 
     #define loss function and optimizer
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
-    optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,#weight_decay=weight_decay
-                          )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
+    # optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,#weight_decay=weight_decay
+    #                       )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
+    optimizer=optim.Adam(net.parameters(),lr=learning_rate,weight_decay=weight_decay)
 
     #prepare the data
     if dataset_name is 'imagenet':
@@ -138,11 +143,12 @@ def train(
             images, labels = data
             images, labels = images.to(device), labels.to(device)
 
-            exponential_decay_learning_rate(optimizer=optimizer,
-                                            learning_rate=learning_rate,
-                                            global_step=global_step,
-                                            decay_steps=step_one_epoch*2,
-                                            learning_rate_decay_factor=learning_rate_decay_factor)
+            if learning_rate_decay:
+                exponential_decay_learning_rate(optimizer=optimizer,
+                                                learning_rate=learning_rate,
+                                                global_step=global_step,
+                                                decay_steps=step_one_epoch*2,
+                                                learning_rate_decay_factor=learning_rate_decay_factor)
             optimizer.zero_grad()
             # forward + backward
             outputs = net(images)
@@ -206,7 +212,7 @@ def show_feature_map(
             image_dim_reduced=np.swapaxes(np.swapaxes(outputs,0,1),1,2)
             shape=image_dim_reduced.shape
             image_dim_reduced=np.resize(image_dim_reduced,(shape[0]*shape[1],shape[2]))
-            pca = PCA(n_components=32)#int(image_dim_reduced.shape[1]*0.5))  # 加载PCA算法，设置降维后主成分数目为2
+            pca = PCA(n_components=32)#int(image_dim_reduced.shape[1]*0.5))  # 加载PCA算法，设置降维后主成分数目为32
             image_dim_reduced = pca.fit_transform(image_dim_reduced)  # 对样本进行降维
             image_dim_reduced=np.resize(image_dim_reduced,(shape[0],shape[1],image_dim_reduced.shape[1]))
             image_dim_reduced = np.swapaxes(np.swapaxes(image_dim_reduced, 1, 2), 0, 1)
@@ -241,38 +247,39 @@ def pixel_transform(feature_maps):
     feature_maps = ratio * (feature_maps - mean) + mean  # 把像素划入0-255
     return feature_maps
 
-def start_train(    net_name,
-                    pretrained=False,
-                    dataset_name='imagenet',
-                    learning_rate=conf.learning_rate,
-                    num_epochs=conf.num_epochs,
-                    batch_size=conf.batch_size,
-                    checkpoint_step=conf.checkpoint_step,
-                    checkpoint_path=None,
-                    highest_accuracy_path=None,
-                    global_step_path=None,
-                    default_image_size=224,
-                    momentum=conf.momentum,
-                    num_workers=conf.num_workers,
-                    learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                    weight_decay=conf.weight_decay
-                    ):
-    net=create_net(net_name,pretrained)
-    train(net=net,
-          net_name=net_name,
-          dataset_name=dataset_name,
-          learning_rate=learning_rate,
-          num_epochs=num_epochs,
-          batch_size=batch_size,
-          checkpoint_step=checkpoint_step,
-          checkpoint_path=checkpoint_path,
-          highest_accuracy_path=highest_accuracy_path,
-          global_step_path=global_step_path,
-          default_image_size=default_image_size,
-          momentum=momentum,
-          num_workers=num_workers,
-          learning_rate_decay_factor=learning_rate_decay_factor,
-          weight_decay=weight_decay)
+# def start_train(    net_name,
+#                     net,
+#                     pretrained=False,
+#                     dataset_name='imagenet',
+#                     learning_rate=conf.learning_rate,
+#                     num_epochs=conf.num_epochs,
+#                     batch_size=conf.batch_size,
+#                     checkpoint_step=conf.checkpoint_step,
+#                     checkpoint_path=None,
+#                     highest_accuracy_path=None,
+#                     global_step_path=None,
+#                     default_image_size=224,
+#                     momentum=conf.momentum,
+#                     num_workers=conf.num_workers,
+#                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
+#                     weight_decay=conf.weight_decay
+#                     ):
+#     #net=create_net(net_name,pretrained)
+#     train(net=net,
+#           net_name=net_name,
+#           dataset_name=dataset_name,
+#           learning_rate=learning_rate,
+#           num_epochs=num_epochs,
+#           batch_size=batch_size,
+#           checkpoint_step=checkpoint_step,
+#           checkpoint_path=checkpoint_path,
+#           highest_accuracy_path=highest_accuracy_path,
+#           global_step_path=global_step_path,
+#           default_image_size=default_image_size,
+#           momentum=momentum,
+#           num_workers=num_workers,
+#           learning_rate_decay_factor=learning_rate_decay_factor,
+#           weight_decay=weight_decay)
 
 if __name__ == "__main__":
     #train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)

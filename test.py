@@ -33,4 +33,4 @@ validation_loader = torch.utils.data.DataLoader(
     batch_size=conf.batch_size, shuffle=True,
     num_workers=conf.num_workers, pin_memory=True)
 
-train.evaluate_net(model,validation_loader,save_net=False)
+train.evaluate_net(model, validation_loader, save_net=False)

@@ -1,27 +1,14 @@
-import config as conf
 import torch
 import time
-import torch.nn as nn
-import torch.optim as optim
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-import numpy as np
-import resnet
-import vgg
 import os
 from datetime import datetime
-import re
-import math
-from PIL import Image
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA           #加载PCA算法包
+
 
 # def validate(val_loader, model, criterion):
 def validate(val_loader, model):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         batch_time = AverageMeter()
-        #losses = AverageMeter()
         top1 = AverageMeter()
         top5 = AverageMeter()
 
@@ -35,7 +22,6 @@ def validate(val_loader, model):
 
             # compute output
             output = model(input)
-            #loss = criterion(output, target)
 
             # measure accuracy and record loss
             prec1, prec5 = accuracy(output.data, target.data, topk=(1, 5))
@@ -47,14 +33,6 @@ def validate(val_loader, model):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            # if i % args.print_freq == 0:
-            #     print('Test: [{0}/{1}]\t'
-            #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-            #           'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-            #           'Acc@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-            #           'Acc@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-            #         i, len(val_loader), batch_time=batch_time, loss=losses,
-            #         top1=top1, top5=top5))
 
         print(' {} Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(datetime.now(),top1=top1, top5=top5))
@@ -111,21 +89,6 @@ def evaluate_net(  net,
 
     print("{} Start Evaluation".format(datetime.now()))
     print("{} global step = {}".format(datetime.now(), global_step))
-    # with torch.no_grad():
-    #     correct = 0
-    #     total = 0
-    #     for val_data in data_loader:
-    #         net.eval()
-    #         images, labels = val_data
-    #         images, labels = images.to(device), labels.to(device)
-    #         outputs = net(images)
-    #         # 取得分最高的那个类 (outputs.data的索引号)
-    #         _, predicted = torch.max(outputs.data, 1)
-    #         total += labels.size(0)
-    #         correct += (predicted == labels).sum()
-    #     correct = float(correct.cpu().numpy().tolist())
-    #     accuracy = correct / total
-    #     print("{} Accuracy = {:.4f}".format(datetime.now(), accuracy))
     accuracy,_=validate(data_loader,net,)
     if save_net and accuracy > highest_accuracy:
         highest_accuracy = accuracy
