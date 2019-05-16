@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA           #加载PCA算法包
 import evaluate
 import data_loader
-
+#todo:注意神经元死亡问题！！！！！！！！！！cs231n part1 26分钟！！！
 
 
 
@@ -26,7 +26,9 @@ def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-
+def checkReLUAlive():
+    #todo:填完！！！！！！
+    print()
 
 
 
