@@ -2,7 +2,27 @@ import torch
 import time
 import os
 from datetime import datetime
+import numpy as np
 
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 # def validate(val_loader, model, criterion):
 def validate(val_loader, model):
@@ -106,20 +126,55 @@ def evaluate_net(  net,
         print("{} net saved at global step = {}".format(datetime.now(), global_step))
         f.close()
 
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
+dead_rate=AverageMeter()
 
-    def __init__(self):
-        self.reset()
 
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
 
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
+def check_ReLU_alive(net, data_loader):
+    # todo:填完！！！！！！
+    handle = list()
+    global relu_list
+    global neural_list
+    relu_list=set()
+    neural_list=dict()
+
+    #register a hook for ReLU
+    for mod in net.modules():
+        if isinstance(mod, torch.nn.ReLU):
+            handle.append(mod.register_forward_hook(check_if_dead))
+
+    evaluate_net(net, data_loader, False)
+    check_dead_rate()
+
+    #close the hook
+    for h in handle:
+        h.remove()
+
+    del relu_list,neural_list
+
+
+def check_if_dead(module, input, output):
+    if module not in relu_list:
+        relu_list.add(module)
+        neural_list[module]=np.zeros(output.shape,dtype=np.int)
+
+    dead_pos=np.argwhere(output.cpu().numpy() == 0)                 #position of unactivated neural
+    for i in dead_pos:
+        neural_list[module][tuple(i.tolist())]+=1
+
+def check_dead_rate():
+    dead_num=0
+    neural_num=0
+    for (k,v) in neural_list.items():
+        dead_num+=np.sum(v>40000)                                   #neural unactivated for more than 40000 times
+        neural_num+=v.size
+    print(float(dead_num)/neural_num)
+
+
+
+    # for mod in relu_list:
+    #     if module==mod.module:
+    #         mod.update(dead_num)
+    #
+    # dead_rate.update(dead_num/output.numel(),output.numel())
+
