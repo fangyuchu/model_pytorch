@@ -37,6 +37,10 @@ def validate(val_loader, model):
 
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
+
+            print('{},{}'.format(datetime.now(),i))
+
+
             target = target.to(device)
             input = input.to(device)
 
@@ -131,7 +135,6 @@ dead_rate=AverageMeter()
 
 
 def check_ReLU_alive(net, data_loader):
-    # todo:填完！！！！！！
     handle = list()
     global relu_list
     global neural_list
@@ -157,8 +160,8 @@ def check_if_dead(module, input, output):
     if module not in relu_list:
         relu_list.add(module)
         neural_list[module]=np.zeros(output.shape,dtype=np.int)
-
     dead_pos=np.argwhere(output.cpu().numpy() == 0)                 #position of unactivated neural
+
     for i in dead_pos:
         neural_list[module][tuple(i.tolist())]+=1
 
