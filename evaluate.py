@@ -38,7 +38,8 @@ def validate(val_loader, model):
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
 
-            print('{},{}'.format(datetime.now(),i))
+            if i%100==0:
+                print('{},{}'.format(datetime.now(),i))
 
 
             target = target.to(device)
@@ -56,7 +57,6 @@ def validate(val_loader, model):
             # measure elapsed time
             batch_time.update(time.time() - end)
             end = time.time()
-
 
         print(' {} Acc@1 {top1.avg:} Acc@5 {top5.avg:}'
               .format(datetime.now(),top1=top1, top5=top5))
@@ -130,8 +130,6 @@ def evaluate_net(  net,
         print("{} net saved at global step = {}".format(datetime.now(), global_step))
         f.close()
 
-dead_rate=AverageMeter()
-
 
 
 def check_ReLU_alive(net, data_loader):
@@ -159,11 +157,15 @@ def check_ReLU_alive(net, data_loader):
 def check_if_dead(module, input, output):
     if module not in relu_list:
         relu_list.add(module)
-        neural_list[module]=np.zeros(output.shape,dtype=np.int)
-    dead_pos=np.argwhere(output.cpu().numpy() == 0)                 #position of unactivated neural
+        neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
 
-    for i in dead_pos:
-        neural_list[module][tuple(i.tolist())]+=1
+    # zero_matrix=output.cpu().numpy()
+
+    zero_matrix=np.zeros(output.shape,dtype=np.int)
+    zero_matrix[output.cpu().numpy()==0]=1
+    zero_matrix=np.sum(zero_matrix,axis=0)
+
+    neural_list[module]=neural_list[module]+zero_matrix
 
 def check_dead_rate():
     dead_num=0
@@ -171,7 +173,7 @@ def check_dead_rate():
     for (k,v) in neural_list.items():
         dead_num+=np.sum(v>40000)                                   #neural unactivated for more than 40000 times
         neural_num+=v.size
-    print(float(dead_num)/neural_num)
+    print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
 
 
 
