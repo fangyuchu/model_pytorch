@@ -26,6 +26,11 @@ imagenet['validation_set_size']=50000
 imagenet['train_set_path']='/home/victorfang/Desktop/imagenet所有数据/imagenet_train'
 imagenet['validation_set_path']='/home/victorfang/Desktop/imagenet所有数据/imagenet_validation'
 
+#cifar10
+cifar10=dict()
+cifar10['num_class']=10
+cifar10['train_set_size']=50000
+
 
 #model saving params
 #how often to write summary and checkpoint
@@ -35,5 +40,5 @@ checkpoint_step=4000
 root_path='/home/victorfang/Desktop/pytorch_model/'
 checkpoint_path = "_model_saved/checkpoints"
 highest_accuracy_path='_model_saved/accuracy.txt'
-global_step_path='_model_saved/global_step.txt'
+sample_num_path='_model_saved/sample_num.txt'
 epoch_path='_model_saved/epoch.txt'

@@ -28,7 +28,7 @@ def prune_and_train(
                     checkpoint_step=conf.checkpoint_step,
                     checkpoint_path=None,
                     highest_accuracy_path=None,
-                    global_step_path=None,
+                    sample_num_path=None,
                     default_image_size=224,
                     momentum=conf.momentum,
                     num_workers=conf.num_workers,
@@ -84,8 +84,8 @@ def prune_and_train(
         checkpoint_path=conf.root_path+model_name+','+str(percent_of_pruning)+'pruned'+'/checkpoint'
     if highest_accuracy_path is None:
         highest_accuracy_path=conf.root_path+model_name+','+str(percent_of_pruning)+'pruned'+'/highest_accuracy.txt'
-    if global_step_path is None:
-        global_step_path=conf.root_path+model_name+','+str(percent_of_pruning)+'pruned'+'/global_step.txt'
+    if sample_num_path is None:
+        sample_num_path=conf.root_path+model_name+','+str(percent_of_pruning)+'pruned'+'/sample_num.txt'
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path,exist_ok=True)
 
@@ -96,31 +96,31 @@ def prune_and_train(
         print('highest accuracy from previous training is %f' % highest_accuracy)
         del highest_accuracy
 
-    global_step=0
-    if os.path.exists(global_step_path):
-        f = open(global_step_path, 'r')
-        global_step = int(f.read())
+    sample_num=0
+    if os.path.exists(sample_num_path):
+        f = open(sample_num_path, 'r')
+        sample_num = int(f.read())
         f.close()
-        print('global_step at present is %d' % global_step)
-        model_saved_at=checkpoint_path+'/global_step='+str(global_step)+'.pth'
+        print('sample_num at present is %d' % sample_num)
+        model_saved_at=checkpoint_path+'/sample_num='+str(sample_num)+'.pth'
         print('load model from'+model_saved_at)
         net.load_state_dict(torch.load(model_saved_at))
     else:
         print('{} test the model after pruned'.format(datetime.now()))                      #no previous checkpoint
         evaluate.evaluate_net(net,validation_loader,save_net=False)
     print("{} Start training ".format(datetime.now())+model_name+"...")
-    for epoch in range(math.floor(global_step*batch_size/train_set_size),num_epochs):
+    for epoch in range(math.floor(sample_num*batch_size/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
-            if global_step / math.ceil(train_set_size / batch_size)==epoch+1:               #one epoch of training finished
+            if sample_num / math.ceil(train_set_size / batch_size)==epoch+1:               #one epoch of training finished
                 evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
-                               global_step_path=global_step_path,
-                               global_step=global_step)
+                               sample_num_path=sample_num_path,
+                               sample_num=sample_num)
                 break
 
             # 准备数据
@@ -132,15 +132,15 @@ def prune_and_train(
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            global_step += 1
+            sample_num += 1
 
             if step % checkpoint_step == 0 and step != 0:
                 evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
-                               global_step_path=global_step_path,
-                               global_step=global_step)
+                               sample_num_path=sample_num_path,
+                               sample_num=sample_num)
                 print('{} continue training'.format(datetime.now()))
 
 

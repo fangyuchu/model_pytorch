@@ -17,8 +17,15 @@ net.classifier=nn.Sequential(
             nn.ReLU(True),
             nn.Linear(512, 10),
         )
+for m in net.modules():
+    if isinstance(m, nn.Linear):
+        nn.init.normal_(m.weight, 0, 0.01)
+        nn.init.constant_(m.bias, 0)
+
+net=net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
+batch_size=128
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 train_loader = torch.utils.data.DataLoader(
@@ -28,25 +35,25 @@ train_loader = torch.utils.data.DataLoader(
         transforms.ToTensor(),
         normalize,
     ]), download=True),
-    batch_size=32, shuffle=True,
-    num_workers=2, pin_memory=True)
+    batch_size=batch_size, shuffle=True,
+    num_workers=6, pin_memory=True)
 val_loader = torch.utils.data.DataLoader(
     datasets.CIFAR10(root='./data', train=False, transform=transforms.Compose([
         transforms.ToTensor(),
         normalize,
     ])),
-    batch_size=33, shuffle=False,
-    num_workers=2, pin_memory=True)
+    batch_size=batch_size, shuffle=False,
+    num_workers=6, pin_memory=True)
 
 train.train(net,
             'vgg16_bn_on_cifar-10',
-            'cifar-10',
+            'cifar10',
             train_loader=train_loader,
             validation_loader=val_loader,
-            learning_rate=0.001,
-            num_epochs=350,
-            batch_size=64,
-            checkpoint_step=1000,
+            learning_rate=0.0002,
+            num_epochs=1000,
+            batch_size=batch_size,
+            checkpoint_step=800,
             root_path='./model/',
             num_workers=8,
             )

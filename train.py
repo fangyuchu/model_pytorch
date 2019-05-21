@@ -17,10 +17,10 @@ import data_loader
 
 
 
-def exponential_decay_learning_rate(optimizer, learning_rate, global_step, decay_steps,learning_rate_decay_factor):
+def exponential_decay_learning_rate(optimizer, learning_rate, sample_num, decay_steps,learning_rate_decay_factor):
     """Sets the learning rate to the initial LR decayed by learning_rate_decay_factor every decay_steps"""
-    lr = learning_rate *learning_rate_decay_factor ** int(global_step / decay_steps)
-    if global_step%decay_steps==0:
+    lr = learning_rate *learning_rate_decay_factor ** int(sample_num / decay_steps)
+    if sample_num%decay_steps==0:
         print('{} learning rate at present is {}'.format(datetime.now(),lr))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
@@ -59,7 +59,7 @@ def train(
                     root_path=conf.root_path,
                     checkpoint_path=None,
                     highest_accuracy_path=None,
-                    global_step_path=None,
+                    sample_num_path=None,
                     default_image_size=224,
                     momentum=conf.momentum,
                     num_workers=conf.num_workers,
@@ -90,6 +90,8 @@ def train(
         train_set_path=conf.imagenet['train_set_path']
         train_set_size=conf.imagenet['train_set_size']
         validation_set_path=conf.imagenet['validation_set_path']
+    elif dataset_name is 'cifar10':
+        train_set_size=conf.cifar10['train_set_size']
     if train_loader is None:
         train_loader=data_loader.create_train_loader(train_set_path,default_image_size,mean,std,batch_size,num_workers)
     if validation_loader is None:
@@ -99,8 +101,8 @@ def train(
         checkpoint_path=root_path+net_name+'/checkpoint'
     if highest_accuracy_path is None:
         highest_accuracy_path=root_path+net_name+'/highest_accuracy.txt'
-    if global_step_path is None:
-        global_step_path=root_path+net_name+'/global_step.txt'
+    if sample_num_path is None:
+        sample_num_path=root_path+net_name+'/sample_num.txt'
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path,exist_ok=True)
 
@@ -111,34 +113,36 @@ def train(
         print('highest accuracy from previous training is %f' % highest_accuracy)
         del highest_accuracy
 
-    global_step=0
-    if os.path.exists(global_step_path):
-        f = open(global_step_path, 'r')
-        global_step = int(f.read())
+    sample_num=0
+    if os.path.exists(sample_num_path):
+        f = open(sample_num_path, 'r')
+        sample_num = int(f.read())
         f.close()
-        print('global_step at present is %d' % global_step)
-        net_saved_at=checkpoint_path+'/global_step='+str(global_step)+'.pth'
+        print('sample_num at present is %d' % sample_num)
+        net_saved_at=checkpoint_path+'/sample_num='+str(sample_num)+'.pth'
         print('load net from'+net_saved_at)
         net.load_state_dict(torch.load(net_saved_at))
     else:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
         evaluate.evaluate_net(net,validation_loader,save_net=False)
 
-    step_one_epoch=math.ceil(train_set_size / batch_size)
+    #ensure the net will be evaluated despite the inappropriate checkpoint_step
+    if checkpoint_step>int(train_set_size/batch_size):
+        checkpoint_step=int(train_set_size/batch_size)
 
     print("{} Start training ".format(datetime.now())+net_name+"...")
-    for epoch in range(math.floor(global_step*batch_size/train_set_size),num_epochs):
+    for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
-            if global_step / step_one_epoch==epoch+1:               #one epoch of training finished
+            if sample_num / train_set_size==epoch+1:               #one epoch of training finished
                 accuracy=evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
-                               global_step_path=global_step_path,
-                               global_step=global_step)
+                               sample_num_path=sample_num_path,
+                               sample_num=sample_num)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return
@@ -151,8 +155,8 @@ def train(
             if learning_rate_decay:
                 exponential_decay_learning_rate(optimizer=optimizer,
                                                 learning_rate=learning_rate,
-                                                global_step=global_step,
-                                                decay_steps=step_one_epoch*2,
+                                                sample_num=sample_num,
+                                                decay_steps=sample_num/train_set_size*2,
                                                 learning_rate_decay_factor=learning_rate_decay_factor)
             optimizer.zero_grad()
             # forward + backward
@@ -160,15 +164,18 @@ def train(
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            global_step += 1
+            sample_num += batch_size
 
             if step % checkpoint_step == 0 and step != 0:
-                evaluate.evaluate_net(net,validation_loader,
+                accuracy=evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
-                               global_step_path=global_step_path,
-                               global_step=global_step)
+                               sample_num_path=sample_num_path,
+                               sample_num=sample_num)
+                if accuracy>=target_accuracy:
+                    print('{} net reached target accuracy.'.format(datetime.now()))
+                    return
                 print('{} continue training'.format(datetime.now()))
 
 
@@ -252,39 +259,6 @@ def pixel_transform(feature_maps):
     feature_maps = ratio * (feature_maps - mean) + mean  # 把像素划入0-255
     return feature_maps
 
-# def start_train(    net_name,
-#                     net,
-#                     pretrained=False,
-#                     dataset_name='imagenet',
-#                     learning_rate=conf.learning_rate,
-#                     num_epochs=conf.num_epochs,
-#                     batch_size=conf.batch_size,
-#                     checkpoint_step=conf.checkpoint_step,
-#                     checkpoint_path=None,
-#                     highest_accuracy_path=None,
-#                     global_step_path=None,
-#                     default_image_size=224,
-#                     momentum=conf.momentum,
-#                     num_workers=conf.num_workers,
-#                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
-#                     weight_decay=conf.weight_decay
-#                     ):
-#     #net=create_net(net_name,pretrained)
-#     train(net=net,
-#           net_name=net_name,
-#           dataset_name=dataset_name,
-#           learning_rate=learning_rate,
-#           num_epochs=num_epochs,
-#           batch_size=batch_size,
-#           checkpoint_step=checkpoint_step,
-#           checkpoint_path=checkpoint_path,
-#           highest_accuracy_path=highest_accuracy_path,
-#           global_step_path=global_step_path,
-#           default_image_size=default_image_size,
-#           momentum=momentum,
-#           num_workers=num_workers,
-#           learning_rate_decay_factor=learning_rate_decay_factor,
-#           weight_decay=weight_decay)
 
 if __name__ == "__main__":
     #train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)

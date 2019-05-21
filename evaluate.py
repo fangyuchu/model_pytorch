@@ -37,11 +37,6 @@ def validate(val_loader, model):
 
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-
-            if i%100==0:
-                print('{},{}'.format(datetime.now(),i))
-
-
             target = target.to(device)
             input = input.to(device)
 
@@ -84,8 +79,8 @@ def evaluate_net(  net,
                    save_net,
                    checkpoint_path=None,
                    highest_accuracy_path=None,
-                   global_step_path=None,
-                   global_step=0,
+                   sample_num_path=None,
+                   sample_num=0,
                    ):
     '''
     :param net: net of NN
@@ -93,16 +88,16 @@ def evaluate_net(  net,
     :param save_net: Boolean. Whether or not to save the net.
     :param checkpoint_path: 
     :param highest_accuracy_path: 
-    :param global_step_path: 
-    :param global_step: global step of the current trained net
+    :param sample_num_path:
+    :param sample_num: sample num of the current trained net
     '''
     if save_net:
         if checkpoint_path is None :
             raise AttributeError('please input checkpoint path')
         if highest_accuracy_path is None :
             raise AttributeError('please input highest_accuracy path')
-        if global_step_path is None :
-            raise AttributeError('please input global_step path')
+        if sample_num_path is None :
+            raise AttributeError('please input sample_num path')
         if os.path.exists(highest_accuracy_path):
             f = open(highest_accuracy_path, 'r')
             highest_accuracy = float(f.read())
@@ -112,22 +107,22 @@ def evaluate_net(  net,
 
 
     print("{} Start Evaluation".format(datetime.now()))
-    print("{} global step = {}".format(datetime.now(), global_step))
+    print("{} sample num = {}".format(datetime.now(), sample_num))
     accuracy,_=validate(data_loader,net,)
     if save_net and accuracy > highest_accuracy:
         highest_accuracy = accuracy
         # save net
         print("{} Saving net...".format(datetime.now()))
-        torch.save(net.state_dict(), '%s/global_step=%d.pth' % (checkpoint_path, global_step))
+        torch.save(net.state_dict(), '%s/sample_num=%d.pth' % (checkpoint_path, sample_num))
         print("{} net saved ".format(datetime.now()))
         # save highest accuracy
         f = open(highest_accuracy_path, 'w')
         f.write(str(highest_accuracy))
         f.close()
-        # save global step
-        f = open(global_step_path, 'w')
-        f.write(str(global_step))
-        print("{} net saved at global step = {}".format(datetime.now(), global_step))
+        # save sample num
+        f = open(sample_num_path, 'w')
+        f.write(str(sample_num))
+        print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
         f.close()
     return accuracy
 
