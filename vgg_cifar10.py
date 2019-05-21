@@ -25,7 +25,7 @@ for m in net.modules():
 net=net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-batch_size=128
+batch_size=1024
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 train_loader = torch.utils.data.DataLoader(
@@ -50,7 +50,7 @@ train.train(net,
             'cifar10',
             train_loader=train_loader,
             validation_loader=val_loader,
-            learning_rate=0.0002,
+            learning_rate=0.0001,
             num_epochs=1000,
             batch_size=batch_size,
             checkpoint_step=800,
