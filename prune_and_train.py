@@ -165,7 +165,8 @@ if __name__ == "__main__":
             train.train(net=net,
                         net_name='vgg16_bn,gradual_pruned',
                         num_epochs=1,
-                        target_accuracy=0.7
+                        target_accuracy=0.7,
+                        learning_rate=1e-4
                         )
             iteration+=1
     # prune_and_train(model_name='vgg16_bn',
