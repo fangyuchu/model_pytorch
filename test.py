@@ -1,4 +1,3 @@
-import pretrainedmodels
 import torch
 import train
 import config as conf
@@ -6,31 +5,23 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
 
-print(pretrainedmodels.model_names)
-model_name = 'vgg16_bn' # could be fbresnet152 or inceptionresnetv2
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet').to(device)
-model.eval()
-
-mean = conf.imagenet['mean']
-std = conf.imagenet['std']
-train_set_path = conf.imagenet['train_set_path']
-train_set_size = conf.imagenet['train_set_size']
-#validation_set_path = conf.imagenet['validation_set_path']
-validation_set_path='/home/victorfang/Desktop/imagenet所有数据/imagenet_validation_new'
-
-#validation_loader=train.create_data_loader(validation_set_path,224,mean,std,conf.batch_size,conf.num_workers)
-
-validation_loader = torch.utils.data.DataLoader(
-    datasets.ImageFolder(validation_set_path, transforms.Compose([
-        transforms.CenterCrop(224),
+train_loader = torch.utils.data.DataLoader(
+    datasets.CIFAR10(root='./data', train=True, transform=transforms.Compose([
         transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32, 4),
         transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std),
-    ])),
-    batch_size=conf.batch_size, shuffle=True,
-    num_workers=conf.num_workers, pin_memory=True)
+        normalize,
+    ]), download=True),
+    batch_size=32, shuffle=True,
+    num_workers=2, pin_memory=True)
 
-train.evaluate_net(model, validation_loader, save_net=False)
+val_loader = torch.utils.data.DataLoader(
+    datasets.CIFAR10(root='./data', train=False, transform=transforms.Compose([
+        transforms.ToTensor(),
+        normalize,
+    ])),
+    batch_size=33, shuffle=False,
+    num_workers=2, pin_memory=True)

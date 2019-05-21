@@ -50,6 +50,8 @@ def train(
                     net,
                     net_name,
                     dataset_name='imagenet',
+                    train_loader=None,
+                    validation_loader=None,
                     learning_rate=conf.learning_rate,
                     num_epochs=conf.num_epochs,
                     batch_size=conf.batch_size,
@@ -86,9 +88,10 @@ def train(
         train_set_path=conf.imagenet['train_set_path']
         train_set_size=conf.imagenet['train_set_size']
         validation_set_path=conf.imagenet['validation_set_path']
-
-    train_loader=data_loader.create_train_loader(train_set_path,default_image_size,mean,std,batch_size,num_workers)
-    validation_loader=data_loader.create_validation_loader(validation_set_path,default_image_size,mean,std,batch_size,num_workers)
+    if train_loader is None:
+        train_loader=data_loader.create_train_loader(train_set_path,default_image_size,mean,std,batch_size,num_workers)
+    if validation_loader is None:
+        validation_loader=data_loader.create_validation_loader(validation_set_path,default_image_size,mean,std,batch_size,num_workers)
 
     if checkpoint_path is None:
         checkpoint_path=conf.root_path+net_name+'/checkpoint'
