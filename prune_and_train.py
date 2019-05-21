@@ -155,11 +155,19 @@ if __name__ == "__main__":
     for i in range(1, num_conv + 1):
         net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.5,
                                       ord=2)  # prune the model
-
-    train.train(net=net,
-                net_name='vgg16_bn,0.5 pruned',
-                num_epochs=40,
-                )
+    iteration=1
+    while(True):
+        print('{} start iteration:{}'.format(datetime.now(),iteration))
+        for i in range(1, num_conv + 1):
+            net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
+                                          ord=2)  # prune the model
+            print('{} layer {} pruned'.format(datetime.now(),i))
+            train.train(net=net,
+                        net_name='vgg16_bn,gradual_pruned',
+                        num_epochs=1,
+                        target_accuracy=0.7
+                        )
+            iteration+=1
     # prune_and_train(model_name='vgg16_bn',
     #                 pretrained=True,
     #                 checkpoint_step=5000,

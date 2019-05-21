@@ -56,6 +56,7 @@ def train(
                     num_epochs=conf.num_epochs,
                     batch_size=conf.batch_size,
                     checkpoint_step=conf.checkpoint_step,
+                    root_path=conf.root_path,
                     checkpoint_path=None,
                     highest_accuracy_path=None,
                     global_step_path=None,
@@ -64,7 +65,8 @@ def train(
                     num_workers=conf.num_workers,
                     learning_rate_decay=False,
                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                    weight_decay=conf.weight_decay
+                    weight_decay=conf.weight_decay,
+                    target_accuracy=1,
                   ):
     #implemented according to "Pruning Filters For Efficient ConvNets" by Hao Li
     # gpu or not
@@ -94,11 +96,11 @@ def train(
         validation_loader=data_loader.create_validation_loader(validation_set_path,default_image_size,mean,std,batch_size,num_workers)
 
     if checkpoint_path is None:
-        checkpoint_path=conf.root_path+net_name+'/checkpoint'
+        checkpoint_path=root_path+net_name+'/checkpoint'
     if highest_accuracy_path is None:
-        highest_accuracy_path=conf.root_path+net_name+'/highest_accuracy.txt'
+        highest_accuracy_path=root_path+net_name+'/highest_accuracy.txt'
     if global_step_path is None:
-        global_step_path=conf.root_path+net_name+'/global_step.txt'
+        global_step_path=root_path+net_name+'/global_step.txt'
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path,exist_ok=True)
 
@@ -131,12 +133,15 @@ def train(
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
             if global_step / step_one_epoch==epoch+1:               #one epoch of training finished
-                evaluate.evaluate_net(net,validation_loader,
+                accuracy=evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
                                highest_accuracy_path=highest_accuracy_path,
                                global_step_path=global_step_path,
                                global_step=global_step)
+                if accuracy>=target_accuracy:
+                    print('{} net reached target accuracy.'.format(datetime.now()))
+                    return
                 break
 
             # 准备数据

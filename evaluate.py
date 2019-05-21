@@ -129,6 +129,7 @@ def evaluate_net(  net,
         f.write(str(global_step))
         print("{} net saved at global step = {}".format(datetime.now(), global_step))
         f.close()
+    return accuracy
 
 
 
