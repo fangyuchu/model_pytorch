@@ -14,11 +14,30 @@ from prune import select_and_prune_filter
 import train
 import evaluate
 import data_loader
+import numpy as np
 
 
 
-
-def prune_dead_neural(net,dataset_path,dataset_name='imagenet'):
+def prune_dead_neural(net,
+                    net_name,
+                      dead_times,
+                    dataset_name='imagenet',
+                    train_loader=None,
+                    validation_loader=None,
+                    learning_rate=conf.learning_rate,
+                    num_epochs=conf.num_epochs,
+                    batch_size=conf.batch_size,
+                    checkpoint_step=conf.checkpoint_step,
+                    load_net=True,
+                    root_path=conf.root_path,
+                    checkpoint_path=None,
+                    default_image_size=224,
+                    momentum=conf.momentum,
+                    num_workers=conf.num_workers,
+                    learning_rate_decay=False,
+                    learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                    weight_decay=conf.weight_decay,
+                    target_accuracy=1,):
     #todo: not finished
     # prepare the data
     if dataset_name is 'imagenet':
@@ -34,9 +53,24 @@ def prune_dead_neural(net,dataset_path,dataset_name='imagenet'):
         train_set_path = conf.cifar10['train_set_path']
         validation_set_path = conf.cifar10['validation_set_path']
 
+    validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
+                                                             default_image_size=default_image_size,
+                                                             mean=mean,
+                                                             std=std,
+                                                             batch_size=batch_size,
+                                                             num_workers=num_workers,
+                                                             dataset_name=dataset_name)
+    relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,dead_times)
 
-    val_loader=data_loader.create_validation_loader(dataset_path=dataset_path,)
-    evaluate.check_ReLU_alive(net,)
+    for i in range(len(relu_list)):
+        for relu_key in list(neural_list.keys()):
+            if relu_list[i] is relu_key:
+                dead_relu_list=neural_list[relu_key]
+                dead_relu_list[dead_relu_list<dead_times]=0
+                dead_relu_list[dead_relu_list>=dead_times]=1
+                dead_relu_list=np.sum(dead_relu_list,axis=(1,2))
+
+
 
 
 if __name__ == "__main__":

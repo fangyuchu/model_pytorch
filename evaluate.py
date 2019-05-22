@@ -151,10 +151,10 @@ def check_ReLU_alive(net, data_loader,dead_times):
     for h in handle:
         h.remove()
 
-    neural_dead_list=neural_list
-
+    neural_list_temp=neural_list
+    relu_list_temp=relu_list
     del relu_list,neural_list
-    return neural_dead_list
+    return relu_list_temp,neural_list_temp
 
 
 def check_if_dead(module, input, output):
