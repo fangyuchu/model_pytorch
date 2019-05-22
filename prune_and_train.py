@@ -118,8 +118,6 @@ def prune_and_train(
                 evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
-                               highest_accuracy_path=highest_accuracy_path,
-                               sample_num_path=sample_num_path,
                                sample_num=sample_num)
                 break
 
@@ -138,8 +136,6 @@ def prune_and_train(
                 evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
-                               highest_accuracy_path=highest_accuracy_path,
-                               sample_num_path=sample_num_path,
                                sample_num=sample_num)
                 print('{} continue training'.format(datetime.now()))
 
@@ -169,7 +165,7 @@ if __name__ == "__main__":
                         net_name='vgg16_bn,gradual_pruned',
                         num_epochs=1,
                         target_accuracy=0.7,
-                        learning_rate=5e-4,
+                        learning_rate=1e-4,
                         load_net=True,
                         checkpoint_step=1000
                         )
