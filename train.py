@@ -56,6 +56,7 @@ def train(
                     num_epochs=conf.num_epochs,
                     batch_size=conf.batch_size,
                     checkpoint_step=conf.checkpoint_step,
+                    load_net=True,
                     root_path=conf.root_path,
                     checkpoint_path=None,
                     highest_accuracy_path=None,
@@ -120,8 +121,9 @@ def train(
         f.close()
         print('sample_num at present is %d' % sample_num)
         net_saved_at=checkpoint_path+'/sample_num='+str(sample_num)+'.pth'
-        print('load net from'+net_saved_at)
-        net.load_state_dict(torch.load(net_saved_at))
+        if load_net:
+            print('load net from'+net_saved_at)
+            net.load_state_dict(torch.load(net_saved_at))
     else:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
         evaluate.evaluate_net(net,validation_loader,save_net=False)

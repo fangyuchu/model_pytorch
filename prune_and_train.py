@@ -152,9 +152,9 @@ if __name__ == "__main__":
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
 
-    for i in range(1, num_conv + 1):
-        net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.5,
-                                      ord=2)  # prune the model
+    # for i in range(1, num_conv + 1):
+    #     net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.5,
+    #                                   ord=2)  # prune the model
     iteration=1
     while(True):
         print('{} start iteration:{}'.format(datetime.now(),iteration))
@@ -166,9 +166,10 @@ if __name__ == "__main__":
                         net_name='vgg16_bn,gradual_pruned',
                         num_epochs=1,
                         target_accuracy=0.7,
-                        learning_rate=1e-4
+                        learning_rate=5e-4,
+                        load_net=False
                         )
-            iteration+=1
+        iteration+=1
     # prune_and_train(model_name='vgg16_bn',
     #                 pretrained=True,
     #                 checkpoint_step=5000,
