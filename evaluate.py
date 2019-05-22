@@ -170,14 +170,16 @@ def check_dead_rate(dead_times):
         dead_num+=np.sum(v>dead_times)                                   #neural unactivated for more than 40000 times
         neural_num+=v.size
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
-    torch.save(neural_list, '/home/victorfang/Desktop/test.tar')
+    torch.save({'neural_list':neural_list,
+                'net':net}, '/home/victorfang/Desktop/test.tar')
 
 if __name__ == "__main__":
 
     # net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     # data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',224,conf.imagenet['mean'],conf.imagenet['std'],batch_size=conf.batch_size,num_workers=conf.num_workers)
     # evaluate.check_ReLU_alive(net,data_loader)
-
+    c = torch.load('/home/victorfang/Desktop/test.tar')
+    global net
     net = vgg.vgg16_bn(pretrained=True)
     net.classifier = nn.Sequential(
         nn.Dropout(),

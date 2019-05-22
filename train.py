@@ -91,6 +91,10 @@ def train(
         validation_set_path=conf.imagenet['validation_set_path']
     elif dataset_name is 'cifar10':
         train_set_size=conf.cifar10['train_set_size']
+        mean=conf.cifar10['mean']
+        std=conf.cifar10['std']
+        train_set_path=conf.cifar10['train_set_path']
+        validation_set_path=conf.cifar10['validation_set_path']
     if train_loader is None:
         train_loader=data_loader.create_train_loader(dataset_path=train_set_path,
                                                      default_image_size=default_image_size,
