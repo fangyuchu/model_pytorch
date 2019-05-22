@@ -171,14 +171,15 @@ def check_dead_rate(dead_times):
         neural_num+=v.size
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
     torch.save({'neural_list':neural_list,
-                'net':net}, '/home/victorfang/Desktop/test.tar')
+                'net':net,
+                'state_dict':net.state_dict()}, '/home/victorfang/Desktop/test.tar')
 
 if __name__ == "__main__":
 
     # net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     # data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',224,conf.imagenet['mean'],conf.imagenet['std'],batch_size=conf.batch_size,num_workers=conf.num_workers)
     # evaluate.check_ReLU_alive(net,data_loader)
-    c = torch.load('/home/victorfang/Desktop/test.tar')
+    #c = torch.load('/home/victorfang/Desktop/test.tar')
     global net
     net = vgg.vgg16_bn(pretrained=True)
     net.classifier = nn.Sequential(
@@ -195,7 +196,7 @@ if __name__ == "__main__":
             nn.init.normal_(m.weight, 0, 0.01)
             nn.init.constant_(m.bias, 0)
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=28198145.pth',map_location='cpu')
+    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=28198145.pth')
     net.load_state_dict(checkpoint)
 
     val_loader=data_loader.create_validation_loader(dataset_name='cifar10',

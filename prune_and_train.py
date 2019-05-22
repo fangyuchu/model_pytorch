@@ -64,7 +64,7 @@ if __name__ == "__main__":
                         net_name='vgg16_bn,gradual_pruned',
                         num_epochs=1,
                         target_accuracy=0.7,
-                        learning_rate=1e-4,
+                        learning_rate=5e-5,
                         load_net=True,
                         checkpoint_step=1000
                         )
