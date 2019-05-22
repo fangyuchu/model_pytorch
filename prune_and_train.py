@@ -153,7 +153,7 @@ if __name__ == "__main__":
             num_conv += 1
 
     for i in range(1, 7):
-        net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.5,
+        net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
                                       ord=2)  # prune the model
 
 

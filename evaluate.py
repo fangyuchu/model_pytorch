@@ -41,7 +41,7 @@ def validate(val_loader, model):
 
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-            print('{} {}'.format(datetime.now(),i))
+            #print('{} {}'.format(datetime.now(),i))
             target = target.to(device)
             input = input.to(device)
 
@@ -193,7 +193,7 @@ if __name__ == "__main__":
             nn.init.normal_(m.weight, 0, 0.01)
             nn.init.constant_(m.bias, 0)
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=16707841.pth',map_location='cpu')
+    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=28198145.pth',map_location='cpu')
     net.load_state_dict(checkpoint)
 
     val_loader=data_loader.create_validation_loader(dataset_name='cifar10',
