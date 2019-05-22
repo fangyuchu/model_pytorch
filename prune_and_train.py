@@ -167,7 +167,8 @@ if __name__ == "__main__":
                         num_epochs=1,
                         target_accuracy=0.7,
                         learning_rate=5e-4,
-                        load_net=False
+                        load_net=False,
+                        checkpoint_step=1000
                         )
         iteration+=1
     # prune_and_train(model_name='vgg16_bn',

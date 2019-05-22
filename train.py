@@ -126,7 +126,10 @@ def train(
             net.load_state_dict(torch.load(net_saved_at))
     else:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
-        evaluate.evaluate_net(net,validation_loader,save_net=False)
+        accuracy=evaluate.evaluate_net(net,validation_loader,save_net=False)
+        if accuracy >= target_accuracy:
+            print('{} net reached target accuracy.'.format(datetime.now()))
+            return
 
     #ensure the net will be evaluated despite the inappropriate checkpoint_step
     if checkpoint_step>int(train_set_size/batch_size):
