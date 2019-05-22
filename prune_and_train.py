@@ -47,27 +47,49 @@ if __name__ == "__main__":
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
 
-    for i in range(1, 7):
-        net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
-                                      ord=2)  # prune the model
+    # for i in range(1, 7):
+    #     net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
+    #                                   ord=2)  # prune the model
 
+    file_new='/home/victorfang/Desktop/pytorch_model/vgg16_bn,gradual_pruned/checkpoint/sample_num=64064.tar'
+    if os.path.isfile(file_new):
+        checkpoint = torch.load(file_new)
+        net=checkpoint['net']
+        net.load_state_dict(checkpoint['state_dict'])
 
 
     iteration=1
     while(True):
         print('{} start iteration:{}'.format(datetime.now(),iteration))
-        for i in range(7, num_conv + 1):
+        for i in range(8, num_conv + 1):
             net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
                                           ord=2)  # prune the model
             print('{} layer {} pruned'.format(datetime.now(),i))
-            train.train(net=net,
-                        net_name='vgg16_bn,gradual_pruned',
-                        num_epochs=1,
-                        target_accuracy=0.7,
-                        learning_rate=5e-5,
-                        load_net=True,
-                        checkpoint_step=1000
-                        )
+
+            validation_loader = data_loader.create_validation_loader(dataset_path=conf.imagenet['validation_set_path'],
+                                                                     default_image_size=224,
+                                                                     mean=conf.imagenet['mean'],
+                                                                     std=conf.imagenet['std'],
+                                                                     batch_size=conf.batch_size,
+                                                                     num_workers=conf.num_workers,
+                                                                     dataset_name='imagenet')
+            net_name='vgg16_bn,gradual_pruned'
+            checkpoint_path = conf.root_path + net_name + '/checkpoint'
+            accuracy = evaluate.evaluate_net(net, validation_loader,
+                                             save_net=True,
+                                             checkpoint_path=checkpoint_path,
+                                             sample_num=0,
+                                             target_accuracy=0.7)
+            if accuracy < 0.7:
+
+                train.train(net=net,
+                            net_name=net_name,
+                            num_epochs=1,
+                            target_accuracy=0.7,
+                            learning_rate=2e-5,
+                            load_net=False,
+                            checkpoint_step=1000
+                            )
         break
         iteration+=1
     # prune_and_train(model_name='vgg16_bn',

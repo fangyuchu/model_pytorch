@@ -84,6 +84,7 @@ def evaluate_net(  net,
                    save_net,
                    checkpoint_path=None,
                    sample_num=0,
+                   target_accuracy=1
                    ):
     '''
     :param net: net of NN
@@ -93,6 +94,7 @@ def evaluate_net(  net,
     :param highest_accuracy_path: 
     :param sample_num_path:
     :param sample_num: sample num of the current trained net
+    :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
     '''
     if save_net:
         if checkpoint_path is None :
@@ -117,7 +119,7 @@ def evaluate_net(  net,
 
     accuracy,_=validate(data_loader,net,)
 
-    if save_net and accuracy > highest_accuracy:
+    if save_net and (accuracy > highest_accuracy or accuracy>target_accuracy):
         # save net
         print("{} Saving net...".format(datetime.now()))
         checkpoint={'net':net,
