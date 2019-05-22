@@ -30,6 +30,10 @@ imagenet['validation_set_path']='/home/victorfang/Desktop/imagenet所有数据/i
 cifar10=dict()
 cifar10['num_class']=10
 cifar10['train_set_size']=50000
+cifar10['mean']=[0.485, 0.456, 0.406]
+cifar10['std']=[0.229, 0.224, 0.225]
+cifar10['train_set_path']='/home/victorfang/Desktop/cifar10'
+cifar10['validation_set_path']='/home/victorfang/Desktop/cifar10'
 
 
 #model saving params

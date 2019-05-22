@@ -1,8 +1,12 @@
 import torch
+import torch.nn as nn
 import time
 import os
 from datetime import datetime
 import numpy as np
+import vgg
+import data_loader
+import config as conf
 
 
 
@@ -37,6 +41,7 @@ def validate(val_loader, model):
 
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
+            print('{} {}'.format(datetime.now(),i))
             target = target.to(device)
             input = input.to(device)
 
@@ -53,7 +58,7 @@ def validate(val_loader, model):
             batch_time.update(time.time() - end)
             end = time.time()
 
-        print(' {} Acc@1 {top1.avg:} Acc@5 {top5.avg:}'
+        print('{} Acc@1 {top1.avg:} Acc@5 {top5.avg:}'
               .format(datetime.now(),top1=top1, top5=top5))
 
         return top1.avg, top5.avg
@@ -154,7 +159,6 @@ def check_if_dead(module, input, output):
     if module not in relu_list:
         relu_list.add(module)
         neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
-
     # zero_matrix=output.cpu().numpy()
 
     zero_matrix=np.zeros(output.shape,dtype=np.int)
@@ -171,8 +175,38 @@ def check_dead_rate():
         neural_num+=v.size
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
 
+if __name__ == "__main__":
 
+    # net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    # data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',224,conf.imagenet['mean'],conf.imagenet['std'],batch_size=conf.batch_size,num_workers=conf.num_workers)
+    # evaluate.check_ReLU_alive(net,data_loader)
 
+    net = vgg.vgg16_bn(pretrained=True)
+    net.classifier = nn.Sequential(
+        nn.Dropout(),
+        nn.Linear(512, 512),
+        nn.ReLU(True),
+        nn.Dropout(),
+        nn.Linear(512, 512),
+        nn.ReLU(True),
+        nn.Linear(512, 10),
+    )
+    for m in net.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, 0, 0.01)
+            nn.init.constant_(m.bias, 0)
+    net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=20872449.pth',map_location='cpu')
+    net.load_state_dict(checkpoint)
+
+    val_loader=data_loader.create_validation_loader(dataset_name='cifar10',
+                                                    dataset_path=conf.cifar10['validation_set_path'],
+                                                    batch_size=128,
+                                                    mean=conf.cifar10['mean'],
+                                                    std=conf.cifar10['std'],
+                                                    num_workers=4
+                                                    )
+    check_ReLU_alive(net,val_loader)
     # for mod in relu_list:
     #     if module==mod.module:
     #         mod.update(dead_num)

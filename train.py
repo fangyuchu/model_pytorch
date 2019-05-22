@@ -266,11 +266,12 @@ def pixel_transform(feature_maps):
 
 
 if __name__ == "__main__":
-    #train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
-    #start_train(net_name='vgg16_bn',pretrained=False,checkpoint_step=5000,num_epochs=40,learning_rate=0.01)
+
     net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',224,conf.imagenet['mean'],conf.imagenet['std'],batch_size=conf.batch_size,num_workers=conf.num_workers)
     evaluate.check_ReLU_alive(net,data_loader)
+
+
 
     # evaluate.evaluate_net(net,data_loader,False)
     # show_feature_map(net,data_loader,[2,4,8])
