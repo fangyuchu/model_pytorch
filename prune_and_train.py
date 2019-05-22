@@ -15,29 +15,20 @@ import train
 import evaluate
 import data_loader
 import numpy as np
+import prune
 
 
 
 def prune_dead_neural(net,
-                    net_name,
-                      dead_times,
-                    dataset_name='imagenet',
-                    train_loader=None,
-                    validation_loader=None,
-                    learning_rate=conf.learning_rate,
-                    num_epochs=conf.num_epochs,
-                    batch_size=conf.batch_size,
-                    checkpoint_step=conf.checkpoint_step,
-                    load_net=True,
-                    root_path=conf.root_path,
-                    checkpoint_path=None,
-                    default_image_size=224,
-                    momentum=conf.momentum,
-                    num_workers=conf.num_workers,
-                    learning_rate_decay=False,
-                    learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                    weight_decay=conf.weight_decay,
-                    target_accuracy=1,):
+                      net_name,
+                      neural_dead_times,
+                      filter_dead_ratio,
+                      dataset_name='imagenet',
+                      validation_loader=None,
+                      batch_size=conf.batch_size,
+                      default_image_size=224,
+                      num_workers=conf.num_workers,
+                     ):
     #todo: not finished
     # prepare the data
     if dataset_name is 'imagenet':
@@ -53,22 +44,35 @@ def prune_dead_neural(net,
         train_set_path = conf.cifar10['train_set_path']
         validation_set_path = conf.cifar10['validation_set_path']
 
-    validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
-                                                             default_image_size=default_image_size,
-                                                             mean=mean,
-                                                             std=std,
-                                                             batch_size=batch_size,
-                                                             num_workers=num_workers,
-                                                             dataset_name=dataset_name)
-    relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,dead_times)
+    if validation_loader is None:
+        validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
+                                                                 default_image_size=default_image_size,
+                                                                 mean=mean,
+                                                                 std=std,
+                                                                 batch_size=batch_size,
+                                                                 num_workers=num_workers,
+                                                                 dataset_name=dataset_name)
+    relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
 
-    for i in range(len(relu_list)):
+    num_conv = 0  # num of conv layers in the net
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+
+    num_filter_pruned=0
+    for i in range(num_conv):
         for relu_key in list(neural_list.keys()):
-            if relu_list[i] is relu_key:
+            if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
                 dead_relu_list=neural_list[relu_key]
-                dead_relu_list[dead_relu_list<dead_times]=0
-                dead_relu_list[dead_relu_list>=dead_times]=1
-                dead_relu_list=np.sum(dead_relu_list,axis=(1,2))
+                neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
+                dead_relu_list[dead_relu_list<neural_dead_times]=0
+                dead_relu_list[dead_relu_list>=neural_dead_times]=1
+                dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
+                dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
+                print('{} filters are pruned in layer {}.'.format(len(dead_filter_index), i))
+                net=prune.prune_conv_layer(model=net,layer_index=i+1,filter_index=dead_filter_index)    #prune the dead filter
+
+    evaluate.evaluate_net(net,validation_loader,save_net=False)
 
 
 
@@ -95,7 +99,7 @@ if __name__ == "__main__":
     iteration=1
     while(True):
         print('{} start iteration:{}'.format(datetime.now(),iteration))
-        for i in range(8, num_conv + 1):
+        for i in range(10, num_conv + 1):
             net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
                                           ord=2)  # prune the model
             print('{} layer {} pruned'.format(datetime.now(),i))

@@ -59,7 +59,6 @@ def train(
                     load_net=True,
                     root_path=conf.root_path,
                     checkpoint_path=None,
-                    default_image_size=224,
                     momentum=conf.momentum,
                     num_workers=conf.num_workers,
                     learning_rate_decay=False,
@@ -89,6 +88,7 @@ def train(
         train_set_path=conf.imagenet['train_set_path']
         train_set_size=conf.imagenet['train_set_size']
         validation_set_path=conf.imagenet['validation_set_path']
+        default_image_size = conf.imagenet['default_image_size']
     elif dataset_name is 'cifar10':
         train_set_size=conf.cifar10['train_set_size']
         mean=conf.cifar10['mean']

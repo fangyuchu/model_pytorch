@@ -25,7 +25,7 @@ imagenet['train_set_size']=1271167
 imagenet['validation_set_size']=50000
 imagenet['train_set_path']='/home/victorfang/Desktop/imagenet所有数据/imagenet_train'
 imagenet['validation_set_path']='/home/victorfang/Desktop/imagenet所有数据/imagenet_validation'
-
+imagenet['default_image_size']=224
 #cifar10
 cifar10=dict()
 cifar10['num_class']=10

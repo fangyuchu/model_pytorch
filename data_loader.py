@@ -23,7 +23,7 @@ def create_train_loader(
                 transforms.Normalize(mean=mean, std=std),
             ]), download=True),
             batch_size=batch_size, shuffle=True,
-            num_workers=6, pin_memory=True)
+            num_workers=num_workers, pin_memory=True)
     else:
         transform = transforms.Compose([
             transforms.RandomResizedCrop(default_image_size),
@@ -52,7 +52,7 @@ def create_validation_loader(
                 transforms.Normalize(mean=mean, std=std),
             ]),download=True),
             batch_size=batch_size, shuffle=False,
-            num_workers=6, pin_memory=True)
+            num_workers=num_workers, pin_memory=True)
     else:
         transform = transforms.Compose([
             transforms.Resize(int(math.floor(default_image_size / scale))),

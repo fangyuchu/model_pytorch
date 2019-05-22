@@ -7,7 +7,7 @@ import numpy as np
 import vgg
 import data_loader
 import config as conf
-
+import prune_and_train
 
 
 class AverageMeter(object):
@@ -132,11 +132,11 @@ def evaluate_net(  net,
     return accuracy
 
 
-def check_ReLU_alive(net, data_loader,dead_times):
+def check_ReLU_alive(net, data_loader,neural_dead_times):
     handle = list()
     global relu_list
     global neural_list
-    relu_list=set()
+    relu_list=list()
     neural_list=dict()
 
     #register a hook for ReLU
@@ -145,7 +145,7 @@ def check_ReLU_alive(net, data_loader,dead_times):
             handle.append(mod.register_forward_hook(check_if_dead))
 
     evaluate_net(net, data_loader, False)
-    check_dead_rate(dead_times)
+    check_dead_rate(neural_dead_times)
 
     #close the hook
     for h in handle:
@@ -159,7 +159,7 @@ def check_ReLU_alive(net, data_loader,dead_times):
 
 def check_if_dead(module, input, output):
     if module not in relu_list:
-        relu_list.add(module)
+        relu_list.append(module)
         neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
 
     zero_matrix=np.zeros(output.shape,dtype=np.int)
@@ -168,16 +168,14 @@ def check_if_dead(module, input, output):
 
     neural_list[module]=neural_list[module]+zero_matrix
 
-def check_dead_rate(dead_times):
+def check_dead_rate(neural_dead_times):
     dead_num=0
     neural_num=0
     for (k,v) in neural_list.items():
-        dead_num+=np.sum(v>dead_times)                                   #neural unactivated for more than 40000 times
+        dead_num+=np.sum(v>=neural_dead_times)                                   #neural unactivated for more than 40000 times
         neural_num+=v.size
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
-    torch.save({'neural_list':neural_list,
-                'net':net,
-                'state_dict':net.state_dict()}, '/home/victorfang/Desktop/test.tar')
+
 
 if __name__ == "__main__":
 
@@ -222,8 +220,20 @@ if __name__ == "__main__":
                                                     num_workers=4
                                                     )
 
+    prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10',
+                                      neural_dead_times=10000,
+                                      dataset_name='cifar10',
+                                      filter_dead_ratio=0.9)
+    #check_ReLU_alive(net,val_loader,8000)
 
-    check_ReLU_alive(net,val_loader,8000)
+
+
+
+
+
+
+
+
     # for mod in relu_list:
     #     if module==mod.module:
     #         mod.update(dead_num)
