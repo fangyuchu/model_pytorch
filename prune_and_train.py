@@ -16,10 +16,10 @@ import evaluate
 import data_loader
 
 
-#todo:太老了，有时间改吧
 
 
 def prune_dead_neural(net,dataset_path,dataset_name='imagenet'):
+    #todo: not finished
     # prepare the data
     if dataset_name is 'imagenet':
         mean = conf.imagenet['mean']
