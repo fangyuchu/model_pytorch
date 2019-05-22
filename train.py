@@ -59,8 +59,6 @@ def train(
                     load_net=True,
                     root_path=conf.root_path,
                     checkpoint_path=None,
-                    highest_accuracy_path=None,
-                    sample_num_path=None,
                     default_image_size=224,
                     momentum=conf.momentum,
                     num_workers=conf.num_workers,
@@ -94,36 +92,46 @@ def train(
     elif dataset_name is 'cifar10':
         train_set_size=conf.cifar10['train_set_size']
     if train_loader is None:
-        train_loader=data_loader.create_train_loader(train_set_path,default_image_size,mean,std,batch_size,num_workers)
+        train_loader=data_loader.create_train_loader(dataset_path=train_set_path,
+                                                     default_image_size=default_image_size,
+                                                     mean=mean,
+                                                     std=std,
+                                                     batch_size=batch_size,
+                                                     num_workers=num_workers,
+                                                     dataset_name=dataset_name)
     if validation_loader is None:
-        validation_loader=data_loader.create_validation_loader(validation_set_path,default_image_size,mean,std,batch_size,num_workers)
+        validation_loader=data_loader.create_validation_loader(dataset_path=validation_set_path,
+                                                               default_image_size=default_image_size,
+                                                               mean=mean,
+                                                               std=std,
+                                                               batch_size=batch_size,
+                                                               num_workers=num_workers,
+                                                               dataset_name=dataset_name)
+
 
     if checkpoint_path is None:
         checkpoint_path=root_path+net_name+'/checkpoint'
-    if highest_accuracy_path is None:
-        highest_accuracy_path=root_path+net_name+'/highest_accuracy.txt'
-    if sample_num_path is None:
-        sample_num_path=root_path+net_name+'/sample_num.txt'
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path,exist_ok=True)
 
-    if  os.path.exists(highest_accuracy_path):
-        f = open(highest_accuracy_path, 'r')
-        highest_accuracy = float(f.read())
-        f.close()
-        print('highest accuracy from previous training is %f' % highest_accuracy)
-        del highest_accuracy
+    #get the latest checkpoint
+    lists = os.listdir(checkpoint_path)
+    file_new=checkpoint_path
+    if len(lists)>0:
+        lists.sort(key=lambda fn: os.path.getmtime(checkpoint_path + "/" + fn))  # 按时间排序
+        file_new = os.path.join(checkpoint_path, lists[-1])  # 获取最新的文件保存到file_new
 
     sample_num=0
-    if os.path.exists(sample_num_path):
-        f = open(sample_num_path, 'r')
-        sample_num = int(f.read())
-        f.close()
-        print('sample_num at present is %d' % sample_num)
-        net_saved_at=checkpoint_path+'/sample_num='+str(sample_num)+'.pth'
+    if os.path.isfile(file_new):
+        checkpoint = torch.load(file_new)
+        highest_accuracy = checkpoint['highest_accuracy']
+        print('highest accuracy from previous training is %f' % highest_accuracy)
+        del highest_accuracy
+        sample_num=checkpoint['sample_num']
         if load_net:
-            print('load net from'+net_saved_at)
-            net.load_state_dict(torch.load(net_saved_at))
+            net=checkpoint['net']
+            net.load_state_dict(checkpoint['state_dict'])
+
     else:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
         accuracy=evaluate.evaluate_net(net,validation_loader,save_net=False)
@@ -145,8 +153,7 @@ def train(
                 accuracy=evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
-                               highest_accuracy_path=highest_accuracy_path,
-                               sample_num_path=sample_num_path,
+
                                sample_num=sample_num)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
@@ -175,8 +182,6 @@ def train(
                 accuracy=evaluate.evaluate_net(net,validation_loader,
                                save_net=True,
                                checkpoint_path=checkpoint_path,
-                               highest_accuracy_path=highest_accuracy_path,
-                               sample_num_path=sample_num_path,
                                sample_num=sample_num)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
@@ -268,7 +273,8 @@ def pixel_transform(feature_maps):
 if __name__ == "__main__":
 
     net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',224,conf.imagenet['mean'],conf.imagenet['std'],batch_size=conf.batch_size,num_workers=conf.num_workers)
+    data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',batch_size=32,mean=conf.imagenet['mean'],std=conf.imagenet['std'],num_workers=conf.num_workers)
+    evaluate.evaluate_net(net,data_loader,True,conf.root_path+'vgg16_bn/checkpoint',0)
     evaluate.check_ReLU_alive(net,data_loader)
 
 

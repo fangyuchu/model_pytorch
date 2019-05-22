@@ -83,8 +83,6 @@ def evaluate_net(  net,
                    data_loader,
                    save_net,
                    checkpoint_path=None,
-                   highest_accuracy_path=None,
-                   sample_num_path=None,
                    sample_num=0,
                    ):
     '''
@@ -99,41 +97,40 @@ def evaluate_net(  net,
     if save_net:
         if checkpoint_path is None :
             raise AttributeError('please input checkpoint path')
-        if highest_accuracy_path is None :
-            raise AttributeError('please input highest_accuracy path')
-        if sample_num_path is None :
-            raise AttributeError('please input sample_num path')
-        if os.path.exists(highest_accuracy_path):
-            f = open(highest_accuracy_path, 'r')
-            highest_accuracy = float(f.read())
-            f.close()
+
+        lists=os.listdir(checkpoint_path)
+        file_new = checkpoint_path
+        if len(lists) > 0:
+            lists.sort(key=lambda fn: os.path.getmtime(checkpoint_path + "/" + fn))  # 按时间排序
+            file_new = os.path.join(checkpoint_path, lists[-1])  # 获取最新的文件保存到file_new
+
+
+        if os.path.isfile(file_new):
+            checkpoint=torch.load(file_new)
+            highest_accuracy = checkpoint['highest_accuracy']
         else:
             highest_accuracy=0
 
 
     print("{} Start Evaluation".format(datetime.now()))
     print("{} sample num = {}".format(datetime.now(), sample_num))
+
     accuracy,_=validate(data_loader,net,)
+
     if save_net and accuracy > highest_accuracy:
-        highest_accuracy = accuracy
         # save net
         print("{} Saving net...".format(datetime.now()))
-        torch.save(net.state_dict(), '%s/sample_num=%d.pth' % (checkpoint_path, sample_num))
-        print("{} net saved ".format(datetime.now()))
-        # save highest accuracy
-        f = open(highest_accuracy_path, 'w')
-        f.write(str(highest_accuracy))
-        f.close()
-        # save sample num
-        f = open(sample_num_path, 'w')
-        f.write(str(sample_num))
+        checkpoint={'net':net,
+                    'highest_accuracy':accuracy,
+                    'state_dict':net.state_dict(),
+                    'sample_num':sample_num}
+        torch.save(checkpoint,'%s/sample_num=%d.tar' % (checkpoint_path, sample_num))
         print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
-        f.close()
+
     return accuracy
 
 
-
-def check_ReLU_alive(net, data_loader):
+def check_ReLU_alive(net, data_loader,dead_times):
     handle = list()
     global relu_list
     global neural_list
@@ -146,7 +143,7 @@ def check_ReLU_alive(net, data_loader):
             handle.append(mod.register_forward_hook(check_if_dead))
 
     evaluate_net(net, data_loader, False)
-    check_dead_rate()
+    check_dead_rate(dead_times)
 
     #close the hook
     for h in handle:
@@ -167,11 +164,11 @@ def check_if_dead(module, input, output):
 
     neural_list[module]=neural_list[module]+zero_matrix
 
-def check_dead_rate():
+def check_dead_rate(dead_times):
     dead_num=0
     neural_num=0
     for (k,v) in neural_list.items():
-        dead_num+=np.sum(v>40000)                                   #neural unactivated for more than 40000 times
+        dead_num+=np.sum(v>dead_times)                                   #neural unactivated for more than 40000 times
         neural_num+=v.size
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
 
@@ -196,17 +193,19 @@ if __name__ == "__main__":
             nn.init.normal_(m.weight, 0, 0.01)
             nn.init.constant_(m.bias, 0)
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=20872449.pth',map_location='cpu')
+    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=28198145.pth',map_location='cpu')
     net.load_state_dict(checkpoint)
 
     val_loader=data_loader.create_validation_loader(dataset_name='cifar10',
                                                     dataset_path=conf.cifar10['validation_set_path'],
-                                                    batch_size=128,
+                                                    batch_size=1024,
                                                     mean=conf.cifar10['mean'],
                                                     std=conf.cifar10['std'],
                                                     num_workers=4
                                                     )
-    check_ReLU_alive(net,val_loader)
+
+
+    check_ReLU_alive(net,val_loader,8000)
     # for mod in relu_list:
     #     if module==mod.module:
     #         mod.update(dead_num)
