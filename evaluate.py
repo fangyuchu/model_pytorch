@@ -41,7 +41,7 @@ def validate(val_loader, model):
 
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-            #print('{} {}'.format(datetime.now(),i))
+            print('{} {}'.format(datetime.now(),i))
             target = target.to(device)
             input = input.to(device)
 
@@ -156,7 +156,6 @@ def check_if_dead(module, input, output):
     if module not in relu_list:
         relu_list.add(module)
         neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
-    # zero_matrix=output.cpu().numpy()
 
     zero_matrix=np.zeros(output.shape,dtype=np.int)
     zero_matrix[output.cpu().numpy()==0]=1
@@ -171,6 +170,7 @@ def check_dead_rate(dead_times):
         dead_num+=np.sum(v>dead_times)                                   #neural unactivated for more than 40000 times
         neural_num+=v.size
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
+    torch.save(neural_list, '/home/victorfang/Desktop/test.tar')
 
 if __name__ == "__main__":
 
@@ -193,12 +193,12 @@ if __name__ == "__main__":
             nn.init.normal_(m.weight, 0, 0.01)
             nn.init.constant_(m.bias, 0)
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=28198145.pth',map_location='cpu')
+    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=16707841.pth',map_location='cpu')
     net.load_state_dict(checkpoint)
 
     val_loader=data_loader.create_validation_loader(dataset_name='cifar10',
                                                     dataset_path=conf.cifar10['validation_set_path'],
-                                                    batch_size=1024,
+                                                    batch_size=32,
                                                     mean=conf.cifar10['mean'],
                                                     std=conf.cifar10['std'],
                                                     num_workers=4
