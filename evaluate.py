@@ -41,7 +41,7 @@ def validate(val_loader, model):
 
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-            print('{} {}'.format(datetime.now(),i))
+            #print('{} {}'.format(datetime.now(),i))
             target = target.to(device)
             input = input.to(device)
 
