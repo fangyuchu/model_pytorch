@@ -41,7 +41,7 @@ def validate(val_loader, model):
 
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-            #print('{} {}'.format(datetime.now(),i))
+            print('{} {}'.format(datetime.now(),i))
             target = target.to(device)
             input = input.to(device)
 
@@ -182,18 +182,6 @@ if __name__ == "__main__":
     # net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     # data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',224,conf.imagenet['mean'],conf.imagenet['std'],batch_size=conf.batch_size,num_workers=conf.num_workers)
     # evaluate.check_ReLU_alive(net,data_loader)
-    c = torch.load('/home/victorfang/Desktop/test.tar',map_location='cpu')
-    net=c['net']
-    net.load_state_dict(c['state_dict'])
-    neural_list=c['neural_list']
-    relu_list=list()
-    for mod in net.modules():
-        if isinstance(mod, torch.nn.ReLU):
-            relu_list.append(mod)
-
-    if relu_list[0] in list(neural_list.keys()):
-        print()
-
     net = vgg.vgg16_bn(pretrained=True)
     net.classifier = nn.Sequential(
         nn.Dropout(),
@@ -211,14 +199,6 @@ if __name__ == "__main__":
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     checkpoint = torch.load('/home/victorfang/Desktop/sample_num=28198145.pth')
     net.load_state_dict(checkpoint)
-
-    val_loader=data_loader.create_validation_loader(dataset_name='cifar10',
-                                                    dataset_path=conf.cifar10['validation_set_path'],
-                                                    batch_size=32,
-                                                    mean=conf.cifar10['mean'],
-                                                    std=conf.cifar10['std'],
-                                                    num_workers=4
-                                                    )
 
     prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10',
                                       neural_dead_times=10000,

@@ -52,14 +52,16 @@ def prune_dead_neural(net,
                                                                  batch_size=batch_size,
                                                                  num_workers=num_workers,
                                                                  dataset_name=dataset_name)
+
     relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
+
+    torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list},'/home/victorfang/Desktop/test.tar')
 
     num_conv = 0  # num of conv layers in the net
     for mod in net.features:
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
 
-    num_filter_pruned=0
     for i in range(num_conv):
         for relu_key in list(neural_list.keys()):
             if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
@@ -74,11 +76,8 @@ def prune_dead_neural(net,
 
     evaluate.evaluate_net(net,validation_loader,save_net=False)
 
-
-
-
-if __name__ == "__main__":
-    net=train.create_net('vgg16_bn',True)
+def prune_layer_gradually():
+    net = train.create_net('vgg16_bn', True)
 
     num_conv = 0  # num of conv layers in the net
     for mod in net.features:
@@ -89,20 +88,19 @@ if __name__ == "__main__":
     #     net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
     #                                   ord=2)  # prune the model
 
-    file_new='/home/victorfang/Desktop/pytorch_model/vgg16_bn,gradual_pruned/checkpoint/sample_num=64064.tar'
+    file_new = '/home/victorfang/Desktop/pytorch_model/vgg16_bn,gradual_pruned/checkpoint/sample_num=64064.tar'
     if os.path.isfile(file_new):
         checkpoint = torch.load(file_new)
-        net=checkpoint['net']
+        net = checkpoint['net']
         net.load_state_dict(checkpoint['state_dict'])
 
-
-    iteration=1
-    while(True):
-        print('{} start iteration:{}'.format(datetime.now(),iteration))
+    iteration = 1
+    while (True):
+        print('{} start iteration:{}'.format(datetime.now(), iteration))
         for i in range(10, num_conv + 1):
             net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
                                           ord=2)  # prune the model
-            print('{} layer {} pruned'.format(datetime.now(),i))
+            print('{} layer {} pruned'.format(datetime.now(), i))
 
             validation_loader = data_loader.create_validation_loader(dataset_path=conf.imagenet['validation_set_path'],
                                                                      default_image_size=224,
@@ -111,7 +109,7 @@ if __name__ == "__main__":
                                                                      batch_size=conf.batch_size,
                                                                      num_workers=conf.num_workers,
                                                                      dataset_name='imagenet')
-            net_name='vgg16_bn,gradual_pruned'
+            net_name = 'vgg16_bn,gradual_pruned'
             checkpoint_path = conf.root_path + net_name + '/checkpoint'
             accuracy = evaluate.evaluate_net(net, validation_loader,
                                              save_net=True,
@@ -119,7 +117,6 @@ if __name__ == "__main__":
                                              sample_num=0,
                                              target_accuracy=0.7)
             if accuracy < 0.7:
-
                 train.train(net=net,
                             net_name=net_name,
                             num_epochs=1,
@@ -129,7 +126,16 @@ if __name__ == "__main__":
                             checkpoint_step=1000
                             )
         break
-        iteration+=1
+        iteration += 1
+
+
+if __name__ == "__main__":
+    net=train.create_net('vgg16_bn',pretrained=True)
+    prune_dead_neural(net=net,
+                      net_name='vgg16_bn',
+                      neural_dead_times=45000,
+                      filter_dead_ratio=0.9)
+
     # prune_and_train(model_name='vgg16_bn',
     #                 pretrained=True,
     #                 checkpoint_step=5000,

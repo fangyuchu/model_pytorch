@@ -11,7 +11,7 @@ dropout_rate=0.5
 momentum=0.9
 
 #dataset processing params
-num_workers=8
+num_workers=5
 
 
 #dataset params
