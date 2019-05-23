@@ -24,6 +24,14 @@ for m in net.modules():
 
 net=net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
+# checkpoint=torch.load('./model/vgg16_bn_on_cifar-10/checkpoint/sample_num=43853057.pth')
+# net.load_state_dict(checkpoint)
+#
+# checkpoint_now={'net':net,'state_dict':net.state_dict(),
+#                 'highest_accuracy':0.9063999992370605,
+#                 'sample_num':43853057}
+# torch.save(checkpoint_now,'./model/vgg16_bn_on_cifar-10/checkpoint/sample_num=43853057.tar')
+
 
 batch_size=1024
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -50,8 +58,8 @@ train.train(net,
             'cifar10',
             train_loader=train_loader,
             validation_loader=val_loader,
-            learning_rate=0.0001,
-            num_epochs=1000,
+            learning_rate=0.00005,
+            num_epochs=2000,
             batch_size=batch_size,
             checkpoint_step=800,
             root_path='./model/',
