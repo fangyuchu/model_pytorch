@@ -42,6 +42,7 @@ def prune_dead_neural(net,
         train_set_path = conf.imagenet['train_set_path']
         train_set_size = conf.imagenet['train_set_size']
         validation_set_path = conf.imagenet['validation_set_path']
+        validation_set_size = conf.imagenet['validation_set_size']
         default_image_size=conf.imagenet['default_image_size']
     elif dataset_name is 'cifar10':
         train_set_size = conf.cifar10['train_set_size']
@@ -49,7 +50,9 @@ def prune_dead_neural(net,
         std = conf.cifar10['std']
         train_set_path = conf.cifar10['train_set_path']
         validation_set_path = conf.cifar10['validation_set_path']
+        validation_set_size = conf.cifar10['validation_set_size']
         default_image_size=conf.cifar10['default_image_size']
+
 
     if validation_loader is None:
         validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
@@ -97,14 +100,22 @@ def prune_dead_neural(net,
             if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
                 dead_relu_list=neural_list[relu_key]
                 neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
-                dead_relu_list[dead_relu_list<neural_dead_times]=0
-                dead_relu_list[dead_relu_list>=neural_dead_times]=1
-                dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
-                dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
+
+                dead_filter_list=np.sum(dead_relu_list,axis=(1,2))
+                dead_filter_list=dead_filter_list/(neural_num*validation_set_size)
+                dead_filter_index=np.where(dead_filter_list>filter_dead_ratio)[0].tolist()
+
+                #judge dead filter by neural_dead_times and dead_neural_ratio
+                # dead_relu_list[dead_relu_list<neural_dead_times]=0
+                # dead_relu_list[dead_relu_list>=neural_dead_times]=1
+                # dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
+                # dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
+
+
                 print('{} filters are pruned in layer {}.'.format(len(dead_filter_index), i))
                 net=prune.prune_conv_layer(model=net,layer_index=i+1,filter_index=dead_filter_index)    #prune the dead filter
 
-    print(measure_flops.measure_model(net,'cifar10'))
+    measure_flops.measure_model(net,'cifar10')
 
     train.train(net=net,
                 net_name=net_name,
