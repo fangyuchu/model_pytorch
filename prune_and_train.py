@@ -104,6 +104,10 @@ def prune_dead_neural(net,
                 dead_filter_list=np.sum(dead_relu_list,axis=(1,2))
                 dead_filter_list=dead_filter_list/(neural_num*validation_set_size)
                 dead_filter_index=np.where(dead_filter_list>filter_dead_ratio)[0].tolist()
+                if len(dead_filter_index)>0.5*len(dead_filter_list):
+                    dead_filter_index=np.argsort(dead_filter_list)
+                    dead_filter_index=dead_filter_index[int(0.5*len(dead_filter_list)):]
+                    print()
 
                 #judge dead filter by neural_dead_times and dead_neural_ratio
                 # dead_relu_list[dead_relu_list<neural_dead_times]=0

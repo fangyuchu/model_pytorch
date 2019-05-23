@@ -9,7 +9,9 @@ import data_loader
 import config as conf
 import prune_and_train
 import torch.optim as optim
-
+import train
+import test
+import measure_flops
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -200,15 +202,26 @@ if __name__ == "__main__":
     # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=3551232.tar')
-    net=checkpoint['net']
-    net.load_state_dict(checkpoint['state_dict'])
+    # checkpoint = torch.load('/home/victorfang/Desktop/sample_num=3551232.tar')
+    # net=checkpoint['net']
+    # net.load_state_dict(checkpoint['state_dict'])
 
-    prune_and_train.prune_dead_neural(net=net,net_name='new_vgg16_bn_cifar10_dead_neural_pruned',
-                                      neural_dead_times=6500,
+    net = test.vgg19()
+    net.features = torch.nn.DataParallel(net.features)
+    #net.cpu()
+    net.cuda()
+    checkpoint=torch.load('/home/victorfang/Desktop/model_best.pth.tar')
+    net.load_state_dict(checkpoint['state_dict'])
+    net.features=net.features.module
+    measure_flops.measure_model(net,'cifar10')
+
+
+
+    prune_and_train.prune_dead_neural(net=net,net_name='new_vgg19_bn_cifar10_dead_neural_pruned',
+                                      neural_dead_times=8000,
                                       dataset_name='cifar10',
-                                      filter_dead_ratio=0.95,
-                                      target_accuracy=0.905,
+                                      filter_dead_ratio=0.3,
+                                      target_accuracy=0.92,
                                       optimizer=optim.SGD,
                                       learning_rate=0.01,
                                       checkpoint_step=800,
@@ -226,6 +239,20 @@ if __name__ == "__main__":
                                       checkpoint_step=800,
                                       batch_size=1024)
         flops=210182114,Acc@1 0.4446 Acc@5 0.8751000005722046,Epoch number: 6,Acc@1 0.9050999990463257 Acc@5 0.9913000002861023
+        
+        
+        prune_and_train.prune_dead_neural(net=net,net_name='new_vgg16_bn_cifar10_dead_neural_pruned',
+                                  neural_dead_times=6500,
+                                  dataset_name='cifar10',
+                                  filter_dead_ratio=0.95,
+                                  target_accuracy=0.905,
+                                  optimizer=optim.SGD,
+                                  learning_rate=0.01,
+                                  checkpoint_step=800,
+                                  batch_size=1024)
+        flops=183511802,51.797% of nodes are dead,Acc@1 0.18589999964237214 Acc@5 0.5201000001430511
+        Epoch number: 34,Acc@1 0.9056999988555908 Acc@5 0.9897000001907349
+        
     '''
 
 

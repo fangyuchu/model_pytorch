@@ -106,8 +106,10 @@ def measure_model(model, dataset_name='imagenet'):
     # forward过程中对全局的变量count_ops进行更新
     model.forward(data)
     restore_forward(model)
-
-    return count_ops
+    print('flop_num:{}'.format(count_ops))
+    count_ops_temp=count_ops
+    count_ops=0
+    return count_ops_temp
 
 if __name__ == '__main__':
     net = vgg.vgg16_bn(pretrained=True)

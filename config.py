@@ -34,6 +34,7 @@ cifar10['mean']=[0.485, 0.456, 0.406]
 cifar10['std']=[0.229, 0.224, 0.225]
 cifar10['train_set_path']='/home/victorfang/Desktop/cifar10'
 cifar10['validation_set_path']='/home/victorfang/Desktop/cifar10'
+cifar10['validation_set_size']=10000
 cifar10['default_image_size']=32
 
 
