@@ -16,6 +16,7 @@ import evaluate
 import data_loader
 import numpy as np
 import prune
+import measure_flops
 
 
 
@@ -28,6 +29,10 @@ def prune_dead_neural(net,
                       validation_loader=None,
                       batch_size=conf.batch_size,
                       num_workers=conf.num_workers,
+                      optimizer=optim.Adam,
+                      learning_rate=0.01,
+                      checkpoint_step=1000,
+                      epoch_num=100
                      ):
     #todo: not finished
     # prepare the data
@@ -53,7 +58,8 @@ def prune_dead_neural(net,
                                                                  std=std,
                                                                  batch_size=batch_size,
                                                                  num_workers=num_workers,
-                                                                 dataset_name=dataset_name)
+                                                                 dataset_name=dataset_name,
+                                                                 )
 
 
     # checkpoint=torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_dead_filter_pruned/checkpoint/sample_num=544064.tar')
@@ -98,15 +104,17 @@ def prune_dead_neural(net,
                 print('{} filters are pruned in layer {}.'.format(len(dead_filter_index), i))
                 net=prune.prune_conv_layer(model=net,layer_index=i+1,filter_index=dead_filter_index)    #prune the dead filter
 
-    #evaluate.evaluate_net(net,validation_loader,save_net=False)
+    print(measure_flops.measure_model(net,'cifar10'))
+
     train.train(net=net,
                 net_name=net_name,
-                num_epochs=10,
+                num_epochs=epoch_num,
                 target_accuracy=target_accuracy,
-                learning_rate=1e-4,
+                learning_rate=learning_rate,
                 load_net=True,
-                checkpoint_step=500,
-                dataset_name=dataset_name
+                checkpoint_step=checkpoint_step,
+                dataset_name=dataset_name,
+                optimizer=optimizer
                 )
 
 def prune_layer_gradually():

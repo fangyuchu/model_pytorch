@@ -8,7 +8,7 @@ count_ops = 0
 
 def measure_layer(layer, x, multi_add=1):
     type_name = str(layer)[:str(layer).find('(')].strip()
-    print(type_name)
+    #print(type_name)
     if type_name in ['Conv2d']:
         out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) //
                     layer.stride[0] + 1)
@@ -68,9 +68,13 @@ def should_measure(module):
         return True
     return False
 
-def measure_model(model, shape=(1,3,224,224)):
+def measure_model(model, dataset_name='imagenet'):
+    if dataset_name is 'imagenet':
+        shape=(1,3,224,224)
+    elif dataset_name is 'cifar10':
+        shape=(1,3,32,32)
     global count_ops
-    data = torch.zeros(shape)
+    data = torch.zeros(shape).cuda()
 
     # 将计算flops的操作集成到forward函数
     def new_forward(m):
