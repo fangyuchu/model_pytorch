@@ -182,46 +182,46 @@ def check_dead_rate(neural_dead_times):
 
 if __name__ == "__main__":
 
-    # net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    # data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',224,conf.imagenet['mean'],conf.imagenet['std'],batch_size=conf.batch_size,num_workers=conf.num_workers)
-    # evaluate.check_ReLU_alive(net,data_loader)
-    # net = vgg.vgg16_bn(pretrained=True)
-    # net.classifier = nn.Sequential(
-    #     nn.Dropout(),
-    #     nn.Linear(512, 512),
-    #     nn.ReLU(True),
-    #     nn.Dropout(),
-    #     nn.Linear(512, 512),
-    #     nn.ReLU(True),
-    #     nn.Linear(512, 10),
-    # )
-    # for m in net.modules():
-    #     if isinstance(m, nn.Linear):
-    #         nn.init.normal_(m.weight, 0, 0.01)
-    #         nn.init.constant_(m.bias, 0)
-    # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    net = vgg.vgg16_bn(pretrained=True)
+    net.classifier = nn.Sequential(
+        nn.Dropout(),
+        nn.Linear(512, 512),
+        nn.ReLU(True),
+        nn.Dropout(),
+        nn.Linear(512, 512),
+        nn.ReLU(True),
+        nn.Linear(512, 10),
+    )
+    for m in net.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, 0, 0.01)
+            nn.init.constant_(m.bias, 0)
+    net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    # checkpoint = torch.load('/home/victorfang/Desktop/sample_num=3551232.tar')
-    # net=checkpoint['net']
-    # net.load_state_dict(checkpoint['state_dict'])
+    #checkpoint = torch.load('/home/victorfang/Desktop/sample_num=12460032.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/new_vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=650000.tar')
 
-    net = test.vgg19()
-    net.features = torch.nn.DataParallel(net.features)
-    #net.cpu()
-    net.cuda()
-    checkpoint=torch.load('/home/victorfang/Desktop/model_best.pth.tar')
+    net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
-    net.features=net.features.module
-    measure_flops.measure_model(net,'cifar10')
+    print(checkpoint['highest_accuracy'])
+
+    # net = test.vgg19_bn()
+    # net.features = torch.nn.DataParallel(net.features)
+    # #net.cpu()
+    # net.cuda()
+    # checkpoint=torch.load('/home/victorfang/Desktop/vgg19_bn.zip')
+    # net.load_state_dict(checkpoint['state_dict'])
+    # net.features=net.features.module
+    # measure_flops.measure_model(net,'cifar10')
 
 
 
-    prune_and_train.prune_dead_neural(net=net,net_name='new_vgg19_bn_cifar10_dead_neural_pruned',
+    prune_and_train.prune_dead_neural(net=net,net_name='new_vgg16_bn_cifar10_dead_neural_pruned_2round',
                                       neural_dead_times=8000,
                                       dataset_name='cifar10',
-                                      filter_dead_ratio=0.3,
-                                      target_accuracy=0.92,
+                                      filter_dead_ratio=0.7,
+                                      target_accuracy=0.91,
                                       optimizer=optim.SGD,
                                       learning_rate=0.01,
                                       checkpoint_step=800,

@@ -70,68 +70,74 @@ def prune_dead_neural(net,
     # net=checkpoint['net']
     # net.load_state_dict(checkpoint['state_dict'])
 
-
-    relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
-    #
-    # torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list},'/home/victorfang/Desktop/test2.tar')
-
-
-    # checkpoint=torch.load('/home/victorfang/Desktop/test2.tar')
-    # net=checkpoint['net']
-    # relu_list=checkpoint['relu_list']
-    # neural_list=checkpoint['neural_list']
-
-    dead_num = 0
-    neural_num = 0
-    for (k, v) in neural_list.items():
-        dead_num += np.sum(v >= neural_dead_times)  # neural unactivated for more than 40000 times
-        neural_num += v.size
-    print("{} {:.3f}% of nodes are dead".format(datetime.now(), 100 * float(dead_num) / neural_num))
+    round=0
+    while True:
+        round+=1
+        print('{} start round {} of filter pruning.'.format(datetime.now(),round))
+        relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
+        #
+        # torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list},'/home/victorfang/Desktop/test2.tar')
 
 
+        # checkpoint=torch.load('/home/victorfang/Desktop/test2.tar')
+        # net=checkpoint['net']
+        # relu_list=checkpoint['relu_list']
+        # neural_list=checkpoint['neural_list']
 
-    num_conv = 0  # num of conv layers in the net
-    for mod in net.features:
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv += 1
-
-    for i in range(num_conv):
-        for relu_key in list(neural_list.keys()):
-            if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
-                dead_relu_list=neural_list[relu_key]
-                neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
-
-                dead_filter_list=np.sum(dead_relu_list,axis=(1,2))
-                dead_filter_list=dead_filter_list/(neural_num*validation_set_size)
-                dead_filter_index=np.where(dead_filter_list>filter_dead_ratio)[0].tolist()
-                if len(dead_filter_index)>0.5*len(dead_filter_list):
-                    dead_filter_index=np.argsort(dead_filter_list)
-                    dead_filter_index=dead_filter_index[int(0.5*len(dead_filter_list)):]
-                    print()
-
-                #judge dead filter by neural_dead_times and dead_neural_ratio
-                # dead_relu_list[dead_relu_list<neural_dead_times]=0
-                # dead_relu_list[dead_relu_list>=neural_dead_times]=1
-                # dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
-                # dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
+        dead_num = 0
+        neural_num = 0
+        for (k, v) in neural_list.items():
+            dead_num += np.sum(v >= neural_dead_times)  # neural unactivated for more than 40000 times
+            neural_num += v.size
+        print("{} {:.3f}% of nodes are dead".format(datetime.now(), 100 * float(dead_num) / neural_num))
 
 
-                print('{} filters are pruned in layer {}.'.format(len(dead_filter_index), i))
-                net=prune.prune_conv_layer(model=net,layer_index=i+1,filter_index=dead_filter_index)    #prune the dead filter
 
-    measure_flops.measure_model(net,'cifar10')
+        num_conv = 0  # num of conv layers in the net
+        for mod in net.features:
+            if isinstance(mod, torch.nn.modules.conv.Conv2d):
+                num_conv += 1
 
-    train.train(net=net,
-                net_name=net_name,
-                num_epochs=epoch_num,
-                target_accuracy=target_accuracy,
-                learning_rate=learning_rate,
-                load_net=True,
-                checkpoint_step=checkpoint_step,
-                dataset_name=dataset_name,
-                optimizer=optimizer,
-                batch_size=batch_size
-                )
+        for i in range(num_conv):
+            for relu_key in list(neural_list.keys()):
+                if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
+                    dead_relu_list=neural_list[relu_key]
+                    neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
+
+
+                    #judge dead filter by
+                    # dead_filter_list=np.sum(dead_relu_list,axis=(1,2))
+                    # dead_filter_list=dead_filter_list/(neural_num*validation_set_size)
+                    # dead_filter_index=np.where(dead_filter_list>filter_dead_ratio)[0].tolist()
+                    # if len(dead_filter_index)>0.5*len(dead_filter_list):
+                    #     dead_filter_index=np.argsort(dead_filter_list)
+                    #     dead_filter_index=dead_filter_index[int(0.5*len(dead_filter_list)):]
+
+
+
+                    # judge dead filter by neural_dead_times and dead_filter_ratio
+                    dead_relu_list[dead_relu_list<neural_dead_times]=0
+                    dead_relu_list[dead_relu_list>=neural_dead_times]=1
+                    dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
+                    dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
+
+
+                    print('{} filters are pruned in layer {}.'.format(len(dead_filter_index), i))
+                    net=prune.prune_conv_layer(model=net,layer_index=i+1,filter_index=dead_filter_index)    #prune the dead filter
+
+        measure_flops.measure_model(net,'cifar10')
+
+        train.train(net=net,
+                    net_name=net_name,
+                    num_epochs=epoch_num,
+                    target_accuracy=target_accuracy,
+                    learning_rate=learning_rate,
+                    load_net=False,
+                    checkpoint_step=checkpoint_step,
+                    dataset_name=dataset_name,
+                    optimizer=optimizer,
+                    batch_size=batch_size
+                    )
 
 def prune_layer_gradually():
     net = train.create_net('vgg16_bn', True)
