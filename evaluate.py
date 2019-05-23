@@ -129,7 +129,7 @@ def evaluate_net(  net,
                     'highest_accuracy':accuracy,
                     'state_dict':net.state_dict(),
                     'sample_num':sample_num}
-        torch.save(checkpoint,'%s/sample_num=%d.tar' % (checkpoint_path, sample_num))
+        torch.save(checkpoint,'%s/sample_num=%d,accuracy=%.3f.tar' % (checkpoint_path, sample_num,accuracy))
         print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
 
     return accuracy
@@ -199,8 +199,8 @@ if __name__ == "__main__":
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    #checkpoint = torch.load('/home/victorfang/Desktop/sample_num=12460032.tar')
-    checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/new_vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=650000.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=12460032.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/new_vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=650000.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -217,10 +217,10 @@ if __name__ == "__main__":
 
 
 
-    prune_and_train.prune_dead_neural(net=net,net_name='new_vgg16_bn_cifar10_dead_neural_pruned_2round',
+    prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10_dead_neural_pruned_2',
                                       neural_dead_times=8000,
                                       dataset_name='cifar10',
-                                      filter_dead_ratio=0.7,
+                                      filter_dead_ratio=0.8,
                                       target_accuracy=0.91,
                                       optimizer=optim.SGD,
                                       learning_rate=0.01,

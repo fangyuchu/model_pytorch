@@ -32,7 +32,7 @@ def prune_dead_neural(net,
                       optimizer=optim.Adam,
                       learning_rate=0.01,
                       checkpoint_step=1000,
-                      epoch_num=100
+                      epoch_num=1000
                      ):
     #todo: not finished
     # prepare the data
@@ -98,21 +98,12 @@ def prune_dead_neural(net,
             if isinstance(mod, torch.nn.modules.conv.Conv2d):
                 num_conv += 1
 
+
         for i in range(num_conv):
             for relu_key in list(neural_list.keys()):
                 if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
                     dead_relu_list=neural_list[relu_key]
                     neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
-
-
-                    #judge dead filter by
-                    # dead_filter_list=np.sum(dead_relu_list,axis=(1,2))
-                    # dead_filter_list=dead_filter_list/(neural_num*validation_set_size)
-                    # dead_filter_index=np.where(dead_filter_list>filter_dead_ratio)[0].tolist()
-                    # if len(dead_filter_index)>0.5*len(dead_filter_list):
-                    #     dead_filter_index=np.argsort(dead_filter_list)
-                    #     dead_filter_index=dead_filter_index[int(0.5*len(dead_filter_list)):]
-
 
 
                     # judge dead filter by neural_dead_times and dead_filter_ratio
@@ -138,6 +129,8 @@ def prune_dead_neural(net,
                     optimizer=optimizer,
                     batch_size=batch_size
                     )
+        filter_dead_ratio*=0.95
+        neural_dead_times*=0.95
 
 def prune_layer_gradually():
     net = train.create_net('vgg16_bn', True)
