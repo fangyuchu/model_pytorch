@@ -23,10 +23,10 @@ def prune_dead_neural(net,
                       net_name,
                       neural_dead_times,
                       filter_dead_ratio,
+                      target_accuracy,
                       dataset_name='imagenet',
                       validation_loader=None,
                       batch_size=conf.batch_size,
-                      default_image_size=224,
                       num_workers=conf.num_workers,
                      ):
     #todo: not finished
@@ -37,12 +37,14 @@ def prune_dead_neural(net,
         train_set_path = conf.imagenet['train_set_path']
         train_set_size = conf.imagenet['train_set_size']
         validation_set_path = conf.imagenet['validation_set_path']
+        default_image_size=conf.imagenet['default_image_size']
     elif dataset_name is 'cifar10':
         train_set_size = conf.cifar10['train_set_size']
         mean = conf.cifar10['mean']
         std = conf.cifar10['std']
         train_set_path = conf.cifar10['train_set_path']
         validation_set_path = conf.cifar10['validation_set_path']
+        default_image_size=conf.cifar10['default_image_size']
 
     if validation_loader is None:
         validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
@@ -53,9 +55,31 @@ def prune_dead_neural(net,
                                                                  num_workers=num_workers,
                                                                  dataset_name=dataset_name)
 
-    relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
 
-    torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list},'/home/victorfang/Desktop/test.tar')
+    # checkpoint=torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_dead_filter_pruned/checkpoint/sample_num=544064.tar')
+    #
+    # net=checkpoint['net']
+    # net.load_state_dict(checkpoint['state_dict'])
+
+
+    relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
+    #
+    # torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list},'/home/victorfang/Desktop/test2.tar')
+
+
+    # checkpoint=torch.load('/home/victorfang/Desktop/test2.tar')
+    # net=checkpoint['net']
+    # relu_list=checkpoint['relu_list']
+    # neural_list=checkpoint['neural_list']
+
+    dead_num = 0
+    neural_num = 0
+    for (k, v) in neural_list.items():
+        dead_num += np.sum(v >= neural_dead_times)  # neural unactivated for more than 40000 times
+        neural_num += v.size
+    print("{} {:.3f}% of nodes are dead".format(datetime.now(), 100 * float(dead_num) / neural_num))
+
+
 
     num_conv = 0  # num of conv layers in the net
     for mod in net.features:
@@ -74,7 +98,16 @@ def prune_dead_neural(net,
                 print('{} filters are pruned in layer {}.'.format(len(dead_filter_index), i))
                 net=prune.prune_conv_layer(model=net,layer_index=i+1,filter_index=dead_filter_index)    #prune the dead filter
 
-    evaluate.evaluate_net(net,validation_loader,save_net=False)
+    #evaluate.evaluate_net(net,validation_loader,save_net=False)
+    train.train(net=net,
+                net_name=net_name,
+                num_epochs=10,
+                target_accuracy=target_accuracy,
+                learning_rate=1e-4,
+                load_net=True,
+                checkpoint_step=500,
+                dataset_name=dataset_name
+                )
 
 def prune_layer_gradually():
     net = train.create_net('vgg16_bn', True)
@@ -132,9 +165,10 @@ def prune_layer_gradually():
 if __name__ == "__main__":
     net=train.create_net('vgg16_bn',pretrained=True)
     prune_dead_neural(net=net,
-                      net_name='vgg16_bn',
+                      net_name='vgg16_bn_dead_filter_pruned2',
                       neural_dead_times=45000,
-                      filter_dead_ratio=0.9)
+                      filter_dead_ratio=0.8,
+                      target_accuracy=0.7)
 
     # prune_and_train(model_name='vgg16_bn',
     #                 pretrained=True,

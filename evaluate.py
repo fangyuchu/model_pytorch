@@ -41,7 +41,7 @@ def validate(val_loader, model):
 
         end = time.time()
         for i, (input, target) in enumerate(val_loader):
-            print('{} {}'.format(datetime.now(),i))
+            #print('{} {}'.format(datetime.now(),i))
             target = target.to(device)
             input = input.to(device)
 
@@ -200,10 +200,11 @@ if __name__ == "__main__":
     checkpoint = torch.load('/home/victorfang/Desktop/sample_num=28198145.pth')
     net.load_state_dict(checkpoint)
 
-    prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10',
+    prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10_dead_neural_pruned',
                                       neural_dead_times=10000,
                                       dataset_name='cifar10',
-                                      filter_dead_ratio=0.9)
+                                      filter_dead_ratio=0.9,
+                                      target_accuracy=0.9)
     #check_ReLU_alive(net,val_loader,8000)
 
 

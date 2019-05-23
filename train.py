@@ -95,6 +95,7 @@ def train(
         std=conf.cifar10['std']
         train_set_path=conf.cifar10['train_set_path']
         validation_set_path=conf.cifar10['validation_set_path']
+        default_image_size=conf.cifar10['default_image_size']
     if train_loader is None:
         train_loader=data_loader.create_train_loader(dataset_path=train_set_path,
                                                      default_image_size=default_image_size,
@@ -133,6 +134,7 @@ def train(
         del highest_accuracy
         sample_num=checkpoint['sample_num']
         if load_net:
+            print('{} load net from previous checkpoint'.format(datetime.now()))
             net=checkpoint['net']
             net.load_state_dict(checkpoint['state_dict'])
     else:
