@@ -114,7 +114,8 @@ def prune_dead_neural(net,
                 load_net=True,
                 checkpoint_step=checkpoint_step,
                 dataset_name=dataset_name,
-                optimizer=optimizer
+                optimizer=optimizer,
+                batch_size=batch_size
                 )
 
 def prune_layer_gradually():

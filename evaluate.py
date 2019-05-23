@@ -205,12 +205,36 @@ if __name__ == "__main__":
     net.load_state_dict(checkpoint['state_dict'])
 
     prune_and_train.prune_dead_neural(net=net,net_name='new_vgg16_bn_cifar10_dead_neural_pruned',
-                                      neural_dead_times=8000,
+                                      neural_dead_times=6500,
                                       dataset_name='cifar10',
-                                      filter_dead_ratio=0.8,
-                                      target_accuracy=0.9,
+                                      filter_dead_ratio=0.95,
+                                      target_accuracy=0.905,
                                       optimizer=optim.SGD,
-                                      learning_rate=0.01)
+                                      learning_rate=0.01,
+                                      checkpoint_step=800,
+                                      batch_size=1024)
+
+
+    '''
+        prune_and_train.prune_dead_neural(net=net,net_name='new_vgg16_bn_cifar10_dead_neural_pruned',
+                                      neural_dead_times=7000,
+                                      dataset_name='cifar10',
+                                      filter_dead_ratio=0.95,
+                                      target_accuracy=0.905,
+                                      optimizer=optim.SGD,
+                                      learning_rate=0.01,
+                                      checkpoint_step=800,
+                                      batch_size=1024)
+        flops=210182114,Acc@1 0.4446 Acc@5 0.8751000005722046,Epoch number: 6,Acc@1 0.9050999990463257 Acc@5 0.9913000002861023
+    '''
+
+
+
+
+
+
+
+
     #check_ReLU_alive(net,val_loader,8000)
 
 

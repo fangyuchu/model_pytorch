@@ -187,7 +187,7 @@ def train(
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            sample_num += batch_size
+            sample_num += images.shape[0]
 
             if step % checkpoint_step == 0 and step != 0:
                 accuracy=evaluate.evaluate_net(net,validation_loader,
