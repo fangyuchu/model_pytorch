@@ -1,6 +1,8 @@
 import torch
-import numpy as nn
+import numpy as np
 import train
+import vgg
+import torch.nn as nn
 
 count_ops = 0
 
@@ -104,6 +106,24 @@ def measure_model(model, shape=(1,3,224,224)):
     return count_ops
 
 if __name__ == '__main__':
-    net = train.create_net('vgg16_bn',pretrained=True)
+    net = vgg.vgg16_bn(pretrained=True)
+    # net.classifier = nn.Sequential(
+    #     nn.Dropout(),
+    #     nn.Linear(512, 512),
+    #     nn.ReLU(True),
+    #     nn.Dropout(),
+    #     nn.Linear(512, 512),
+    #     nn.ReLU(True),
+    #     nn.Linear(512, 10),
+    # )
+    # for m in net.modules():
+    #     if isinstance(m, nn.Linear):
+    #         nn.init.normal_(m.weight, 0, 0.01)
+    #         nn.init.constant_(m.bias, 0)
+    # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+
+    # checkpoint=torch.load('/home/victorfang/Desktop/sample_num=256032.tar',map_location='cpu')
+    # net=checkpoint['net']
+
     print(measure_model(net))
     # ≈1.8G，和原文一致
