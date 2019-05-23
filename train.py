@@ -65,6 +65,7 @@ def train(
                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
                     weight_decay=conf.weight_decay,
                     target_accuracy=1,
+                    optimizer=optim.Adam
                   ):
     #implemented according to "Pruning Filters For Efficient ConvNets" by Hao Li
     # gpu or not
@@ -79,7 +80,8 @@ def train(
     criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
     # optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,#weight_decay=weight_decay
     #                       )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
-    optimizer=optim.Adam(net.parameters(),lr=learning_rate,weight_decay=weight_decay)
+
+    optimizer=optimizer(net.parameters(),lr=learning_rate,weight_decay=weight_decay)
 
     #prepare the data
     if dataset_name is 'imagenet':

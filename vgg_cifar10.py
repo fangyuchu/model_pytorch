@@ -6,6 +6,8 @@ import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import config as conf
+import torch.optim as optim
+
 
 net=vgg.vgg16_bn(pretrained=True)
 net.classifier=nn.Sequential(
@@ -54,16 +56,17 @@ val_loader = torch.utils.data.DataLoader(
     num_workers=6, pin_memory=True)
 
 train.train(net,
-            'vgg16_bn_on_cifar-10',
+            'vgg16_bn_on_cifar10',
             'cifar10',
             train_loader=train_loader,
             validation_loader=val_loader,
-            learning_rate=0.00005,
-            num_epochs=2000,
+            learning_rate=0.1,
+            num_epochs=150,
             batch_size=batch_size,
             checkpoint_step=800,
             root_path='./model/',
             num_workers=8,
+            optimizer=optim.SGD
             )
 
 
