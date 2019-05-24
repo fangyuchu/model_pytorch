@@ -10,7 +10,6 @@ import config as conf
 import prune_and_train
 import torch.optim as optim
 import train
-import test
 import measure_flops
 
 class AverageMeter(object):
@@ -200,7 +199,7 @@ if __name__ == "__main__":
 
 
     checkpoint = torch.load('/home/victorfang/Desktop/sample_num=12460032.tar')
-    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/new_vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=650000.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned_3/checkpoint/sample_num=2200000,accuracy=0.911.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -217,7 +216,7 @@ if __name__ == "__main__":
 
 
 
-    prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10_dead_neural_pruned_2',
+    prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10_dead_neural_pruned',
                                       neural_dead_times=8000,
                                       dataset_name='cifar10',
                                       filter_dead_ratio=0.8,
@@ -225,7 +224,8 @@ if __name__ == "__main__":
                                       optimizer=optim.SGD,
                                       learning_rate=0.01,
                                       checkpoint_step=800,
-                                      batch_size=1024)
+                                      batch_size=1024,
+                                      filter_preserve_ratio=0.3)
 
 
     '''

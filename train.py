@@ -134,11 +134,11 @@ def train(
         highest_accuracy = checkpoint['highest_accuracy']
         print('highest accuracy from previous training is %f' % highest_accuracy)
         del highest_accuracy
-        sample_num=checkpoint['sample_num']
         if load_net:
             print('{} load net from previous checkpoint'.format(datetime.now()))
             net=checkpoint['net']
             net.load_state_dict(checkpoint['state_dict'])
+            sample_num = checkpoint['sample_num']
     else:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
         accuracy=evaluate.evaluate_net(net,validation_loader,

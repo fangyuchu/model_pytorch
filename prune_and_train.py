@@ -32,9 +32,9 @@ def prune_dead_neural(net,
                       optimizer=optim.Adam,
                       learning_rate=0.01,
                       checkpoint_step=1000,
-                      epoch_num=1000
+                      epoch_num=350,
+                      filter_preserve_ratio=0.3
                      ):
-    #todo: not finished
     # prepare the data
     if dataset_name is 'imagenet':
         mean = conf.imagenet['mean']
@@ -64,7 +64,14 @@ def prune_dead_neural(net,
                                                                  dataset_name=dataset_name,
                                                                  )
 
-
+    num_conv = 0  # num of conv layers in the net
+    filter_num_lower_bound=list()
+    filter_num=list()
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+            filter_num_lower_bound.append(int(mod.out_channels*filter_preserve_ratio))
+            filter_num.append(mod.out_channels)
     # checkpoint=torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_dead_filter_pruned/checkpoint/sample_num=544064.tar')
     #
     # net=checkpoint['net']
@@ -75,28 +82,18 @@ def prune_dead_neural(net,
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))
         relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
-        #
-        # torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list},'/home/victorfang/Desktop/test2.tar')
+
+        if not os.path.exists(conf.root_path+net_name+'/dead_neural'):
+            os.makedirs(conf.root_path+net_name+'/dead_neural', exist_ok=True)
+
+        torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list,'state_dict':net.state_dict()},
+                   conf.root_path+net_name+'/dead_neural/round %d.tar'%round)
 
 
         # checkpoint=torch.load('/home/victorfang/Desktop/test2.tar')
         # net=checkpoint['net']
         # relu_list=checkpoint['relu_list']
         # neural_list=checkpoint['neural_list']
-
-        dead_num = 0
-        neural_num = 0
-        for (k, v) in neural_list.items():
-            dead_num += np.sum(v >= neural_dead_times)  # neural unactivated for more than 40000 times
-            neural_num += v.size
-        print("{} {:.3f}% of nodes are dead".format(datetime.now(), 100 * float(dead_num) / neural_num))
-
-
-
-        num_conv = 0  # num of conv layers in the net
-        for mod in net.features:
-            if isinstance(mod, torch.nn.modules.conv.Conv2d):
-                num_conv += 1
 
 
         for i in range(num_conv):
@@ -111,9 +108,14 @@ def prune_dead_neural(net,
                     dead_relu_list[dead_relu_list>=neural_dead_times]=1
                     dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
                     dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
+                    #ensure the lower bound of filter number
+                    if filter_num[i]-len(dead_filter_index)<filter_num_lower_bound[i]:
+                        dead_filter_index=dead_filter_index[:filter_num[i]-filter_num_lower_bound[i]]
+                    filter_num[i]=filter_num[i]-len(dead_filter_index)
 
+                    print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
+                                                                                  len(dead_filter_index)))
 
-                    print('{} filters are pruned in layer {}.'.format(len(dead_filter_index), i))
                     net=prune.prune_conv_layer(model=net,layer_index=i+1,filter_index=dead_filter_index)    #prune the dead filter
 
         measure_flops.measure_model(net,'cifar10')
@@ -130,7 +132,7 @@ def prune_dead_neural(net,
                     batch_size=batch_size
                     )
         filter_dead_ratio*=0.95
-        neural_dead_times*=0.95
+        neural_dead_times*=0.98
 
 def prune_layer_gradually():
     net = train.create_net('vgg16_bn', True)
