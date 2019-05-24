@@ -3,6 +3,7 @@ import numpy as np
 import train
 import vgg
 import torch.nn as nn
+import Logger
 
 count_ops = 0
 
@@ -74,7 +75,9 @@ def measure_model(model, dataset_name='imagenet'):
     elif dataset_name is 'cifar10':
         shape=(1,3,32,32)
     global count_ops
-    data = torch.zeros(shape).cuda()
+    data = torch.zeros(shape)
+    if torch.cuda.is_available():
+        data=data.cuda()
 
     # 将计算flops的操作集成到forward函数
     def new_forward(m):
