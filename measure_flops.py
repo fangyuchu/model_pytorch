@@ -3,7 +3,7 @@ import numpy as np
 import train
 import vgg
 import torch.nn as nn
-import Logger
+import logger
 
 count_ops = 0
 
