@@ -200,6 +200,10 @@ def train(
             loss.backward()
             optimizer.step()
 
+            if step%10==0:
+                print('{} loss is {}'.format(datetime.now(),loss.data))
+
+
 
             if step % checkpoint_step == 0 and step != 0:
                 accuracy=evaluate.evaluate_net(net,validation_loader,
