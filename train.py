@@ -19,10 +19,10 @@ import logger
 
 
 
-def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,decay_epoch,learning_rate_decay_factor,batch_size):
+def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
     """Sets the learning rate to the initial LR decayed by learning_rate_decay_factor every decay_steps"""
     current_epoch=ceil(sample_num/train_set_size)
-    if current_epoch in decay_epoch and sample_num-(train_set_size*(current_epoch-1))<=batch_size:
+    if current_epoch in learning_rate_decay_epoch and sample_num-(train_set_size*(current_epoch-1))<=batch_size:
         for param_group in optimizer.param_groups:
             param_group['lr'] = param_group['lr']*learning_rate_decay_factor
             lr=param_group['lr']
@@ -71,7 +71,7 @@ def train(
                     num_workers=conf.num_workers,
                     learning_rate_decay=False,
                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                    decay_epoch=conf.decay_epoch,
+                    learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                     weight_decay=conf.weight_decay,
                     target_accuracy=1,
                     optimizer=optim.Adam,
@@ -190,7 +190,7 @@ def train(
                                                 sample_num=sample_num,
                                                 learning_rate_decay_factor=learning_rate_decay_factor,
                                                 train_set_size=train_set_size,
-                                                decay_epoch=decay_epoch,
+                                                learning_rate_decay_epoch=learning_rate_decay_epoch,
                                                 batch_size=batch_size)
 
             optimizer.zero_grad()
@@ -215,6 +215,14 @@ def train(
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return
                 print('{} continue training'.format(datetime.now()))
+
+    print("{} Training finished. Saving net...".format(datetime.now()))
+    checkpoint = {'net': net,
+                  'highest_accuracy': accuracy,
+                  'state_dict': net.state_dict(),
+                  'sample_num': sample_num}
+    torch.save(checkpoint, '%s/sample_num=%d,accuracy=%.3f.tar' % (checkpoint_path, sample_num, accuracy))
+    print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
 
 
 def show_feature_map(

@@ -9,7 +9,7 @@ weight_decay=5e-4                   # weight decay (L2 penalty)
 num_epochs_per_decay=2.5
 dropout_rate=0.5
 momentum=0.9
-decay_epoch=[]
+learning_rate_decay_epoch=[]
 
 #dataset processing params
 num_workers=5

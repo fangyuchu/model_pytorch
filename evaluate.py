@@ -200,36 +200,52 @@ if __name__ == "__main__":
 
 
     checkpoint = torch.load('/home/victorfang/Desktop/sample_num=12460032.tar')
-    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned_3/checkpoint/sample_num=2200000,accuracy=0.911.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/test5/checkpoint/sample_num=7800000,accuracy=0.911.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
     print(checkpoint['highest_accuracy'])
 
-    # net = test.vgg19_bn()
-    # net.features = torch.nn.DataParallel(net.features)
-    # #net.cpu()
-    # net.cuda()
-    # checkpoint=torch.load('/home/victorfang/Desktop/vgg19_bn.zip')
-    # net.load_state_dict(checkpoint['state_dict'])
-    # net.features=net.features.module
-    # measure_flops.measure_model(net,'cifar10')
+    # net = checkpoint['net']
+    # #net.load_state_dict(checkpoint['state_dict'])
+    # for m in net.modules():
+    #     if isinstance(m, nn.Linear):
+    #         nn.init.normal_(m.weight, 0, 0.01)
+    #         nn.init.constant_(m.bias, 0)
+    # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    # print(checkpoint['highest_accuracy'])
 
+    # train.train(net=net,
+    #             net_name='vgg16_bn_cifar_pruned_scratch',
+    #             num_epochs=450,
+    #             learning_rate=0.1,
+    #             load_net=True,
+    #             checkpoint_step=1000,
+    #             dataset_name='cifar10',
+    #             optimizer=optim.SGD,
+    #             batch_size=1024,
+    #             learning_rate_decay=True,
+    #             learning_rate_decay_factor=0.1,
+    #             learning_rate_decay_epoch=[150,250,350],
+    #             )
 
 
     prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10_dead_neural_pruned',
-                                      neural_dead_times=8000,
+                                      neural_dead_times=7000,
                                       dataset_name='cifar10',
-                                      filter_dead_ratio=0.8,
+                                      filter_dead_ratio=0.9,
                                       target_accuracy=0.91,
                                       optimizer=optim.SGD,
-                                      learning_rate=0.01,
+                                      learning_rate=0.1,
                                       checkpoint_step=800,
                                       batch_size=1024,
-                                      filter_preserve_ratio=0.3,
+                                      filter_preserve_ratio=0.1,
+                                      num_epoch=450,
                                       learning_rate_decay=True,
-                                      decay_epoch=[150,250],
-                                      learning_rate_decay_factor=0.5)
+                                      learning_rate_decay_epoch=[150,250,350],
+                                      learning_rate_decay_factor=0.1,
+                                      neural_dead_times_decay=0.95,
+                                      filter_dead_ratio_decay=0.98)
 
 
     '''

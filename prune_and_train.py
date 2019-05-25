@@ -27,6 +27,8 @@ def prune_dead_neural(net,
                       neural_dead_times,
                       filter_dead_ratio,
                       target_accuracy,
+                      filter_dead_ratio_decay=0.95,
+                      neural_dead_times_decay=0.95,
                       dataset_name='imagenet',
                       validation_loader=None,
                       batch_size=conf.batch_size,
@@ -34,12 +36,12 @@ def prune_dead_neural(net,
                       optimizer=optim.Adam,
                       learning_rate=0.01,
                       checkpoint_step=1000,
-                      epoch_num=350,
+                      num_epoch=350,
                       filter_preserve_ratio=0.3,
                       learning_rate_decay=False,
                       learning_rate_decay_factor=conf.learning_rate_decay_factor,
                       weight_decay=conf.weight_decay,
-                      decay_epoch=conf.decay_epoch,
+                      learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                      ):
     #save the output to log
     if not os.path.exists(conf.root_path + net_name ):
@@ -133,7 +135,7 @@ def prune_dead_neural(net,
 
         train.train(net=net,
                     net_name=net_name,
-                    num_epochs=epoch_num,
+                    num_epochs=num_epoch,
                     target_accuracy=target_accuracy,
                     learning_rate=learning_rate,
                     load_net=False,
@@ -144,10 +146,10 @@ def prune_dead_neural(net,
                     learning_rate_decay=learning_rate_decay,
                     learning_rate_decay_factor=learning_rate_decay_factor,
                     weight_decay=weight_decay,
-                    decay_epoch=decay_epoch,
+                    learning_rate_decay_epoch=learning_rate_decay_epoch,
                     )
-        filter_dead_ratio*=0.95
-        neural_dead_times*=0.98
+        filter_dead_ratio*=filter_dead_ratio_decay
+        neural_dead_times*=neural_dead_times_decay
 
 def prune_layer_gradually():
     net = train.create_net('vgg16_bn', True)
