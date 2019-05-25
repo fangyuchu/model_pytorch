@@ -17,6 +17,8 @@ import data_loader
 import numpy as np
 import prune
 import measure_flops
+import logger
+import sys
 
 
 
@@ -33,8 +35,18 @@ def prune_dead_neural(net,
                       learning_rate=0.01,
                       checkpoint_step=1000,
                       epoch_num=350,
-                      filter_preserve_ratio=0.3
+                      filter_preserve_ratio=0.3,
+                      learning_rate_decay=False,
+                      learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                      weight_decay=conf.weight_decay,
+                      decay_epoch=conf.decay_epoch,
                      ):
+    #save the output to log
+    if not os.path.exists(conf.root_path + net_name ):
+        os.makedirs(conf.root_path + net_name , exist_ok=True)
+    sys.stdout = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stdout)
+    sys.stderr = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stderr)  # redirect std err, if necessary
+
     # prepare the data
     if dataset_name is 'imagenet':
         mean = conf.imagenet['mean']
@@ -72,10 +84,15 @@ def prune_dead_neural(net,
             num_conv += 1
             filter_num_lower_bound.append(int(mod.out_channels*filter_preserve_ratio))
             filter_num.append(mod.out_channels)
-    # checkpoint=torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_dead_filter_pruned/checkpoint/sample_num=544064.tar')
+
+
+
+    # checkpoint=torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=9450000,accuracy=0.910.tar')
     #
     # net=checkpoint['net']
     # net.load_state_dict(checkpoint['state_dict'])
+
+
 
     round=0
     while True:
@@ -88,12 +105,6 @@ def prune_dead_neural(net,
 
         torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list,'state_dict':net.state_dict()},
                    conf.root_path+net_name+'/dead_neural/round %d.tar'%round)
-
-
-        # checkpoint=torch.load('/home/victorfang/Desktop/test2.tar')
-        # net=checkpoint['net']
-        # relu_list=checkpoint['relu_list']
-        # neural_list=checkpoint['neural_list']
 
 
         for i in range(num_conv):
@@ -129,7 +140,11 @@ def prune_dead_neural(net,
                     checkpoint_step=checkpoint_step,
                     dataset_name=dataset_name,
                     optimizer=optimizer,
-                    batch_size=batch_size
+                    batch_size=batch_size,
+                    learning_rate_decay=learning_rate_decay,
+                    learning_rate_decay_factor=learning_rate_decay_factor,
+                    weight_decay=weight_decay,
+                    decay_epoch=decay_epoch,
                     )
         filter_dead_ratio*=0.95
         neural_dead_times*=0.98

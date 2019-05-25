@@ -11,6 +11,7 @@ import prune_and_train
 import torch.optim as optim
 import train
 import measure_flops
+import logger
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -225,7 +226,10 @@ if __name__ == "__main__":
                                       learning_rate=0.01,
                                       checkpoint_step=800,
                                       batch_size=1024,
-                                      filter_preserve_ratio=0.3)
+                                      filter_preserve_ratio=0.3,
+                                      learning_rate_decay=True,
+                                      decay_epoch=[150,250],
+                                      learning_rate_decay_factor=0.5)
 
 
     '''

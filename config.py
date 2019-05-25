@@ -4,11 +4,12 @@ import numpy as np
 num_epochs=10                       #times for the use of all training data
 batch_size=32                       #number of images for one batch
 learning_rate=5e-5
-learning_rate_decay_factor=0.93     #decay factor for learning rate decay
+learning_rate_decay_factor=0.5     #decay factor for learning rate decay
 weight_decay=5e-4                   # weight decay (L2 penalty)
 num_epochs_per_decay=2.5
 dropout_rate=0.5
 momentum=0.9
+decay_epoch=[]
 
 #dataset processing params
 num_workers=5

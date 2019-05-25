@@ -14,16 +14,24 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA           #加载PCA算法包
 import evaluate
 import data_loader
+from math import ceil
+import logger
 
 
 
-def exponential_decay_learning_rate(optimizer, learning_rate, sample_num, decay_steps,learning_rate_decay_factor):
+def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,decay_epoch,learning_rate_decay_factor,batch_size):
     """Sets the learning rate to the initial LR decayed by learning_rate_decay_factor every decay_steps"""
-    lr = learning_rate *learning_rate_decay_factor ** int(sample_num / decay_steps)
-    if sample_num%decay_steps==0:
-        print('{} learning rate at present is {}'.format(datetime.now(),lr))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+    current_epoch=ceil(sample_num/train_set_size)
+    if current_epoch in decay_epoch and sample_num-(train_set_size*(current_epoch-1))<=batch_size:
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = param_group['lr']*learning_rate_decay_factor
+            lr=param_group['lr']
+        print('{} learning rate at present is {}'.format(datetime.now(), lr))
+    # lr = learning_rate *learning_rate_decay_factor ** int(sample_num / decay_steps)
+    # if sample_num%decay_steps==0:
+    #     print('{} learning rate at present is {}'.format(datetime.now(),lr))
+    # for param_group in optimizer.param_groups:
+    #     param_group['lr'] = lr
 
 
 
@@ -63,9 +71,10 @@ def train(
                     num_workers=conf.num_workers,
                     learning_rate_decay=False,
                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                    decay_epoch=conf.decay_epoch,
                     weight_decay=conf.weight_decay,
                     target_accuracy=1,
-                    optimizer=optim.Adam
+                    optimizer=optim.Adam,
                   ):
     #implemented according to "Pruning Filters For Efficient ConvNets" by Hao Li
     # gpu or not
@@ -174,20 +183,23 @@ def train(
             # 准备数据
             images, labels = data
             images, labels = images.to(device), labels.to(device)
+            sample_num += images.shape[0]
 
             if learning_rate_decay:
                 exponential_decay_learning_rate(optimizer=optimizer,
-                                                learning_rate=learning_rate,
                                                 sample_num=sample_num,
-                                                decay_steps=sample_num/train_set_size*2,
-                                                learning_rate_decay_factor=learning_rate_decay_factor)
+                                                learning_rate_decay_factor=learning_rate_decay_factor,
+                                                train_set_size=train_set_size,
+                                                decay_epoch=decay_epoch,
+                                                batch_size=batch_size)
+
             optimizer.zero_grad()
             # forward + backward
             outputs = net(images)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-            sample_num += images.shape[0]
+
 
             if step % checkpoint_step == 0 and step != 0:
                 accuracy=evaluate.evaluate_net(net,validation_loader,
