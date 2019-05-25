@@ -199,7 +199,7 @@ if __name__ == "__main__":
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    checkpoint = torch.load('/home/victorfang/Desktop/sample_num=12460032.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
     #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/test5/checkpoint/sample_num=7800000,accuracy=0.911.tar')
 
     net=checkpoint['net']
@@ -229,12 +229,12 @@ if __name__ == "__main__":
     #             learning_rate_decay_epoch=[150,250,350],
     #             )
 
-
+    measure_flops.measure_model(net,dataset_name='cifar10')
     prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10_dead_neural_pruned',
-                                      neural_dead_times=7000,
+                                      neural_dead_times=8000,
                                       dataset_name='cifar10',
                                       filter_dead_ratio=0.9,
-                                      target_accuracy=0.91,
+                                      target_accuracy=0.93,
                                       optimizer=optim.SGD,
                                       learning_rate=0.1,
                                       checkpoint_step=800,
