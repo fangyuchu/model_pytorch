@@ -105,8 +105,10 @@ def prune_dead_neural(net,
         if not os.path.exists(conf.root_path+net_name+'/dead_neural'):
             os.makedirs(conf.root_path+net_name+'/dead_neural', exist_ok=True)
 
-        torch.save({'net':net,'relu_list':relu_list,'neural_list':neural_list,'state_dict':net.state_dict()},
-                   conf.root_path+net_name+'/dead_neural/round %d.tar'%round)
+        torch.save({'neural_dead_times':neural_dead_times,'filter_dead_ratio':filter_dead_ratio,
+                    'net':net,'relu_list':relu_list,
+                    'neural_list':neural_list,'state_dict':net.state_dict()},
+                   conf.root_path+net_name+'/dead_neural/round %d.tar'%round,)
 
 
         for i in range(num_conv):

@@ -148,7 +148,7 @@ def check_ReLU_alive(net, data_loader,neural_dead_times):
             handle.append(mod.register_forward_hook(check_if_dead))
 
     evaluate_net(net, data_loader, False)
-    check_dead_rate(neural_dead_times)
+    cal_dead_neural_rate(neural_dead_times)
 
     #close the hook
     for h in handle:
@@ -171,10 +171,12 @@ def check_if_dead(module, input, output):
 
     neural_list[module]=neural_list[module]+zero_matrix
 
-def check_dead_rate(neural_dead_times):
+def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
     dead_num=0
     neural_num=0
-    for (k,v) in neural_list.items():
+    if neural_list_temp is None:
+        neural_list_temp=neural_list
+    for (k,v) in neural_list_temp.items():
         dead_num+=np.sum(v>=neural_dead_times)                                   #neural unactivated for more than 40000 times
         neural_num+=v.size
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
@@ -230,22 +232,24 @@ if __name__ == "__main__":
     #             )
 
     measure_flops.measure_model(net,dataset_name='cifar10')
-    prune_and_train.prune_dead_neural(net=net,net_name='vgg16_bn_cifar10_dead_neural_pruned',
-                                      neural_dead_times=8000,
+    prune_and_train.prune_dead_neural(net=net,
+                                      net_name='vgg16_bn_cifar10_dead_neural_pruned',
                                       dataset_name='cifar10',
+                                      neural_dead_times=8000,
                                       filter_dead_ratio=0.9,
-                                      target_accuracy=0.93,
+                                      neural_dead_times_decay=0.95,
+                                      filter_dead_ratio_decay=0.98,
+                                      filter_preserve_ratio=0.1,
+                                      target_accuracy=0.935,
                                       optimizer=optim.SGD,
                                       learning_rate=0.1,
-                                      checkpoint_step=800,
                                       batch_size=1024,
-                                      filter_preserve_ratio=0.1,
                                       num_epoch=450,
                                       learning_rate_decay=True,
-                                      learning_rate_decay_epoch=[150,250,350],
-                                      learning_rate_decay_factor=0.1,
-                                      neural_dead_times_decay=0.95,
-                                      filter_dead_ratio_decay=0.98)
+                                      learning_rate_decay_epoch=[50,100,150,200,250,300,350,400],
+                                      learning_rate_decay_factor=0.5,
+                                      checkpoint_step=800,
+                                      )
 
 
     '''
