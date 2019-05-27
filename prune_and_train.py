@@ -149,6 +149,7 @@ def prune_dead_neural(net,
                     learning_rate_decay_factor=learning_rate_decay_factor,
                     weight_decay=weight_decay,
                     learning_rate_decay_epoch=learning_rate_decay_epoch,
+                    test_net=True,
                     )
         filter_dead_ratio*=filter_dead_ratio_decay
         neural_dead_times*=neural_dead_times_decay
