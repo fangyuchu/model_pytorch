@@ -16,7 +16,8 @@ sys.stderr = logger.Logger( './model/vgg19_on_cifar10/log.txt', sys.stderr)  # r
 
 
 
-net=vgg.vgg19(pretrained=False)
+net=vgg.vgg19(pretrained=True)
+print('loading pretrained model')
 net.classifier=nn.Sequential(
             nn.Dropout(),
             nn.Linear(512, 512),
@@ -67,7 +68,7 @@ train.train(net,
             'cifar10',
             train_loader=train_loader,
             validation_loader=val_loader,
-            learning_rate=0.1,
+            learning_rate=0.01,
             batch_size=batch_size,
             checkpoint_step=800,
             root_path='./model/',
