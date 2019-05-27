@@ -43,7 +43,6 @@ def prune_dead_neural(net,
                       weight_decay=conf.weight_decay,
                       learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                      ):
-    print('')
     #save the output to log
     if not os.path.exists(conf.root_path + net_name ):
         os.makedirs(conf.root_path + net_name , exist_ok=True)
