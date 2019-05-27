@@ -7,9 +7,16 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import config as conf
 import torch.optim as optim
+import logger
+import sys
+if not os.path.exists('./model/vgg19_on_cifar10'):
+    os.makedirs('./model/vgg19_on_cifar10', exist_ok=True)
+sys.stdout = logger.Logger( './model/vgg19_on_cifar10/log.txt', sys.stdout)
+sys.stderr = logger.Logger( './model/vgg19_on_cifar10/log.txt', sys.stderr)  # redirect std err, if necessary
 
 
-net=vgg.vgg16_bn(pretrained=True)
+
+net=vgg.vgg19(pretrained=False)
 net.classifier=nn.Sequential(
             nn.Dropout(),
             nn.Linear(512, 512),
@@ -56,17 +63,20 @@ val_loader = torch.utils.data.DataLoader(
     num_workers=6, pin_memory=True)
 
 train.train(net,
-            'vgg16_bn_on_cifar10',
+            'vgg19_on_cifar10',
             'cifar10',
             train_loader=train_loader,
             validation_loader=val_loader,
             learning_rate=0.1,
-            num_epochs=150,
             batch_size=batch_size,
             checkpoint_step=800,
             root_path='./model/',
             num_workers=8,
-            optimizer=optim.SGD
+            optimizer=optim.SGD,
+            num_epochs=450,
+            learning_rate_decay=True,
+            learning_rate_decay_epoch=[50, 100, 150, 200, 250, 300, 350, 400],
+            learning_rate_decay_factor=0.5,
             )
 
 
