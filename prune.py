@@ -14,6 +14,7 @@ def replace_layers(module,old_mod,new_mod):
 
 
 def prune_conv_layer(model, layer_index, filter_index):
+    #todo:有错的
     ''' layer_index:要删的卷基层的索引
         filter_index:要删layer_index层中的哪个filter
     '''
@@ -61,6 +62,7 @@ def prune_conv_layer(model, layer_index, filter_index):
 
     if batch_norm is not None:
         new_batch_norm=torch.nn.BatchNorm2d(new_conv.out_channels)
+        new_batch_norm.num_batches_tracked=batch_norm.num_batches_tracked
 
         old_weights = batch_norm.weight.data.cpu().numpy()                                      #删除weight
         new_weights = new_batch_norm.weight.data.cpu().numpy()

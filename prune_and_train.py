@@ -20,6 +20,8 @@ import measure_flops
 import logger
 import sys
 
+import copy
+
 
 
 def prune_dead_neural(net,
@@ -96,7 +98,7 @@ def prune_dead_neural(net,
 
 
 
-    round=0
+    round=8
     while True:
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))

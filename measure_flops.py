@@ -3,6 +3,7 @@ import numpy as np
 import train
 import vgg
 import torch.nn as nn
+import copy
 import logger
 
 count_ops = 0
@@ -69,7 +70,29 @@ def should_measure(module):
         return True
     return False
 
-def measure_model(model, dataset_name='imagenet'):
+
+def measure_model_mine(net,dataset_name='imagenet'):
+    if dataset_name is 'imagenet':
+        shape=(1,3,224,224)
+    elif dataset_name is 'cifar10':
+        shape=(1,3,32,32)
+    global count_ops
+    data = torch.zeros(shape)
+    if torch.cuda.is_available():
+        data=data.cuda()
+    for mod in net.modules():
+        measure_layer(mod,data,)
+    print('flop_num:{}'.format(count_ops))
+    count_ops_temp=count_ops
+    count_ops=0
+    return count_ops_temp
+
+
+
+def measure_model(net, dataset_name='imagenet'):
+    model=copy.deepcopy(net)                    #防止把原模型做了改变
+
+
     if dataset_name is 'imagenet':
         shape=(1,3,224,224)
     elif dataset_name is 'cifar10':
@@ -116,23 +139,25 @@ def measure_model(model, dataset_name='imagenet'):
 
 if __name__ == '__main__':
     net = vgg.vgg16_bn(pretrained=True)
-    # net.classifier = nn.Sequential(
-    #     nn.Dropout(),
-    #     nn.Linear(512, 512),
-    #     nn.ReLU(True),
-    #     nn.Dropout(),
-    #     nn.Linear(512, 512),
-    #     nn.ReLU(True),
-    #     nn.Linear(512, 10),
-    # )
-    # for m in net.modules():
-    #     if isinstance(m, nn.Linear):
-    #         nn.init.normal_(m.weight, 0, 0.01)
-    #         nn.init.constant_(m.bias, 0)
-    # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    net.classifier = nn.Sequential(
+        nn.Dropout(),
+        nn.Linear(512, 512),
+        nn.ReLU(True),
+        nn.Dropout(),
+        nn.Linear(512, 512),
+        nn.ReLU(True),
+        nn.Linear(512, 10),
+    )
+    for m in net.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.normal_(m.weight, 0, 0.01)
+            nn.init.constant_(m.bias, 0)
+    net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
     # checkpoint=torch.load('/home/victorfang/Desktop/sample_num=256032.tar',map_location='cpu')
     # net=checkpoint['net']
 
-    print(measure_model(net))
+    print(measure_model(net,dataset_name='cifar10'))
+
+    #print(measure_model_mine(net,dataset_name='cifar10'))
     # ≈1.8G，和原文一致

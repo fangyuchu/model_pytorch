@@ -66,6 +66,26 @@ def validate(val_loader, model):
 
         return top1.avg, top5.avg
 
+
+def same_two_nets(net1,net2,print_diffrent_module=False):
+    '''
+    Compare net1 and net2. If their structure and weights are identical, return True.
+    :param net1: 
+    :param net2: 
+    :param print_diffrent_module: 
+    :return: 
+    '''
+    param1 = net1.state_dict()
+    param2=net2.state_dict()
+    for key in list(param1.keys()):
+        o=param1[key].data.cpu().numpy()
+        n=param2[key].data.cpu().numpy()
+        if not (o==n).all():
+            if print_diffrent_module :
+                print(key)
+            return False
+    return True
+
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
     maxk = max(topk)
@@ -201,8 +221,8 @@ if __name__ == "__main__":
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
-    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/test5/checkpoint/sample_num=7800000,accuracy=0.911.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=12500000,accuracy=0.935.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -235,14 +255,14 @@ if __name__ == "__main__":
     prune_and_train.prune_dead_neural(net=net,
                                       net_name='vgg16_bn_cifar10_dead_neural_pruned',
                                       dataset_name='cifar10',
-                                      neural_dead_times=9000,
+                                      neural_dead_times=9900,
                                       filter_dead_ratio=0.9,
                                       neural_dead_times_decay=0.98,
                                       filter_dead_ratio_decay=0.98,
                                       filter_preserve_ratio=0.1,
                                       target_accuracy=0.935,
                                       optimizer=optim.SGD,
-                                      learning_rate=0.01,
+                                      learning_rate=0.001,
                                       batch_size=1024,
                                       num_epoch=450,
                                       learning_rate_decay=True,
