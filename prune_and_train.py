@@ -96,9 +96,7 @@ def prune_dead_neural(net,
     # net=checkpoint['net']
     # net.load_state_dict(checkpoint['state_dict'])
 
-
-
-    round=8
+    round=0
     while True:
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))

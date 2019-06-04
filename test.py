@@ -11,44 +11,49 @@ import evaluate
 import numpy as np
 import data_loader
 
-neural_dead_times=8000
+neural_dead_times=7000
 filter_dead_ratio=0.85
 
-checkpoint=torch.load('round 1.tar')
-net=checkpoint['net']
-net.load_state_dict(checkpoint['state_dict'])
-neural_list=checkpoint['neural_list']
-relu_list=checkpoint['relu_list']
+dead_filter = np.empty(shape=[0, 3, 3, 3])
+living_filter = np.empty(shape=[0, 3, 3, 3])
 
-num_conv = 0  # num of conv layers in the net
-filter_num=list()
-filters=list()
-for mod in net.features:
-    if isinstance(mod, torch.nn.modules.conv.Conv2d):
-        num_conv += 1
-        filter_num.append(mod.out_channels)
-        filters.append(mod)
+for Round in range(1,42):
 
-dead_filter=np.empty(shape=[0,3,3,3])
-living_filter=np.empty(shape=[0,3,3,3])
+    checkpoint=torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/dead_neural/round '+str(Round)+'.tar')
+    net=checkpoint['net']
+    net.load_state_dict(checkpoint['state_dict'])
+    neural_list=checkpoint['neural_list']
+    relu_list=checkpoint['relu_list']
 
-for i in range(num_conv):
-    for relu_key in list(neural_list.keys()):
-        if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
-            dead_relu_list=neural_list[relu_key]
-            neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
+    num_conv = 0  # num of conv layers in the net
+    filter_num=list()
+    filters=list()
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+            filter_num.append(mod.out_channels)
+            filters.append(mod)
 
 
-            # judge dead filter by neural_dead_times and dead_filter_ratio
-            dead_relu_list[dead_relu_list<neural_dead_times]=0
-            dead_relu_list[dead_relu_list>=neural_dead_times]=1
-            dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
-            dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
-            living_filter_index=[i for i in range(filter_num[i]) if i not in dead_filter_index]
-            dead_filter=np.append(dead_filter,filters[i].weight.data.cpu().numpy()[dead_filter_index],axis=0)
-            living_filter=np.append(living_filter,filters[i].weight.data.cpu().numpy()[living_filter_index],axis=0)
-            print()
 
+    for i in range(1):
+        for relu_key in list(neural_list.keys()):
+            if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
+                dead_relu_list=neural_list[relu_key]
+                neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
+
+
+                # judge dead filter by neural_dead_times and dead_filter_ratio
+                dead_relu_list[dead_relu_list<neural_dead_times]=0
+                dead_relu_list[dead_relu_list>=neural_dead_times]=1
+                dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
+                dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
+                living_filter_index=[i for i in range(filter_num[i]) if i not in dead_filter_index]
+                dead_filter=np.append(dead_filter,filters[i].weight.data.cpu().numpy()[dead_filter_index],axis=0)
+                living_filter=np.append(living_filter,filters[i].weight.data.cpu().numpy()[living_filter_index],axis=0)
+                print(Round)
+
+print()
 
 
 
