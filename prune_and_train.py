@@ -138,7 +138,7 @@ def prune_dead_neural(net,
             round-=1
             filter_dead_ratio *= filter_dead_ratio_decay
             neural_dead_times *= neural_dead_times_decay
-            print('{} round {} did not prune any filters. Restart.'.format(datetime.now(),round))
+            print('{} round {} did not prune any filters. Restart.'.format(datetime.now(),round+1))
             continue
 
         measure_flops.measure_model(net,'cifar10')
