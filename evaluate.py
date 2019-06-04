@@ -222,7 +222,7 @@ if __name__ == "__main__":
 
 
     #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
-    checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=12500000,accuracy=0.935.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=1950000,accuracy=0.935.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -255,9 +255,9 @@ if __name__ == "__main__":
     prune_and_train.prune_dead_neural(net=net,
                                       net_name='vgg16_bn_cifar10_dead_neural_pruned',
                                       dataset_name='cifar10',
-                                      neural_dead_times=9900,
+                                      neural_dead_times=9000,
                                       filter_dead_ratio=0.9,
-                                      neural_dead_times_decay=0.98,
+                                      neural_dead_times_decay=0.95,
                                       filter_dead_ratio_decay=0.98,
                                       filter_preserve_ratio=0.1,
                                       target_accuracy=0.935,
