@@ -96,7 +96,7 @@ def prune_dead_neural(net,
     # net=checkpoint['net']
     # net.load_state_dict(checkpoint['state_dict'])
 
-    round=20
+    round=19
     while True:
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))
@@ -109,8 +109,7 @@ def prune_dead_neural(net,
                     'net':net,'relu_list':relu_list,
                     'neural_list':neural_list,'state_dict':net.state_dict()},
                    conf.root_path+net_name+'/dead_neural/round %d.tar'%round,)
-
-
+        net_compressed=False
         for i in range(num_conv):
             for relu_key in list(neural_list.keys()):
                 if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
@@ -127,11 +126,20 @@ def prune_dead_neural(net,
                     if filter_num[i]-len(dead_filter_index)<filter_num_lower_bound[i]:
                         dead_filter_index=dead_filter_index[:filter_num[i]-filter_num_lower_bound[i]]
                     filter_num[i]=filter_num[i]-len(dead_filter_index)
-
+                    if len(dead_filter_index)>0:
+                        net_compressed=True
                     print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
                                                                                   len(dead_filter_index)))
 
                     net=prune.prune_conv_layer(model=net,layer_index=i+1,filter_index=dead_filter_index)    #prune the dead filter
+
+        if net_compressed is False:
+            os.remove(conf.root_path+net_name+'/dead_neural/round %d.tar'%round)
+            round-=1
+            filter_dead_ratio *= filter_dead_ratio_decay
+            neural_dead_times *= neural_dead_times_decay
+            print('{} round {} did not prune any filters. Restart.'.format(datetime.now(),round))
+            continue
 
         measure_flops.measure_model(net,'cifar10')
 
