@@ -1,15 +1,5 @@
 import torch
-import train
-import config as conf
-import torchvision.datasets as datasets
-import torchvision.transforms as transforms
-import torch.nn as nn
-import math
-import prune_and_train
-import measure_flops
-import evaluate
 import numpy as np
-import data_loader
 from sklearn import svm
 
 
@@ -72,7 +62,7 @@ if __name__ == "__main__":
                               path='/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/dead_neural')
     validation_x,validation_y=read_data(total_num=22,
                                         path='/home/victorfang/Desktop/pytorch_model/test1/dead_neural')
-    svc=svm.SVC()
+    svc=svm.SVC(kernel='linear')
     svc.fit(train_x,train_y)
     predict_y=svc.predict(validation_x)
     print()
