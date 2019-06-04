@@ -10,6 +10,8 @@ import measure_flops
 import evaluate
 import numpy as np
 import data_loader
+from sklearn import svm
+
 
 neural_dead_times=7000
 filter_dead_ratio=0.85
@@ -52,7 +54,13 @@ for Round in range(1,42):
                 dead_filter=np.append(dead_filter,filters[i].weight.data.cpu().numpy()[dead_filter_index],axis=0)
                 living_filter=np.append(living_filter,filters[i].weight.data.cpu().numpy()[living_filter_index],axis=0)
                 print(Round)
-
+dead_filter=np.reshape(dead_filter,(-1,27))
+living_filter=np.reshape(living_filter,(-1,27))
+x=np.vstack((dead_filter,living_filter))
+y=np.zeros(x.shape[0])
+y[[i for i in range(dead_filter.shape[0])]]=1
+svc=svm.SVC()
+svc.fit(x,y)
 print()
 
 
