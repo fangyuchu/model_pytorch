@@ -144,7 +144,7 @@ def prune_dead_neural(net,
 
         measure_flops.measure_model(net,'cifar10')
         while not success:
-            old_net=net
+            old_net=copy.deepcopy(net)
             success=train.train(net=net,
                         net_name=net_name,
                         num_epochs=num_epoch,
