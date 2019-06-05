@@ -16,7 +16,7 @@ sys.stderr = logger.Logger( './model/vgg19_on_cifar10/log.txt', sys.stderr)  # r
 
 
 
-net=vgg.vgg19(pretrained=True)
+net=vgg.vgg19(pretrained=False)
 print('loading pretrained model')
 net.classifier=nn.Sequential(
             nn.Dropout(),
