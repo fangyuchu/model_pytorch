@@ -77,7 +77,7 @@ def train(
                     target_accuracy=1,
                     optimizer=optim.Adam,
                   ):
-    #implemented according to "Pruning Filters For Efficient ConvNets" by Hao Li
+    success=True                                                                   #if the trained net reaches target accuracy
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ',end='')
@@ -170,7 +170,7 @@ def train(
                                        target_accuracy=target_accuracy)
         if accuracy >= target_accuracy:
             print('{} net reached target accuracy.'.format(datetime.now()))
-            return
+            return success
 
     #ensure the net will be evaluated despite the inappropriate checkpoint_step
     if checkpoint_step>int(train_set_size/batch_size):
@@ -190,7 +190,7 @@ def train(
                                target_accuracy=target_accuracy)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
-                    return
+                    return success
                 break
 
             # 准备数据
@@ -226,7 +226,7 @@ def train(
                                                target_accuracy=target_accuracy)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
-                    return
+                    return success
                 print('{} continue training'.format(datetime.now()))
 
     print("{} Training finished. Saving net...".format(datetime.now()))
@@ -236,6 +236,7 @@ def train(
                   'sample_num': sample_num}
     torch.save(checkpoint, '%s/sample_num=%d,accuracy=%.3f.tar' % (checkpoint_path, sample_num, accuracy))
     print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
+    return not success
 
 
 def show_feature_map(

@@ -98,6 +98,7 @@ def prune_dead_neural(net,
 
     round=19
     while True:
+        success=False
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))
         relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
@@ -142,23 +143,26 @@ def prune_dead_neural(net,
             continue
 
         measure_flops.measure_model(net,'cifar10')
-
-        train.train(net=net,
-                    net_name=net_name,
-                    num_epochs=num_epoch,
-                    target_accuracy=target_accuracy,
-                    learning_rate=learning_rate,
-                    load_net=False,
-                    checkpoint_step=checkpoint_step,
-                    dataset_name=dataset_name,
-                    optimizer=optimizer,
-                    batch_size=batch_size,
-                    learning_rate_decay=learning_rate_decay,
-                    learning_rate_decay_factor=learning_rate_decay_factor,
-                    weight_decay=weight_decay,
-                    learning_rate_decay_epoch=learning_rate_decay_epoch,
-                    test_net=True,
-                    )
+        while not success:
+            old_net=net
+            success=train.train(net=net,
+                        net_name=net_name,
+                        num_epochs=num_epoch,
+                        target_accuracy=target_accuracy,
+                        learning_rate=learning_rate,
+                        load_net=False,
+                        checkpoint_step=checkpoint_step,
+                        dataset_name=dataset_name,
+                        optimizer=optimizer,
+                        batch_size=batch_size,
+                        learning_rate_decay=learning_rate_decay,
+                        learning_rate_decay_factor=learning_rate_decay_factor,
+                        weight_decay=weight_decay,
+                        learning_rate_decay_epoch=learning_rate_decay_epoch,
+                        test_net=True,
+                        )
+            if not success:
+                net=old_net
         filter_dead_ratio*=filter_dead_ratio_decay
         neural_dead_times*=neural_dead_times_decay
 
