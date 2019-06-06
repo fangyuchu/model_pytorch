@@ -91,7 +91,10 @@ def train(
     # optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,#weight_decay=weight_decay
     #                       )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
 
-    optimizer=optimizer(net.parameters(),lr=learning_rate,weight_decay=weight_decay,momentum=momentum)
+    if optimizer is optim.Adam:
+        optimizer = optimizer(net.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    elif optimizer is optim.SGD:
+        optimizer=optimizer(net.parameters(),lr=learning_rate,weight_decay=weight_decay,momentum=momentum)
 
     #prepare the data
     if dataset_name is 'imagenet':
