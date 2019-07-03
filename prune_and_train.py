@@ -122,7 +122,7 @@ def prune_dead_neural(net,
                     dead_relu_list[dead_relu_list<neural_dead_times]=0
                     dead_relu_list[dead_relu_list>=neural_dead_times]=1
                     dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
-                    dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
+                    dead_filter_index=np.where(dead_relu_list>=neural_num*filter_dead_ratio)[0].tolist()
                     #ensure the lower bound of filter number
                     if filter_num[i]-len(dead_filter_index)<filter_num_lower_bound[i]:
                         dead_filter_index=dead_filter_index[:filter_num[i]-filter_num_lower_bound[i]]

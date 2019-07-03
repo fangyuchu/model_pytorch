@@ -12,6 +12,8 @@ import torch.optim as optim
 import train
 import measure_flops
 import logger
+from PIL import Image
+import matplotlib.pyplot as plt
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -157,7 +159,7 @@ def evaluate_net(  net,
 
 def check_ReLU_alive(net, data_loader,neural_dead_times):
     handle = list()
-    global relu_list
+    global relu_list                                                        #list containing relu module
     global neural_list
     relu_list=list()
     neural_list=dict()
@@ -178,6 +180,40 @@ def check_ReLU_alive(net, data_loader,neural_dead_times):
     relu_list_temp=relu_list
     del relu_list,neural_list
     return relu_list_temp,neural_list_temp
+
+
+def plot_dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_dead_ratio):
+    dead_filter_num=list()                                                                      #num of dead filters in each layer
+    filter_num=list()                                                                           #num of filters in each layer
+
+    num_conv = 0  # num of conv layers in the net
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+
+    for i in range(num_conv):
+        for relu_key in list(neural_list.keys()):
+            if relu_list[i] is relu_key:  # find the neural_list_statistics in layer i+1
+                dead_relu_list = neural_list[relu_key]
+                neural_num = dead_relu_list.shape[1] * dead_relu_list.shape[2]  # neural num for one filter
+
+                # judge dead filter by neural_dead_times and dead_filter_ratio
+                dead_relu_list[dead_relu_list < neural_dead_times] = 0
+                dead_relu_list[dead_relu_list >= neural_dead_times] = 1
+                dead_relu_list = np.sum(dead_relu_list, axis=(1, 2))  # count the number of dead neural for one filter
+                dead_filter_index = np.where(dead_relu_list >= neural_num * filter_dead_ratio)[0].tolist()
+                dead_filter_num.append(len(dead_filter_index))
+                filter_num.append(len(neural_list[relu_key]))
+    plt.figure()
+    plt.title('statistics of dead filter\nneural_dead_time={},filter_dead_ratio={}'.format(neural_dead_times,filter_dead_ratio))
+    plt.bar(range(len(filter_num)),filter_num,label='filter')
+    plt.bar(range(len(dead_filter_num)),dead_filter_num,label='dead filter')
+    plt.xlabel('layer')
+    plt.ylabel('number of filters')
+    plt.legend()
+    plt.show()
+    print()
+
 
 
 def check_if_dead(module, input, output):

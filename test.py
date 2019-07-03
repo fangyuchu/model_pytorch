@@ -11,57 +11,61 @@ import evaluate
 import numpy as np
 import data_loader
 from sklearn import svm
-
-
-neural_dead_times=7000
-filter_dead_ratio=0.85
-
-dead_filter = np.empty(shape=[0, 3, 3, 3])
-living_filter = np.empty(shape=[0, 3, 3, 3])
-
-for Round in range(1,42):
-
-    checkpoint=torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/dead_neural/round '+str(Round)+'.tar')
-    net=checkpoint['net']
-    net.load_state_dict(checkpoint['state_dict'])
-    neural_list=checkpoint['neural_list']
-    relu_list=checkpoint['relu_list']
-
-    num_conv = 0  # num of conv layers in the net
-    filter_num=list()
-    filters=list()
-    for mod in net.features:
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv += 1
-            filter_num.append(mod.out_channels)
-            filters.append(mod)
+import vgg
 
 
 
-    for i in range(1):
-        for relu_key in list(neural_list.keys()):
-            if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
-                dead_relu_list=neural_list[relu_key]
-                neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
+# net = vgg.vgg16_bn(pretrained=True)
+# net.classifier = nn.Sequential(
+#     nn.Dropout(),
+#     nn.Linear(512, 512),
+#     nn.ReLU(True),
+#     nn.Dropout(),
+#     nn.Linear(512, 512),
+#     nn.ReLU(True),
+#     nn.Linear(512, 10),
+# )
+# for m in net.modules():
+#     if isinstance(m, nn.Linear):
+#         nn.init.normal_(m.weight, 0, 0.01)
+#         nn.init.constant_(m.bias, 0)
+# net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+#
+# # checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+# checkpoint = torch.load(
+#     '/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+#
+# net = checkpoint['net']
+# net.load_state_dict(checkpoint['state_dict'])
+# print(checkpoint['highest_accuracy'])
+# relu_list,neural_list=evaluate.check_ReLU_alive(net=net,
+#                           data_loader=data_loader.create_validation_loader(dataset_path=conf.cifar10['validation_set_path'],
+#                                                                  default_image_size=32,
+#                                                                  mean=conf.cifar10['mean'],
+#                                                                  std=conf.cifar10['std'],
+#                                                                  batch_size=1024,
+#                                                                  num_workers=4,
+#                                                                  dataset_name='cifar10',
+#                                                                  ),
+#                           neural_dead_times=8000)
 
 
-                # judge dead filter by neural_dead_times and dead_filter_ratio
-                dead_relu_list[dead_relu_list<neural_dead_times]=0
-                dead_relu_list[dead_relu_list>=neural_dead_times]=1
-                dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
-                dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
-                living_filter_index=[i for i in range(filter_num[i]) if i not in dead_filter_index]
-                dead_filter=np.append(dead_filter,filters[i].weight.data.cpu().numpy()[dead_filter_index],axis=0)
-                living_filter=np.append(living_filter,filters[i].weight.data.cpu().numpy()[living_filter_index],axis=0)
-                print(Round)
-dead_filter=np.reshape(dead_filter,(-1,27))
-living_filter=np.reshape(living_filter,(-1,27))
-x=np.vstack((dead_filter,living_filter))
-y=np.zeros(x.shape[0])
-y[[i for i in range(dead_filter.shape[0])]]=1
-svc=svm.SVC()
-svc.fit(x,y)
-print()
 
+
+
+
+
+
+
+
+# print(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+# checkpoint=torch.load('/home/victorfang/Desktop/vgg19_imagenet_deadReLU.tar')
+# relu_list=checkpoint['relu_list']
+# neural_list=checkpoint['neural_list']
+# net=checkpoint['net']
+#
+#
+# evaluate.plot_dead_filter_statistics(net,relu_list,neural_list,40000,1)
+# print()
 
 
