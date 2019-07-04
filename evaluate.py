@@ -240,100 +240,58 @@ def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
 
 if __name__ == "__main__":
 
-    net = vgg.vgg16_bn(pretrained=True)
-    net.classifier = nn.Sequential(
-        nn.Dropout(),
-        nn.Linear(512, 512),
-        nn.ReLU(True),
-        nn.Dropout(),
-        nn.Linear(512, 512),
-        nn.ReLU(True),
-        nn.Linear(512, 10),
-    )
-    for m in net.modules():
-        if isinstance(m, nn.Linear):
-            nn.init.normal_(m.weight, 0, 0.01)
-            nn.init.constant_(m.bias, 0)
-    net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-
-
-    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
-    checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=1950000,accuracy=0.935.tar')
-
-    net=checkpoint['net']
-    net.load_state_dict(checkpoint['state_dict'])
-    print(checkpoint['highest_accuracy'])
-
-    # net = checkpoint['net']
-    # #net.load_state_dict(checkpoint['state_dict'])
+    # net = vgg.vgg16_bn(pretrained=True)
+    # net.classifier = nn.Sequential(
+    #     nn.Dropout(),
+    #     nn.Linear(512, 512),
+    #     nn.ReLU(True),
+    #     nn.Dropout(),
+    #     nn.Linear(512, 512),
+    #     nn.ReLU(True),
+    #     nn.Linear(512, 10),
+    # )
     # for m in net.modules():
     #     if isinstance(m, nn.Linear):
     #         nn.init.normal_(m.weight, 0, 0.01)
     #         nn.init.constant_(m.bias, 0)
     # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    # print(checkpoint['highest_accuracy'])
 
-    # train.train(net=net,
-    #             net_name='vgg16_bn_cifar_pruned_scratch',
-    #             num_epochs=450,
-    #             learning_rate=0.1,
-    #             load_net=True,
-    #             checkpoint_step=1000,
-    #             dataset_name='cifar10',
-    #             optimizer=optim.SGD,
-    #             batch_size=1024,
-    #             learning_rate_decay=True,
-    #             learning_rate_decay_factor=0.1,
-    #             learning_rate_decay_epoch=[150,250,350],
-    #             )
+
+    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    # checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=1950000,accuracy=0.935.tar')
+
+    net=checkpoint['net']
+    net.load_state_dict(checkpoint['state_dict'])
+    print(checkpoint['highest_accuracy'])
+
 
     measure_flops.measure_model(net,dataset_name='cifar10')
+
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16_bn_cifar10_dead_neural_pruned',
+                                      net_name='vgg16_bn_cifar10_dead_neural_pruned5',
                                       dataset_name='cifar10',
-                                      neural_dead_times=9000,
+                                      neural_dead_times=8000,
                                       filter_dead_ratio=0.9,
                                       neural_dead_times_decay=0.95,
                                       filter_dead_ratio_decay=0.98,
                                       filter_preserve_ratio=0.1,
-                                      target_accuracy=0.935,
-                                      optimizer=optim.SGD,
-                                      learning_rate=0.001,
-                                      batch_size=1024,
-                                      num_epoch=450,
-                                      learning_rate_decay=True,
-                                      learning_rate_decay_epoch=[50,100,150,200,250,300,350,400],
-                                      learning_rate_decay_factor=0.8,
-                                      checkpoint_step=800,
+                                      max_filters_pruned_for_one_time=0.3,
+                                      target_accuracy=0.93,
+                                      batch_size=300,
+                                      num_epoch=300,
+                                      checkpoint_step=1600,
+
+                                      optimizer=optim.Adam,
+                                      learning_rate=1e-3,
+                                      weight_decay=0
+                                      # optimizer=optim.SGD,
+                                      # learning_rate=0.01,
+                                      # learning_rate_decay=True,
+                                      # learning_rate_decay_epoch=[50,100,150,200,250,300,350,400],
+                                      # learning_rate_decay_factor=0.8,
                                       )
 
 
-    '''
-        prune_and_train.prune_dead_neural(net=net,net_name='new_vgg16_bn_cifar10_dead_neural_pruned',
-                                      neural_dead_times=7000,
-                                      dataset_name='cifar10',
-                                      filter_dead_ratio=0.95,
-                                      target_accuracy=0.905,
-                                      optimizer=optim.SGD,
-                                      learning_rate=0.01,
-                                      checkpoint_step=800,
-                                      batch_size=1024)
-        flops=210182114,Acc@1 0.4446 Acc@5 0.8751000005722046,Epoch number: 6,Acc@1 0.9050999990463257 Acc@5 0.9913000002861023
-        
-        
-        prune_and_train.prune_dead_neural(net=net,net_name='new_vgg16_bn_cifar10_dead_neural_pruned',
-                                  neural_dead_times=6500,
-                                  dataset_name='cifar10',
-                                  filter_dead_ratio=0.95,
-                                  target_accuracy=0.905,
-                                  optimizer=optim.SGD,
-                                  learning_rate=0.01,
-                                  checkpoint_step=800,
-                                  batch_size=1024)
-        flops=183511802,51.797% of nodes are dead,Acc@1 0.18589999964237214 Acc@5 0.5201000001430511
-        Epoch number: 34,Acc@1 0.9056999988555908 Acc@5 0.9897000001907349
-        
-    '''
 
 
 
@@ -341,20 +299,4 @@ if __name__ == "__main__":
 
 
 
-
-    #check_ReLU_alive(net,val_loader,8000)
-
-
-
-
-
-
-
-
-
-    # for mod in relu_list:
-    #     if module==mod.module:
-    #         mod.update(dead_num)
-    #
-    # dead_rate.update(dead_num/output.numel(),output.numel())
 

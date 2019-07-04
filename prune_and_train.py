@@ -40,16 +40,51 @@ def prune_dead_neural(net,
                       checkpoint_step=1000,
                       num_epoch=350,
                       filter_preserve_ratio=0.3,
+                      max_filters_pruned_for_one_time=0.5,
                       learning_rate_decay=False,
                       learning_rate_decay_factor=conf.learning_rate_decay_factor,
                       weight_decay=conf.weight_decay,
                       learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                      ):
     #save the output to log
+    print('save log in:' + conf.root_path + net_name + '/log.txt')
     if not os.path.exists(conf.root_path + net_name ):
         os.makedirs(conf.root_path + net_name , exist_ok=True)
     sys.stdout = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stdout)
     sys.stderr = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stderr)  # redirect std err, if necessary
+
+    print('net:{}\n'
+          'net_name:{}\n'
+          'neural_dead_times:{}\n'
+          'filter_dead_ratio:{}\n'
+          'target_accuracy:{}\n'
+          'filter_dead_ratio_decay:{}\n'
+          'neural_dead_times_decay:{}\n'
+          'dataset_name:{}\n'
+          'validation_loader:{}\n'
+          'batch_size:{}\n'
+          'num_workers:{}\n'
+          'optimizer:{}\n'
+          'learning_rate:{}\n'
+          'checkpoint_step:{}\n'
+          'num_epoch:{}\n'
+          'filter_preserve_ratio:{}\n'
+          'max_filters_pruned_for_one_time:{}\n'
+          'learning_rate_decay:{}\n'
+          'learning_rate_decay_factor:{}\n'
+          'weight_decay:{}\n'
+          'learning_rate_decay_epoch:{}'
+          .format(net,net_name,neural_dead_times,filter_dead_ratio,target_accuracy,filter_dead_ratio_decay,
+                  neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
+                  num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
+                  weight_decay,learning_rate_decay_epoch))
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print('using: ', end='')
+    if torch.cuda.is_available():
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))
+    else:
+        print(device)
 
     # prepare the data
     if dataset_name is 'imagenet':
@@ -96,11 +131,12 @@ def prune_dead_neural(net,
     # net=checkpoint['net']
     # net.load_state_dict(checkpoint['state_dict'])
 
-    round=19
+    round=0
     while True:
         success=False
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))
+        print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(),filter_dead_ratio,neural_dead_times))
         relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
 
         if not os.path.exists(conf.root_path+net_name+'/dead_neural'):
@@ -123,6 +159,9 @@ def prune_dead_neural(net,
                     dead_relu_list[dead_relu_list>=neural_dead_times]=1
                     dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
                     dead_filter_index=np.where(dead_relu_list>=neural_num*filter_dead_ratio)[0].tolist()
+                    #ensure the number of filters pruned will not be too large for one time
+                    if filter_num[i]*max_filters_pruned_for_one_time<len(dead_filter_index):
+                        dead_filter_index = dead_filter_index[:int(filter_num[i] *max_filters_pruned_for_one_time)]
                     #ensure the lower bound of filter number
                     if filter_num[i]-len(dead_filter_index)<filter_num_lower_bound[i]:
                         dead_filter_index=dead_filter_index[:filter_num[i]-filter_num_lower_bound[i]]
