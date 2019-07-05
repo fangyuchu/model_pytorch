@@ -7,6 +7,7 @@ import torchvision.datasets as datasets
 import math
 import resnet
 import vgg
+import generate_random_data
 import os
 import re
 from datetime import datetime
@@ -32,6 +33,7 @@ def prune_dead_neural(net,
                       filter_dead_ratio_decay=0.95,
                       neural_dead_times_decay=0.95,
                       dataset_name='imagenet',
+                      use_random_data=False,
                       validation_loader=None,
                       batch_size=conf.batch_size,
                       num_workers=conf.num_workers,
@@ -55,6 +57,7 @@ def prune_dead_neural(net,
 
     print('net:{}\n'
           'net_name:{}\n'
+          'use_random_data:{}\n'
           'neural_dead_times:{}\n'
           'filter_dead_ratio:{}\n'
           'target_accuracy:{}\n'
@@ -74,7 +77,7 @@ def prune_dead_neural(net,
           'learning_rate_decay_factor:{}\n'
           'weight_decay:{}\n'
           'learning_rate_decay_epoch:{}'
-          .format(net,net_name,neural_dead_times,filter_dead_ratio,target_accuracy,filter_dead_ratio_decay,
+          .format(net,net_name,use_random_data,neural_dead_times,filter_dead_ratio,target_accuracy,filter_dead_ratio_decay,
                   neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
                   weight_decay,learning_rate_decay_epoch))
@@ -105,7 +108,7 @@ def prune_dead_neural(net,
         default_image_size=conf.cifar10['default_image_size']
 
 
-    if validation_loader is None:
+    if validation_loader is None and use_random_data is False:
         validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
                                                                  default_image_size=default_image_size,
                                                                  mean=mean,
@@ -124,20 +127,19 @@ def prune_dead_neural(net,
             filter_num_lower_bound.append(int(mod.out_channels*filter_preserve_ratio))
             filter_num.append(mod.out_channels)
 
-
-
-    # checkpoint=torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=9450000,accuracy=0.910.tar')
-    #
-    # net=checkpoint['net']
-    # net.load_state_dict(checkpoint['state_dict'])
-
     round=0
     while True:
         success=False
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))
         print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(),filter_dead_ratio,neural_dead_times))
-        relu_list,neural_list=evaluate.check_ReLU_alive(net,validation_loader,neural_dead_times)
+        if use_random_data is True:
+            random_data=generate_random_data.random_normal(batch_size)
+            print('{} generate random data.'.format(datetime.now()))
+            relu_list, neural_list = evaluate.check_ReLU_alive(net=net, neural_dead_times=neural_dead_times, data=random_data)
+            del random_data
+        else:
+            relu_list,neural_list=evaluate.check_ReLU_alive(net=net,data_loader=validation_loader,neural_dead_times=neural_dead_times)
 
         if not os.path.exists(conf.root_path+net_name+'/dead_neural'):
             os.makedirs(conf.root_path+net_name+'/dead_neural', exist_ok=True)

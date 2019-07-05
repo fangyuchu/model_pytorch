@@ -157,7 +157,7 @@ def evaluate_net(  net,
     return accuracy
 
 
-def check_ReLU_alive(net, data_loader,neural_dead_times):
+def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     handle = list()
     global relu_list                                                        #list containing relu module
     global neural_list
@@ -169,8 +169,15 @@ def check_ReLU_alive(net, data_loader,neural_dead_times):
         if isinstance(mod, torch.nn.ReLU):
             handle.append(mod.register_forward_hook(check_if_dead))
 
-    evaluate_net(net, data_loader, False)
-    cal_dead_neural_rate(neural_dead_times)
+    if data_loader is not None:
+        evaluate_net(net, data_loader, False)
+        cal_dead_neural_rate(neural_dead_times)
+    elif data is not None:
+        net.eval()
+        net(data)
+        cal_dead_neural_rate(neural_dead_times)
+    else:
+        raise BaseException("Please provide input data.")
 
     #close the hook
     for h in handle:
@@ -220,7 +227,7 @@ def check_if_dead(module, input, output):
     if module not in relu_list:
         relu_list.append(module)
         neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
-
+    output=output.detach()                                              #set requires_grad to False
     zero_matrix=np.zeros(output.shape,dtype=np.int)
     zero_matrix[output.cpu().numpy()==0]=1
     zero_matrix=np.sum(zero_matrix,axis=0)
@@ -267,10 +274,36 @@ if __name__ == "__main__":
 
     measure_flops.measure_model(net,dataset_name='cifar10')
 
+    # prune_and_train.prune_dead_neural(net=net,
+    #                                   net_name='vgg16_bn_cifar10_dead_neural_pruned100',
+    #                                   dataset_name='cifar10',
+    #                                   neural_dead_times=8000,
+    #                                   filter_dead_ratio=0.9,
+    #                                   neural_dead_times_decay=0.95,
+    #                                   filter_dead_ratio_decay=0.98,
+    #                                   filter_preserve_ratio=0.1,
+    #                                   max_filters_pruned_for_one_time=0.3,
+    #                                   target_accuracy=0.931,
+    #                                   batch_size=300,
+    #                                   num_epoch=300,
+    #                                   checkpoint_step=1600,
+    #
+    #                                   # optimizer=optim.Adam,
+    #                                   # learning_rate=1e-3,
+    #                                   # weight_decay=0
+    #                                   optimizer=optim.SGD,
+    #                                   learning_rate=0.01,
+    #                                   learning_rate_decay=True,
+    #                                   learning_rate_decay_epoch=[50,100,150,250,300,350,400],
+    #                                   learning_rate_decay_factor=0.5,
+    #                                   )
+
+
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16_bn_cifar10_dead_neural_pruned3',
+                                      net_name='vgg16_bn_cifar10_dead_neural_pruned_random_data',
                                       dataset_name='cifar10',
-                                      neural_dead_times=9000,
+                                      use_random_data=True,
+                                      neural_dead_times=300,
                                       filter_dead_ratio=0.9,
                                       neural_dead_times_decay=0.95,
                                       filter_dead_ratio_decay=0.98,
@@ -290,9 +323,6 @@ if __name__ == "__main__":
                                       learning_rate_decay_epoch=[50,100,150,250,300,350,400],
                                       learning_rate_decay_factor=0.5,
                                       )
-
-
-
 
 
 

@@ -13,10 +13,11 @@ import data_loader
 from sklearn import svm
 import vgg
 
-
-a=torch.normal(mean=torch.Tensor([0.485, 0.456, 0.406]),std=torch.Tensor([0.229, 0.224, 0.225]))
-print(a)
-
+net = vgg.vgg16_bn(pretrained=False).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+data_loader = data_loader.create_validation_loader(dataset_name='cifar10',default_image_size=32,
+                                                   batch_size=72, mean=conf.cifar10['mean'], std=conf.cifar10['std'],
+                                                   num_workers=conf.num_workers)
+evaluate.evaluate_net(net=net, data_loader=data_loader, save_net=False)
 
 # net = vgg.vgg16_bn(pretrained=True)
 # net.classifier = nn.Sequential(

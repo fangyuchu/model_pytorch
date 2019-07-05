@@ -40,7 +40,7 @@ def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learni
 def create_net(net_name,pretrained):
     temp = re.search(r'(\d+)', net_name).span()[0]
     net = net_name[:temp]  # name of the net.ex: vgg,resnet...
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # define the net
@@ -328,7 +328,7 @@ if __name__ == "__main__":
     net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',batch_size=32,mean=conf.imagenet['mean'],std=conf.imagenet['std'],num_workers=conf.num_workers)
     evaluate.evaluate_net(net,data_loader,True,conf.root_path+'vgg16_bn/checkpoint',0)
-    evaluate.check_ReLU_alive(net,data_loader)
+    evaluate.check_ReLU_alive(net=net,data_loader=data_loader)
 
 
 
