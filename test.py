@@ -14,6 +14,9 @@ from sklearn import svm
 import vgg
 
 
+a=torch.normal(mean=torch.Tensor([0.485, 0.456, 0.406]),std=torch.Tensor([0.229, 0.224, 0.225]))
+print(a)
+
 
 # net = vgg.vgg16_bn(pretrained=True)
 # net.classifier = nn.Sequential(
