@@ -230,6 +230,7 @@ def prune_dead_neural(net,
         if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
             flop_reduced=flop_original_net-flop_pruned_net
             target_accuracy=original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected)
+            print('{} current target accuracy:{}'.format(datetime.now(),target_accuracy))
 
 
         success=False

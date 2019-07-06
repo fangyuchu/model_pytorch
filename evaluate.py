@@ -300,7 +300,7 @@ if __name__ == "__main__":
 
 
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16bn_cifar10_dead_neural_normal_tar_acc_decent',
+                                      net_name='vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2',
                                       dataset_name='cifar10',
                                       use_random_data=True,
                                       neural_dead_times=600,
