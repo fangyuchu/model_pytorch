@@ -31,6 +31,8 @@ def prune_dead_neural(net,
                       neural_dead_times,
                       filter_dead_ratio,
                       target_accuracy,
+                      tar_acc_gradual_decent=False,
+                      flop_expected=None,
                       filter_dead_ratio_decay=0.95,
                       neural_dead_times_decay=0.95,
                       dataset_name='imagenet',
@@ -49,6 +51,34 @@ def prune_dead_neural(net,
                       weight_decay=conf.weight_decay,
                       learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                      ):
+    '''
+
+    :param net:
+    :param net_name:
+    :param neural_dead_times(ndt):int, threshold for judging a dead neural node
+    :param filter_dead_ratio(fdr):float, threshold for judging a dead filter
+    :param target_accuracy: float,
+    :param tar_acc_gradual_decent:bool, if true, the target accuracy will decent from original acc. to target acc. during every round of pruning
+    :param flop_expected: int: expected flop after net pruned. will only work when tar_acc_gradual_decent is true
+    :param filter_dead_ratio_decay:float, decay rate for fdr in each round of pruning
+    :param neural_dead_times_decay:float, decay rate for ndt in each round of pruning
+    :param dataset_name:
+    :param use_random_data:bool, if true, generated data which fits normal distribution will be used to calculate dead filters.
+    :param validation_loader:
+    :param batch_size:
+    :param num_workers:
+    :param optimizer:
+    :param learning_rate:
+    :param checkpoint_step:
+    :param num_epoch:
+    :param filter_preserve_ratio:
+    :param max_filters_pruned_for_one_time:
+    :param learning_rate_decay:
+    :param learning_rate_decay_factor:
+    :param weight_decay:
+    :param learning_rate_decay_epoch:
+    :return:
+    '''
     #save the output to log
     print('save log in:' + conf.root_path + net_name + '/log.txt')
     if not os.path.exists(conf.root_path + net_name ):
@@ -62,6 +92,8 @@ def prune_dead_neural(net,
           'neural_dead_times:{}\n'
           'filter_dead_ratio:{}\n'
           'target_accuracy:{}\n'
+          'tar_acc_gradual_decent:{}\n'
+          'flop_expected:{}\n'
           'filter_dead_ratio_decay:{}\n'
           'neural_dead_times_decay:{}\n'
           'dataset_name:{}\n'
@@ -78,7 +110,8 @@ def prune_dead_neural(net,
           'learning_rate_decay_factor:{}\n'
           'weight_decay:{}\n'
           'learning_rate_decay_epoch:{}'
-          .format(net,net_name,use_random_data,neural_dead_times,filter_dead_ratio,target_accuracy,filter_dead_ratio_decay,
+          .format(net,net_name,use_random_data,neural_dead_times,filter_dead_ratio,target_accuracy,tar_acc_gradual_decent,
+                  flop_expected,filter_dead_ratio_decay,
                   neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
                   weight_decay,learning_rate_decay_epoch))
@@ -109,7 +142,7 @@ def prune_dead_neural(net,
         default_image_size=conf.cifar10['default_image_size']
 
 
-    if validation_loader is None and use_random_data is False:
+    if validation_loader is None :
         validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
                                                                  default_image_size=default_image_size,
                                                                  mean=mean,
@@ -118,6 +151,14 @@ def prune_dead_neural(net,
                                                                  num_workers=num_workers,
                                                                  dataset_name=dataset_name,
                                                                  )
+
+    flop_original_net=measure_flops.measure_model(net,'cifar10')
+    original_accuracy=evaluate.evaluate_net(net=net,
+                                            data_loader=validation_loader,
+                                            save_net=False)
+    flop_drop_expected = flop_original_net - flop_expected
+    acc_drop_tolerance = original_accuracy - target_accuracy
+
 
     num_conv = 0  # num of conv layers in the net
     filter_num_lower_bound=list()
@@ -183,7 +224,14 @@ def prune_dead_neural(net,
             print('{} round {} did not prune any filters. Restart.'.format(datetime.now(),round+1))
             continue
 
-        measure_flops.measure_model(net,'cifar10')
+        flop_pruned_net=measure_flops.measure_model(net,'cifar10')
+
+        #todo:现在根据剪了多少浮点量来降低准确率，也可考虑根据剪的轮数来降低准确率
+        if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
+            flop_reduced=flop_original_net-flop_pruned_net
+            target_accuracy=original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected)
+
+
         success=False
         while not success:
             old_net=copy.deepcopy(net)
@@ -226,6 +274,26 @@ def prune_filters_randomly(net,
                            weight_decay=conf.weight_decay,
                            learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                            ):
+    '''
+
+    :param net:
+    :param net_name:
+    :param target_accuracy:
+    :param round_of_prune:
+    :param final_filter_num:list[int], the number of filters in each layer after pruning
+    :param dataset_name:
+    :param batch_size:
+    :param num_workers:
+    :param optimizer:
+    :param learning_rate:
+    :param checkpoint_step:
+    :param num_epoch:
+    :param learning_rate_decay:
+    :param learning_rate_decay_factor:
+    :param weight_decay:
+    :param learning_rate_decay_epoch:
+    :return:
+    '''
     # save the output to log
     print('save log in:' + conf.root_path + net_name + '/log.txt')
     if not os.path.exists(conf.root_path + net_name):
