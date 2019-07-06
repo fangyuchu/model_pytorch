@@ -16,6 +16,7 @@ import evaluate
 import data_loader
 from math import ceil
 import logger
+import measure_flops
 
 
 
@@ -74,9 +75,34 @@ def train(
                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
                     learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                     weight_decay=conf.weight_decay,
-                    target_accuracy=1,
+                    target_accuracy=1.0,
                     optimizer=optim.Adam,
                   ):
+    '''
+
+    :param net: net to be trained
+    :param net_name: name of the net
+    :param dataset_name: name of the dataset
+    :param train_loader: data_loader for training. If not provided, a data_loader will be created based on dataset_name
+    :param validation_loader: data_loader for validation. If not provided, a data_loader will be created based on dataset_name
+    :param learning_rate: initial learning rate
+    :param learning_rate_decay: boolean, if true, the learning rate will decay based on the params provided.
+    :param learning_rate_decay_factor: float. learning_rate*=learning_rate_decay_factor, every time it decay.
+    :param learning_rate_decay_epoch: list[int], the specific epoch that the learning rate will decay.
+    :param num_epochs: max number of epochs for training
+    :param batch_size:
+    :param checkpoint_step: how often will the net be tested on validation set. At least one test every epoch is guaranteed
+    :param load_net: boolean, whether loading net from previous checkpoint. The newest checkpoint will be selected.
+    :param test_net:boolean, if true, the net will be tested before training.
+    :param root_path:
+    :param checkpoint_path:
+    :param momentum:
+    :param num_workers:
+    :param weight_decay:
+    :param target_accuracy:float, the training will stop once the net reached target accuracy
+    :param optimizer:
+    :return:
+    '''
     success=True                                                                   #if the trained net reaches target accuracy
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -324,11 +350,28 @@ def pixel_transform(feature_maps):
 
 
 if __name__ == "__main__":
+    checkpoint = torch.load(
+        '/home/victorfang/Desktop/vgg16_bn_cifar10_flop68905594,acc0.93100.tar')
 
-    net=vgg.vgg16_bn(pretrained=True).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    data_loader=data_loader.create_validation_loader('/home/victorfang/Desktop/imagenet所有数据/imagenet_validation',batch_size=32,mean=conf.imagenet['mean'],std=conf.imagenet['std'],num_workers=conf.num_workers)
-    evaluate.evaluate_net(net,data_loader,True,conf.root_path+'vgg16_bn/checkpoint',0)
-    evaluate.check_ReLU_alive(net=net,data_loader=data_loader)
+    net = checkpoint['net']
+    net.load_state_dict(checkpoint['state_dict'])
+    print(checkpoint['highest_accuracy'])
+
+    measure_flops.measure_model(net, dataset_name='cifar10')
+
+    train(net=net,
+          net_name='temp_train_a_net',
+          dataset_name='cifar10',
+          optimizer=optim.SGD,
+          learning_rate=0.001,
+          learning_rate_decay=True,
+          learning_rate_decay_epoch=[50,100,150,250,300,350,400],
+          learning_rate_decay_factor=0.5,
+          test_net=False,
+          load_net=False,
+          target_accuracy=0.933,
+          batch_size=600,
+          num_epochs=450)
 
 
 

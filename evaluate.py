@@ -151,7 +151,7 @@ def evaluate_net(  net,
                     'highest_accuracy':accuracy,
                     'state_dict':net.state_dict(),
                     'sample_num':sample_num}
-        torch.save(checkpoint,'%s/sample_num=%d,accuracy=%.3f.tar' % (checkpoint_path, sample_num,accuracy))
+        torch.save(checkpoint,'%s/sample_num=%d,accuracy=%.5f.tar' % (checkpoint_path, sample_num,accuracy))
         print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
 
     return accuracy
@@ -264,8 +264,8 @@ if __name__ == "__main__":
     # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
-    # checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned/checkpoint/sample_num=1950000,accuracy=0.935.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned_random_data_continue2/checkpoint/sample_num=8500000,accuracy=0.931.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -300,18 +300,18 @@ if __name__ == "__main__":
 
 
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16_bn_cifar10_dead_neural_pruned_random_data',
+                                      net_name='vgg16_bn_cifar10_dead_neural_pruned_random_data_continue2',
                                       dataset_name='cifar10',
                                       use_random_data=True,
-                                      neural_dead_times=300,
+                                      neural_dead_times=600,
                                       filter_dead_ratio=0.9,
                                       neural_dead_times_decay=0.95,
                                       filter_dead_ratio_decay=0.98,
                                       filter_preserve_ratio=0.1,
-                                      max_filters_pruned_for_one_time=0.3,
+                                      max_filters_pruned_for_one_time=0.2,
                                       target_accuracy=0.931,
-                                      batch_size=300,
-                                      num_epoch=300,
+                                      batch_size=600,
+                                      num_epoch=350,
                                       checkpoint_step=1600,
 
                                       # optimizer=optim.Adam,
