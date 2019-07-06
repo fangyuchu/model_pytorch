@@ -20,7 +20,8 @@ import prune
 import measure_flops
 import logger
 import sys
-
+import create_net
+import random
 import copy
 
 
@@ -129,7 +130,6 @@ def prune_dead_neural(net,
 
     round=0
     while True:
-        success=False
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))
         print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(),filter_dead_ratio,neural_dead_times))
@@ -184,6 +184,7 @@ def prune_dead_neural(net,
             continue
 
         measure_flops.measure_model(net,'cifar10')
+        success=False
         while not success:
             old_net=copy.deepcopy(net)
             success=train.train(net=net,
@@ -206,6 +207,107 @@ def prune_dead_neural(net,
                 net=old_net
         filter_dead_ratio*=filter_dead_ratio_decay
         neural_dead_times*=neural_dead_times_decay
+
+
+def prune_filters_randomly(net,
+                           net_name,
+                           target_accuracy,
+                           round_of_prune,
+                           final_filter_num=[23,59,65,65,149,132,99,181,125,116,181,254,223],
+                           dataset_name='cifar10',
+                           batch_size=conf.batch_size,
+                           num_workers=conf.num_workers,
+                           optimizer=optim.Adam,
+                           learning_rate=0.01,
+                           checkpoint_step=1000,
+                           num_epoch=350,
+                           learning_rate_decay=False,
+                           learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                           weight_decay=conf.weight_decay,
+                           learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                           ):
+    # save the output to log
+    print('save log in:' + conf.root_path + net_name + '/log.txt')
+    if not os.path.exists(conf.root_path + net_name):
+        os.makedirs(conf.root_path + net_name, exist_ok=True)
+    sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
+    sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
+
+    print('net:{}\n'
+          'net_name:{}\n'
+          'target_accuracy:{}\n'
+          'round of prune:{}\n'
+          'final_filter_num:{}\n'
+          'dataset_name:{}\n'
+          'batch_size:{}\n'
+          'num_workers:{}\n'
+          'optimizer:{}\n'
+          'learning_rate:{}\n'
+          'checkpoint_step:{}\n'
+          'num_epoch:{}\n'
+          'learning_rate_decay:{}\n'
+          'learning_rate_decay_factor:{}\n'
+          'weight_decay:{}\n'
+          'learning_rate_decay_epoch:{}'
+          .format(net, net_name,   target_accuracy,
+                  round_of_prune,final_filter_num,
+                  dataset_name, batch_size, num_workers, optimizer,
+                  learning_rate, checkpoint_step,
+                  num_epoch, learning_rate_decay,
+                  learning_rate_decay_factor,
+                  weight_decay, learning_rate_decay_epoch))
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print('using: ', end='')
+    if torch.cuda.is_available():
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))
+    else:
+        print(device)
+
+    num_conv = 0  # num of conv layers in the net
+    filter_num=list()
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+            filter_num.append(mod.out_channels)
+
+    round=0
+    while round<round_of_prune:
+        round+=1
+        print('{} start round {} of random filter pruning.'.format(datetime.now(),round))
+        for i in range(num_conv):
+            num_to_prune=int((filter_num[i]-final_filter_num[i])/(round_of_prune-round+1))           #number of filters to prune in this round
+            filter_num[i]=filter_num[i]-num_to_prune                                            #update the number of filters in layer i
+            pruning_filter_index=random.sample(range(0,filter_num[i]),num_to_prune)
+            print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
+                                                                          num_to_prune))
+            net = prune.prune_conv_layer(model=net, layer_index=i + 1,
+                                         filter_index=pruning_filter_index)  # prune the dead filter
+
+        measure_flops.measure_model(net, 'cifar10')
+
+        success=False
+        while not success:
+            old_net = copy.deepcopy(net)
+            success = train.train(net=net,
+                                  net_name=net_name,
+                                  num_epochs=num_epoch,
+                                  target_accuracy=target_accuracy,
+                                  learning_rate=learning_rate,
+                                  load_net=False,
+                                  checkpoint_step=checkpoint_step,
+                                  dataset_name=dataset_name,
+                                  optimizer=optimizer,
+                                  batch_size=batch_size,
+                                  learning_rate_decay=learning_rate_decay,
+                                  learning_rate_decay_factor=learning_rate_decay_factor,
+                                  weight_decay=weight_decay,
+                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                  test_net=True,
+                                  )
+            if not success:
+                net = old_net
+
 
 def prune_layer_gradually():
     net = train.create_net('vgg16_bn', True)
@@ -261,12 +363,8 @@ def prune_layer_gradually():
 
 
 if __name__ == "__main__":
-    net=train.create_net('vgg16_bn',pretrained=True)
-    prune_dead_neural(net=net,
-                      net_name='vgg16_bn_dead_filter_pruned2',
-                      neural_dead_times=45000,
-                      filter_dead_ratio=0.8,
-                      target_accuracy=0.7)
+    net=create_net.vgg_cifar10('vgg16_bn',pretrained=True)
+    prune_filters_randomly(net,net_name='vgg16_bn_debug_test',target_accuracy=0.931,round_of_prune=6,dataset_name='cifar10')
 
     # prune_and_train(model_name='vgg16_bn',
     #                 pretrained=True,

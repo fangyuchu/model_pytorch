@@ -24,8 +24,8 @@ imagenet['mean']=[0.485, 0.456, 0.406]
 imagenet['std']=[0.229, 0.224, 0.225]
 imagenet['train_set_size']=1271167
 imagenet['validation_set_size']=50000
-imagenet['train_set_path']='/home/victorfang/Desktop/imagenet所有数据/imagenet_train'
-imagenet['validation_set_path']='/home/victorfang/Desktop/imagenet所有数据/imagenet_validation'
+imagenet['train_set_path']='/home/victorfang/dataset/imagenet/train'
+imagenet['validation_set_path']='/home/victorfang/dataset/imagenet/validation'
 imagenet['default_image_size']=224
 #cifar10
 cifar10=dict()

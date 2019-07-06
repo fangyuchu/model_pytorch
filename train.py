@@ -38,20 +38,7 @@ def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learni
 
 
 
-def create_net(net_name,pretrained):
-    temp = re.search(r'(\d+)', net_name).span()[0]
-    net = net_name[:temp]  # name of the net.ex: vgg,resnet...
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # define the net
-    net = getattr(globals()[net], net_name)(pretrained=pretrained).to(device)
-    print('{} Net {} created,'.format(datetime.now(),net_name),end='')
-    if pretrained:
-        print('using pretrained weight.')
-    else:
-        print('initiate weight.')
-    return net
     
 
 
