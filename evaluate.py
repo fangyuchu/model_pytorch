@@ -265,7 +265,7 @@ if __name__ == "__main__":
 
 
     checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
-    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16_bn_cifar10_dead_neural_pruned_random_data_continue2/checkpoint/sample_num=8500000,accuracy=0.931.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent1/checkpoint/sample_num=11050000,accuracy=0.93370.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -303,19 +303,19 @@ if __name__ == "__main__":
                                       net_name='vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2',
                                       dataset_name='cifar10',
                                       use_random_data=True,
-                                      neural_dead_times=600,
+                                      neural_dead_times=1200,
                                       filter_dead_ratio=0.9,
                                       neural_dead_times_decay=0.99,
                                       filter_dead_ratio_decay=0.98,
                                       filter_preserve_ratio=0.1,
                                       max_filters_pruned_for_one_time=0.2,
-                                      target_accuracy=0.931,
-                                      batch_size=600,
-                                      num_epoch=350,
+                                      target_accuracy=0.9325,
+                                      batch_size=1200,
+                                      num_epoch=450,
                                       checkpoint_step=1600,
 
                                       tar_acc_gradual_decent=True,
-                                      flop_expected=5e7,
+                                      flop_expected=6e7,
 
                                       # optimizer=optim.Adam,
                                       # learning_rate=1e-3,

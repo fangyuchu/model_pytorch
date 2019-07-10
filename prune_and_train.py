@@ -226,7 +226,8 @@ def prune_dead_neural(net,
 
         flop_pruned_net=measure_flops.measure_model(net,'cifar10')
 
-        #todo:现在根据剪了多少浮点量来降低准确率，也可考虑根据剪的轮数来降低准确率
+        #todo:现在根据剪了多少浮点量来线性降低准确率，也可考虑根据剪的轮数来降低准确率
+        #todo:也可考虑改为非线性下降，一开始下降的少点
         if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
             flop_reduced=flop_original_net-flop_pruned_net
             target_accuracy=original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected)

@@ -338,7 +338,7 @@ def pixel_transform(feature_maps):
 
 if __name__ == "__main__":
     checkpoint = torch.load(
-        '/home/victorfang/Desktop/vgg16_bn_cifar10_flop68905594,acc0.93100.tar')
+        '/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent1/checkpoint/sample_num=11050000,accuracy=0.93370.tar')
 
     net = checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -356,7 +356,7 @@ if __name__ == "__main__":
           learning_rate_decay_factor=0.5,
           test_net=False,
           load_net=False,
-          target_accuracy=0.933,
+          target_accuracy=0.933958988332225,
           batch_size=600,
           num_epochs=450)
 
