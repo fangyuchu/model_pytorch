@@ -7,6 +7,11 @@ import torch.nn as nn
 from datetime import datetime
 import random
 from torch import optim
+from sklearn.metrics import classification_report
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import f1_score
+from sklearn.metrics import precision_score
+
 
 
 
@@ -91,6 +96,31 @@ def statistics(filters):
 
     return stat
 
+def cal_F_score(prediction,label,beta=1):
+    '''
+    calculate f_score for binary classification
+    :param prediction: 1-d array, 1 means positive.
+    :param label: 1-d array, 1 means positive.
+    :param beta: If beta=1, precision is as important as recall. If beta<1, precision is more important. vice versa
+    :return:f_score,precision rate,recall rate
+    '''
+    true_positive=np.bitwise_and(prediction>0, prediction==label)
+    false_positive=np.bitwise_xor(prediction>0,true_positive)
+    true_negative=np.bitwise_and(prediction==0, prediction==label)
+    false_negative=np.bitwise_xor(prediction==0,true_negative)
+    #count
+    true_positive=np.sum(true_positive)
+    false_positive=np.sum(false_positive)
+    #true_negative=np.sum(true_negative)
+    false_negative=np.sum(false_negative)
+
+    precision=true_positive/(true_positive+false_positive)
+    recall=true_positive/(true_positive+false_negative)
+
+    f_score=(1+beta**2)*precision*recall/((beta**2)*precision+recall)
+
+    return f_score,precision,recall
+
 class fc(nn.Module):
 
     def __init__(self, init_weights=True):
@@ -125,10 +155,12 @@ class fc(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 if __name__ == "__main__":
-    df,lf=read_data(balance=False,
-                              path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
+    df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集',neural_dead_times=1200)
+    df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2_2/dead_neural',neural_dead_times=1024)
 
-    df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2_2/dead_neural')
+    #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
+
+    #df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent3/dead_neural',neural_dead_times=1200)
 
     stat_df=statistics(df)
     stat_lf=statistics(lf)
@@ -144,18 +176,40 @@ if __name__ == "__main__":
     val_y[:stat_df_val.shape[0]]=1
 
 
+    ####svm ##########################################################################################################
+    # svc=svm.SVC(kernel='sigmoid',class_weight='balanced')
+    # param_grid = {
+    #     'C': [2 ** i for i in range(-5, 15, 2)],
+    #     'gamma': [2 ** i for i in range(3, -15, -2)],
+    # }
+    # clf = GridSearchCV(svc, param_grid, scoring='precision', n_jobs=-1, cv=5)
+    #
+    # clf.fit(train_x,train_y)
+    # prediction=clf.predict(val_x)
+    #
+    # f_score,precision,recall=cal_F_score(prediction,val_y)
+    # print('svm:f_score:{},precision:{},recall:{}'.format(f_score,precision,recall))
+    #
+    # print(clf.best_estimator_)
+    # print(classification_report(val_y,prediction))
+
+
     ##logistic regression######################################################################################################
-    logistc_regression=LogisticRegressionCV(class_weight='balanced',max_iter=1000)
-    re=logistc_regression.fit(train_x,train_y)
-    prediction=re.predict_proba(val_x)
-    acc=np.sum(np.argmax(prediction,1)==val_y)/val_y.shape[0]
-    print()
+    # logistic_regression=LogisticRegressionCV(class_weight='balanced',max_iter=1000,cv=3,Cs=[1, 10,100,1000])
+    # re=logistic_regression.fit(train_x,train_y)
+    # prediction=re.predict_proba(val_x)
+    # prediction=np.argmax(prediction,1)
+    # #acc=np.sum(np.argmax(prediction,1)==val_y)/val_y.shape[0]
+    # f_score,precision,recall=cal_F_score(prediction,val_y)
+    # res=classification_report(y_true=val_y,y_pred=prediction,target_names=['lived filter','dead filter'])
+    # print(res)
+    # print('logistic regression:f_score:{},precision:{},recall:{}'.format(f_score,precision,recall))
 
 
     ###neural network##########################################################################################################
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    LR=0.1
+    LR=0.01
     net = fc().to(device)
     optimizer = torch.optim.SGD(net.parameters(), lr=LR)
 
@@ -181,6 +235,11 @@ if __name__ == "__main__":
 
     epoch=-1
     highest_accuracy = 0
+
+
+    #load previous trained model(optional)
+    # checkpoint=torch.load('/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=0.72553.tar')
+    # net.load_state_dict(checkpoint['state_dict'])
     while True:
         epoch+=1
         ind_df=random.sample([i for i in range(stat_df.shape[0])],sample_num)
@@ -197,7 +256,7 @@ if __name__ == "__main__":
         optimizer.step()
         if epoch%1000==0:
             print("{} epoch:{},   loss is:{}".format(datetime.now(),epoch,loss))
-        
+
         if epoch%10000==0 :
             net.eval()
             output=net(val_x_tensor)
@@ -205,6 +264,8 @@ if __name__ == "__main__":
             correct=(prediction==val_y_tensor).sum().float()
             acc=correct.cpu().detach().data.numpy()/val_y_tensor.shape[0]
             print( '{} accuracy is {}'.format(datetime.now(),acc))
+            f_score, precision, recall = cal_F_score(prediction.cpu().data.numpy(), val_y)
+            print('fc:f_score:{},precision:{},recall:{}'.format(f_score, precision, recall))
             if acc>highest_accuracy:
                 highest_accuracy=acc
                 if highest_accuracy>0.7:
@@ -220,13 +281,7 @@ if __name__ == "__main__":
 
             
 
-    ####svm ##########################################################################################################
-    # svc=svm.SVC(kernel='rbf')
-    # svc.fit(train_x,train_y)
-    # predict_y=svc.predict(val_x)
 
-
-    print()
 
 
 

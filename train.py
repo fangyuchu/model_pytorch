@@ -337,31 +337,51 @@ def pixel_transform(feature_maps):
 
 
 if __name__ == "__main__":
-    checkpoint = torch.load(
-        '/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent1/checkpoint/sample_num=11050000,accuracy=0.93370.tar')
-
-    net = checkpoint['net']
-    net.load_state_dict(checkpoint['state_dict'])
-    print(checkpoint['highest_accuracy'])
-
-    measure_flops.measure_model(net, dataset_name='cifar10')
+    net = resnet.resnet50(num_classes=10)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    net.to(device)
+    # measure_flops.measure_model(net, dataset_name='cifar10')
 
     train(net=net,
-          net_name='temp_train_a_net',
+          net_name='resnet_baseline',
           dataset_name='cifar10',
           optimizer=optim.SGD,
-          learning_rate=0.001,
+          learning_rate=0.1,
           learning_rate_decay=True,
-          learning_rate_decay_epoch=[50,100,150,250,300,350,400],
-          learning_rate_decay_factor=0.5,
+          learning_rate_decay_epoch=[ 100, 200, 300],
+          learning_rate_decay_factor=0.1,
           test_net=False,
-          load_net=False,
-          target_accuracy=0.933958988332225,
-          batch_size=600,
+          load_net=True,
+          target_accuracy=0.933,
+          batch_size=2048,
           num_epochs=450)
 
 
 
-    # evaluate.evaluate_net(net,data_loader,False)
-    # show_feature_map(net,data_loader,[2,4,8])
+    # checkpoint = torch.load(
+    #     '/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent1/checkpoint/sample_num=11050000,accuracy=0.93370.tar')
+    #
+    # net = checkpoint['net']
+    # net.load_state_dict(checkpoint['state_dict'])
+    # print(checkpoint['highest_accuracy'])
+    #
+    # measure_flops.measure_model(net, dataset_name='cifar10')
+    #
+    # train(net=net,
+    #       net_name='temp_train_a_net',
+    #       dataset_name='cifar10',
+    #       optimizer=optim.SGD,
+    #       learning_rate=0.001,
+    #       learning_rate_decay=True,
+    #       learning_rate_decay_epoch=[50,100,150,250,300,350,400],
+    #       learning_rate_decay_factor=0.5,
+    #       test_net=False,
+    #       load_net=False,
+    #       target_accuracy=0.933958988332225,
+    #       batch_size=600,
+    #       num_epochs=450)
+
+
+
+
 

@@ -264,8 +264,8 @@ if __name__ == "__main__":
     # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
-    #checkpoint = torch.load('/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent1/checkpoint/sample_num=11050000,accuracy=0.93370.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10_flop71174702,accuracy=0.93390.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -300,14 +300,14 @@ if __name__ == "__main__":
 
 
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2',
+                                      net_name='vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2_2_continue_2',
                                       dataset_name='cifar10',
                                       use_random_data=True,
-                                      neural_dead_times=1200,
+                                      neural_dead_times=1150,
                                       filter_dead_ratio=0.9,
                                       neural_dead_times_decay=0.99,
                                       filter_dead_ratio_decay=0.98,
-                                      filter_preserve_ratio=0.1,
+                                      filter_preserve_ratio=0.01,
                                       max_filters_pruned_for_one_time=0.2,
                                       target_accuracy=0.9325,
                                       batch_size=1200,
