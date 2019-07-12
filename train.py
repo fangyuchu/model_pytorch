@@ -352,9 +352,9 @@ if __name__ == "__main__":
           learning_rate_decay_factor=0.1,
           test_net=False,
           load_net=True,
-          target_accuracy=0.933,
           batch_size=2048,
-          num_epochs=450)
+          num_epochs=450,
+          checkpoint_path='./model_saved')
 
 
 
