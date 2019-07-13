@@ -12,8 +12,10 @@ import torch.optim as optim
 import train
 import measure_flops
 import logger
-from PIL import Image
+import math
+import generate_random_data
 import matplotlib.pyplot as plt
+import predict_dead_filter
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -156,6 +158,124 @@ def evaluate_net(  net,
 
     return accuracy
 
+def predict_dead_filters_classifier_version(net,
+                                         classifier,
+                                         min_ratio_dead_filters=0,
+                                         max_ratio_dead_filters=1,
+                                         filter_num_lower_bound=None
+                                         ):
+    '''
+    use trained classifier to predict dead filters in net
+    :param net:
+    :param classifier:
+    :param min_ratio_dead_filters: float, ensure the function will return at least (min_ratio_dead_filters)*100% of the filters.
+
+    :param max_ratio_dead_filters: float, ensure the function will return at most (max_ratio_dead_filters)*100% of the filters.
+                                          ensure the number of filters pruned will not be too large for one time.
+    :param filter_num_lower_bound: int, ensure the number of filters alive will be larger than filter_num_lower_bound
+                                          ensure the lower bound of filter number
+
+    :return:
+    '''
+    dead_filter_index=list()
+    i=0
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            weight=list(mod.weight.data.cpu().numpy())
+
+            df_num_min=math.ceil(min_ratio_dead_filters*len(weight))                                            #lower bound of dead_filter's num
+            if filter_num_lower_bound is not None:                                                              #upper bound of dead_filter's num
+                df_num_max=min(int(max_ratio_dead_filters*len(weight)),len(weight)-filter_num_lower_bound[i])
+            else:
+                df_num_max=int(max_ratio_dead_filters*len(weight))
+
+            if df_num_max<df_num_min:
+                print('Number of filters in layer{} is {}. At most {} filters will be predicted to be dead.'.format(i,len(weight),df_num_max))
+
+            stat_filters=predict_dead_filter.statistics(weight)
+            output=classifier.predict_proba(stat_filters)
+            dead_filter_proba_sorted=np.argsort(-output[:,1])                   #filter indices sorted by the probability of which to be dead
+            dead_filter_predicted=np.where(np.argmax(output,1))[0]             #filter indices of which are predicted to be dead
+            if dead_filter_predicted.shape[0]<df_num_min:
+                dead_filter_predicted=dead_filter_proba_sorted[:df_num_min]
+            if dead_filter_predicted.shape[0]>df_num_max:
+                dead_filter_predicted=dead_filter_proba_sorted[:df_num_max]
+
+            dead_filter_index.append(dead_filter_predicted)
+            i+=1
+    return dead_filter_index
+
+
+def find_dead_filters_data_version(net,
+                      filter_dead_ratio,
+                      dataset_name='cifar10',
+                      use_random_data=True,
+                      relu_list=None,
+                      neural_list=None,
+                      batch_size=None,
+                      neural_dead_times=None,
+                      ):
+    '''
+    use validation set or random generated data to find dead filters in net
+    :param net:
+    :param filter_dead_ratio:
+    :param dataset_name:
+    :param use_random_data:
+    :param relu_list:
+    :param neural_list:
+    :param batch_size:
+    :param neural_dead_times:
+    :return:
+    '''
+    if relu_list is None or neural_list is None:
+        #calculate dead neural
+        if use_random_data is True:
+            random_data=generate_random_data.random_normal(num=batch_size,dataset_name=dataset_name)
+            print('{} generate random data.'.format(datetime.now()))
+            relu_list, neural_list = check_ReLU_alive(net=net, neural_dead_times=neural_dead_times, data=random_data)
+            del random_data
+        else:
+            if dataset_name is 'imagenet':
+                mean = conf.imagenet['mean']
+                std = conf.imagenet['std']
+                validation_set_path = conf.imagenet['validation_set_path']
+                default_image_size = conf.imagenet['default_image_size']
+            elif dataset_name is 'cifar10':
+                mean = conf.cifar10['mean']
+                std = conf.cifar10['std']
+                validation_set_path = conf.cifar10['validation_set_path']
+                default_image_size = conf.cifar10['default_image_size']
+            validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
+                                                                     default_image_size=default_image_size,
+                                                                     mean=mean,
+                                                                     std=std,
+                                                                     batch_size=batch_size,
+                                                                     num_workers=2,
+                                                                     dataset_name=dataset_name,
+                                                                     )
+            relu_list,neural_list=check_ReLU_alive(net=net,data_loader=validation_loader,neural_dead_times=neural_dead_times)
+
+    num_conv = 0  # num of conv layers in the net
+    filter_num = list()
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+            filter_num.append(mod.out_channels)
+    dead_filter_index=list()
+    for i in range(num_conv):
+        for relu_key in list(neural_list.keys()):
+            if relu_list[i] is relu_key:  # find the neural_list_statistics in layer i+1
+                dead_relu_list = neural_list[relu_key]
+                neural_num = dead_relu_list.shape[1] * dead_relu_list.shape[2]  # neural num for one filter
+
+                # judge dead filter by neural_dead_times and dead_filter_ratio
+                dead_relu_list[dead_relu_list < neural_dead_times] = 0
+                dead_relu_list[dead_relu_list >= neural_dead_times] = 1
+                dead_relu_list = np.sum(dead_relu_list, axis=(1, 2))  # count the number of dead neural for one filter
+                df_index = np.where(dead_relu_list >= neural_num * filter_dead_ratio)[0].tolist()                #index of dead filters in one layer
+                dead_filter_index.append(df_index)
+
+    return dead_filter_index,relu_list,neural_list
 
 def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     handle = list()
@@ -187,6 +307,7 @@ def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     relu_list_temp=relu_list
     del relu_list,neural_list
     return relu_list_temp,neural_list_temp
+
 
 
 def plot_dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_dead_ratio):
@@ -264,8 +385,8 @@ if __name__ == "__main__":
     # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
-    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10_flop71174702,accuracy=0.93390.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10_flop71174702,accuracy=0.93390.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -275,7 +396,7 @@ if __name__ == "__main__":
     #measure_flops.measure_model(net,dataset_name='cifar10')
 
     # prune_and_train.prune_dead_neural(net=net,
-    #                                   net_name='vgg16_bn_cifar10_dead_neural_pruned100',
+    #                                   net_name='tmp',
     #                                   dataset_name='cifar10',
     #                                   neural_dead_times=8000,
     #                                   filter_dead_ratio=0.9,
@@ -299,18 +420,19 @@ if __name__ == "__main__":
     #                                   )
 
 
-    prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2_2_continue_2',
+    prune_and_train.prune_dead_neural_with_logistic_regression(net=net,
+                                      net_name='vgg16bn_cifar10_logistic_regression',
+                                       round_for_train=2,
                                       dataset_name='cifar10',
                                       use_random_data=True,
-                                      neural_dead_times=1150,
+                                      neural_dead_times=1600,
                                       filter_dead_ratio=0.9,
                                       neural_dead_times_decay=0.99,
                                       filter_dead_ratio_decay=0.98,
                                       filter_preserve_ratio=0.01,
                                       max_filters_pruned_for_one_time=0.2,
                                       target_accuracy=0.9325,
-                                      batch_size=1200,
+                                      batch_size=1600,
                                       num_epoch=450,
                                       checkpoint_step=1600,
 
