@@ -272,7 +272,9 @@ def find_dead_filters_data_version(net,
                 dead_relu_list[dead_relu_list < neural_dead_times] = 0
                 dead_relu_list[dead_relu_list >= neural_dead_times] = 1
                 dead_relu_list = np.sum(dead_relu_list, axis=(1, 2))  # count the number of dead neural for one filter
-                df_index = np.where(dead_relu_list >= neural_num * filter_dead_ratio)[0].tolist()                #index of dead filters in one layer
+
+                df_num=np.where(dead_relu_list >= neural_num * filter_dead_ratio)[0].shape[0]                    #number of dead filters
+                df_index=np.argsort(-dead_relu_list)[:df_num].tolist()                                           #dead filters' indices. sorted by the times that they died.
                 dead_filter_index.append(df_index)
 
     return dead_filter_index,relu_list,neural_list
@@ -385,9 +387,8 @@ if __name__ == "__main__":
     # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
-    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10_flop71174702,accuracy=0.93390.tar')
-    checkpoint = torch.load('./vgg16_bn,baseline.tar')
+    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    #checkpoint = torch.load('./vgg16_bn,baseline.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])

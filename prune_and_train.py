@@ -240,26 +240,26 @@ def prune_dead_neural_with_predictor(net,
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
         success = False
-        # while not success:
-        #     old_net = copy.deepcopy(net)
-        #     success = train.train(net=net,
-        #                           net_name=net_name,
-        #                           num_epochs=num_epoch,
-        #                           target_accuracy=target_accuracy,
-        #                           learning_rate=learning_rate,
-        #                           load_net=False,
-        #                           checkpoint_step=checkpoint_step,
-        #                           dataset_name=dataset_name,
-        #                           optimizer=optimizer,
-        #                           batch_size=batch_size,
-        #                           learning_rate_decay=learning_rate_decay,
-        #                           learning_rate_decay_factor=learning_rate_decay_factor,
-        #                           weight_decay=weight_decay,
-        #                           learning_rate_decay_epoch=learning_rate_decay_epoch,
-        #                           test_net=True,
-        #                           )
-        #     if not success:
-        #         net = old_net
+        while not success:
+            old_net = copy.deepcopy(net)
+            success = train.train(net=net,
+                                  net_name=net_name,
+                                  num_epochs=num_epoch,
+                                  target_accuracy=target_accuracy,
+                                  learning_rate=learning_rate,
+                                  load_net=False,
+                                  checkpoint_step=checkpoint_step,
+                                  dataset_name=dataset_name,
+                                  optimizer=optimizer,
+                                  batch_size=batch_size,
+                                  learning_rate_decay=learning_rate_decay,
+                                  learning_rate_decay_factor=learning_rate_decay_factor,
+                                  weight_decay=weight_decay,
+                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                  test_net=True,
+                                  )
+            if not success:
+                net = old_net
         filter_dead_ratio *= filter_dead_ratio_decay
         neural_dead_times *= neural_dead_times_decay
 
