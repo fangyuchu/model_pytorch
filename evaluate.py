@@ -421,7 +421,7 @@ if __name__ == "__main__":
 
 
     prune_and_train.prune_dead_neural_with_logistic_regression(net=net,
-                                      net_name='vgg16bn_cifar10_logistic_regression',
+                                      net_name='vgg16bn_cifar10_logistic_regression2',
                                        round_for_train=2,
                                       dataset_name='cifar10',
                                       use_random_data=True,
@@ -431,13 +431,13 @@ if __name__ == "__main__":
                                       filter_dead_ratio_decay=0.98,
                                       filter_preserve_ratio=0.01,
                                       max_filters_pruned_for_one_time=0.2,
-                                      target_accuracy=0.9325,
+                                      target_accuracy=0.933,
                                       batch_size=1600,
                                       num_epoch=450,
                                       checkpoint_step=1600,
 
                                       tar_acc_gradual_decent=True,
-                                      flop_expected=6e7,
+                                      flop_expected=5e7,
 
                                       # optimizer=optim.Adam,
                                       # learning_rate=1e-3,
