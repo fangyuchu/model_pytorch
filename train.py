@@ -18,6 +18,7 @@ from math import ceil
 import logger
 import sys
 import measure_flops
+import resnet_copied
 
 
 
@@ -345,7 +346,8 @@ if __name__ == "__main__":
     sys.stdout = logger.Logger( './log.txt', sys.stdout)
     sys.stderr = logger.Logger( './log.txt', sys.stderr)  # redirect std err, if necessary
 
-    net = resnet.resnet34(num_classes=10)
+    #net = resnet.resnet34(num_classes=10)
+    net=resnet_copied.resnet56()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
     # measure_flops.measure_model(net, dataset_name='cifar10')
@@ -361,7 +363,7 @@ if __name__ == "__main__":
                                                             dataset_path='./dataset')
 
     train(net=net,
-          net_name='resnet_baseline',
+          net_name='resnet56_baseline',
           dataset_name='cifar10',
           optimizer=optim.SGD,
           learning_rate=0.1,
@@ -372,7 +374,6 @@ if __name__ == "__main__":
           load_net=True,
           batch_size=1024,
           num_epochs=450,
-          checkpoint_path='./model_saved',
           weight_decay=0.0006,
           train_loader=train_loader,
           validation_loader=validation_loader)
