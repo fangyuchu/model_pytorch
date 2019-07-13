@@ -342,8 +342,8 @@ if __name__ == "__main__":
     # save the output to log
     print('save log in:./log.txt')
 
-    sys.stdout = logger.Logger( '/log.txt', sys.stdout)
-    sys.stderr = logger.Logger( '/log.txt', sys.stderr)  # redirect std err, if necessary
+    sys.stdout = logger.Logger( './log.txt', sys.stdout)
+    sys.stderr = logger.Logger( './log.txt', sys.stderr)  # redirect std err, if necessary
 
     net = resnet.resnet34(num_classes=10)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -373,7 +373,9 @@ if __name__ == "__main__":
           batch_size=1024,
           num_epochs=450,
           checkpoint_path='./model_saved',
-          weight_decay=0.0006)
+          weight_decay=0.0006,
+          train_loader=train_loader,
+          validation_loader=validation_loader)
 
 
 
