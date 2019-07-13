@@ -16,6 +16,7 @@ import evaluate
 import data_loader
 from math import ceil
 import logger
+import sys
 import measure_flops
 
 
@@ -337,24 +338,42 @@ def pixel_transform(feature_maps):
 
 
 if __name__ == "__main__":
-    net = resnet.resnet50(num_classes=10)
+
+    # save the output to log
+    print('save log in:./log.txt')
+
+    sys.stdout = logger.Logger( '/log.txt', sys.stdout)
+    sys.stderr = logger.Logger( '/log.txt', sys.stderr)  # redirect std err, if necessary
+
+    net = resnet.resnet34(num_classes=10)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
     # measure_flops.measure_model(net, dataset_name='cifar10')
+    batch_size=1024
+    num_worker=4
+    train_loader=data_loader.create_train_loader(batch_size=batch_size,
+                                                 num_workers=num_worker,
+                                                 dataset_name='cifar10',
+                                                 dataset_path='./dataset')
+    validation_loader=data_loader.create_validation_loader(batch_size=batch_size,
+                                                           num_workers=num_worker,
+                                                           dataset_name='cifar10',
+                                                            dataset_path='./dataset')
 
     train(net=net,
           net_name='resnet_baseline',
           dataset_name='cifar10',
           optimizer=optim.SGD,
           learning_rate=0.1,
-          learning_rate_decay=True,
+          learning_rate_decay=False,
           learning_rate_decay_epoch=[ 100, 200, 300],
           learning_rate_decay_factor=0.1,
           test_net=False,
           load_net=True,
-          batch_size=2048,
+          batch_size=1024,
           num_epochs=450,
-          checkpoint_path='./model_saved')
+          checkpoint_path='./model_saved',
+          weight_decay=0.0006)
 
 
 
