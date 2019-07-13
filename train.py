@@ -368,7 +368,7 @@ if __name__ == "__main__":
               dataset_name='cifar10',
               optimizer=optim.SGD,
               learning_rate=0.1,
-              learning_rate_decay=False,
+              learning_rate_decay=True,
               learning_rate_decay_epoch=[ 100, 200, 300],
               learning_rate_decay_factor=0.1,
               test_net=False,
