@@ -33,8 +33,8 @@ cifar10['num_class']=10
 cifar10['train_set_size']=50000
 cifar10['mean']=[0.485, 0.456, 0.406]
 cifar10['std']=[0.229, 0.224, 0.225]
-cifar10['train_set_path']='/home/victorfang/dataset/cifar10'
-cifar10['validation_set_path']='/home/victorfang/dataset/cifar10'
+cifar10['train_set_path']='./dataset/cifar10'
+cifar10['validation_set_path']='./dataset/cifar10'
 cifar10['validation_set_size']=10000
 cifar10['default_image_size']=32
 
@@ -44,7 +44,7 @@ cifar10['default_image_size']=32
 checkpoint_step=4000
 
 # Path for tf.summary.FileWriter and to store model checkpoints
-root_path='/home/victorfang/Desktop/pytorch_model/'
+root_path='./model_saved/'
 checkpoint_path = "_model_saved/checkpoints"
 highest_accuracy_path='_model_saved/accuracy.txt'
 sample_num_path='_model_saved/sample_num.txt'

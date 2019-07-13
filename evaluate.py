@@ -159,15 +159,15 @@ def evaluate_net(  net,
     return accuracy
 
 def predict_dead_filters_classifier_version(net,
-                                         classifier,
+                                         predictor,
                                          min_ratio_dead_filters=0,
                                          max_ratio_dead_filters=1,
                                          filter_num_lower_bound=None
                                          ):
     '''
-    use trained classifier to predict dead filters in net
+    use trained predictor to predict dead filters in net
     :param net:
-    :param classifier:
+    :param predictor:
     :param min_ratio_dead_filters: float, ensure the function will return at least (min_ratio_dead_filters)*100% of the filters.
 
     :param max_ratio_dead_filters: float, ensure the function will return at most (max_ratio_dead_filters)*100% of the filters.
@@ -193,14 +193,14 @@ def predict_dead_filters_classifier_version(net,
                 print('Number of filters in layer{} is {}. At most {} filters will be predicted to be dead.'.format(i,len(weight),df_num_max))
 
             stat_filters=predict_dead_filter.statistics(weight)
-            output=classifier.predict_proba(stat_filters)
+
+            output=predictor.predict_proba(stat_filters)
             dead_filter_proba_sorted=np.argsort(-output[:,1])                   #filter indices sorted by the probability of which to be dead
             dead_filter_predicted=np.where(np.argmax(output,1))[0]             #filter indices of which are predicted to be dead
             if dead_filter_predicted.shape[0]<df_num_min:
                 dead_filter_predicted=dead_filter_proba_sorted[:df_num_min]
             if dead_filter_predicted.shape[0]>df_num_max:
                 dead_filter_predicted=dead_filter_proba_sorted[:df_num_max]
-
             dead_filter_index.append(dead_filter_predicted)
             i+=1
     return dead_filter_index
@@ -385,8 +385,9 @@ if __name__ == "__main__":
     # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
     #checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10_flop71174702,accuracy=0.93390.tar')
+    checkpoint = torch.load('./vgg16_bn,baseline.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -420,8 +421,11 @@ if __name__ == "__main__":
     #                                   )
 
 
-    prune_and_train.prune_dead_neural_with_logistic_regression(net=net,
-                                      net_name='vgg16bn_cifar10_logistic_regression2',
+    prune_and_train.prune_dead_neural_with_predictor(net=net,
+                                      net_name='tmp',
+                                         # predictor_name='logistic_regression',
+                                       predictor_name='svm',
+                                                     kernel='sigmoid',
                                        round_for_train=2,
                                       dataset_name='cifar10',
                                       use_random_data=True,
@@ -447,6 +451,7 @@ if __name__ == "__main__":
                                       learning_rate_decay=True,
                                       learning_rate_decay_epoch=[50,100,150,250,300,350,400],
                                       learning_rate_decay_factor=0.5,
+
                                       )
 
 

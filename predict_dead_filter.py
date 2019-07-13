@@ -18,7 +18,6 @@ from sklearn.metrics import precision_score
 
 
 
-
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               balance=False,
               neural_dead_times=999,
@@ -121,6 +120,7 @@ def cal_F_score(prediction,label,beta=1):
 
     return f_score,precision,recall
 
+
 class fc(nn.Module):
 
     def __init__(self, init_weights=True):
@@ -153,8 +153,52 @@ class fc(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
+    def fit(self,x,y):
+        #todo:incomplete
+        return self.net
+    def predict_proba(self,x):
+        #todo:incomplete
+        return 1
+
+    def predict(self,x):
+        #todo:incomplete
+        return 1
+
+
+class predictor:
+    def __init__(self, name, **kargs):
+        self.name=name
+        if name is 'svm':
+            self.classifier = svm.SVC(kernel=kargs['kernel'], class_weight='balanced',probability=True)
+        elif name is 'logistic_regression':
+            self.classifier = LogisticRegressionCV(class_weight='balanced', max_iter=1000, cv=3, Cs=[1, 10, 100, 1000])
+        elif name is 'fc':
+            self.classifier = fc()
+
+    def fit(self, train_x, train_y):
+        if self.name is 'svm':
+            param_grid = {
+                'C': [2 ** i for i in range(-5, 15, 4)],
+                'gamma': [2 ** i for i in range(3, -15, -4)],
+            }
+            self.classifier = GridSearchCV(self.classifier, param_grid, scoring='precision', n_jobs=-1, cv=5)
+            self.classifier.fit(train_x, train_y)
+        elif self.name is 'logistic_regression':
+            self.classifier = self.classifier.fit(train_x, train_y)
+        elif self.name is 'fc':
+            self.classifier=self.classifier.fit(train_x,train_y)
+
+    def predict_proba(self,x):
+        return self.classifier.predict_proba(x)
+
+    def predict(self,x):
+        return self.classifier.predict(x)
 
 if __name__ == "__main__":
+
+    test=predictor(name='svm',kernel='rbf')
+
+
     df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集',neural_dead_times=1200)
     df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2_2/dead_neural',neural_dead_times=1024)
 

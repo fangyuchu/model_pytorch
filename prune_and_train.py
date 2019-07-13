@@ -27,33 +27,35 @@ import predict_dead_filter
 from sklearn.linear_model import LogisticRegressionCV
 
 
-def prune_dead_neural_with_logistic_regression(net,
-                                               net_name,
-                                               neural_dead_times,
-                                               filter_dead_ratio,
-                                               target_accuracy,
-                                               round_for_train=2,
-                                               tar_acc_gradual_decent=False,
-                                               flop_expected=None,
-                                               filter_dead_ratio_decay=0.95,
-                                               neural_dead_times_decay=0.95,
-                                               dataset_name='imagenet',
-                                               use_random_data=False,
-                                               validation_loader=None,
-                                               batch_size=conf.batch_size,
-                                               num_workers=conf.num_workers,
-                                               optimizer=optim.Adam,
-                                               learning_rate=0.01,
-                                               checkpoint_step=1000,
-                                               num_epoch=350,
-                                               filter_preserve_ratio=0.3,
-                                               min_filters_pruned_for_one_time=0.05,
-                                               max_filters_pruned_for_one_time=0.5,
-                                               learning_rate_decay=False,
-                                               learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                                               weight_decay=conf.weight_decay,
-                                               learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-                                              ):
+def prune_dead_neural_with_predictor(net,
+                                     net_name,
+                                     neural_dead_times,
+                                     filter_dead_ratio,
+                                     target_accuracy,
+                                     predictor_name='logistic_regression',
+                                     round_for_train=2,
+                                     tar_acc_gradual_decent=False,
+                                     flop_expected=None,
+                                     filter_dead_ratio_decay=0.95,
+                                     neural_dead_times_decay=0.95,
+                                     dataset_name='imagenet',
+                                     use_random_data=False,
+                                     validation_loader=None,
+                                     batch_size=conf.batch_size,
+                                     num_workers=conf.num_workers,
+                                     optimizer=optim.Adam,
+                                     learning_rate=0.01,
+                                     checkpoint_step=1000,
+                                     num_epoch=350,
+                                     filter_preserve_ratio=0.3,
+                                     min_filters_pruned_for_one_time=0.05,
+                                     max_filters_pruned_for_one_time=0.5,
+                                     learning_rate_decay=False,
+                                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                                     weight_decay=conf.weight_decay,
+                                     learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                                     **kwargs,
+                                     ):
     '''
 
     :param net:
@@ -61,6 +63,7 @@ def prune_dead_neural_with_logistic_regression(net,
     :param neural_dead_times:
     :param filter_dead_ratio:
     :param target_accuracy:
+    :param predictor_name: name of the predictor used
     :param round_for_train:
     :param tar_acc_gradual_decent:
     :param flop_expected:
@@ -97,6 +100,7 @@ def prune_dead_neural_with_logistic_regression(net,
           'neural_dead_times:{}\n'
           'filter_dead_ratio:{}\n'
           'target_accuracy:{}\n'
+          'predictor_name:{}\n'
           'round_for_train:{}\n'
           'tar_acc_gradual_decent:{}\n'
           'flop_expected:{}\n'
@@ -117,7 +121,8 @@ def prune_dead_neural_with_logistic_regression(net,
           'learning_rate_decay_factor:{}\n'
           'weight_decay:{}\n'
           'learning_rate_decay_epoch:{}'
-          .format(net, net_name, use_random_data, neural_dead_times, filter_dead_ratio, target_accuracy,round_for_train,
+          .format(net, net_name, use_random_data, neural_dead_times, filter_dead_ratio, target_accuracy,
+                  predictor_name,round_for_train,
                   tar_acc_gradual_decent,
                   flop_expected, filter_dead_ratio_decay,
                   neural_dead_times_decay, dataset_name, validation_loader, batch_size, num_workers, optimizer,
@@ -125,6 +130,7 @@ def prune_dead_neural_with_logistic_regression(net,
                   num_epoch, filter_preserve_ratio, max_filters_pruned_for_one_time,min_filters_pruned_for_one_time, learning_rate_decay,
                   learning_rate_decay_factor,
                   weight_decay, learning_rate_decay_epoch))
+    print(kwargs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
@@ -174,9 +180,8 @@ def prune_dead_neural_with_logistic_regression(net,
             train_y = np.zeros(train_x.shape[0])
             train_y[:stat_df.shape[0]] = 1  # dead filters are labeled 1
             ##logistic regression######################################################################################################
-            logistic_regression = LogisticRegressionCV(class_weight='balanced', max_iter=1000, cv=3,
-                                                       Cs=[1, 10, 100, 1000])
-            classifier = logistic_regression.fit(train_x, train_y)
+            predictor=predict_dead_filter.predictor(name=predictor_name,**kwargs)
+            predictor.fit(train_x, train_y)
 
         if round<=round_for_train:
             print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(), filter_dead_ratio,
@@ -203,7 +208,7 @@ def prune_dead_neural_with_logistic_regression(net,
                     i += 1
         else:
             dead_filter_index=evaluate.predict_dead_filters_classifier_version(net=net,
-                                                                               classifier=classifier,
+                                                                               predictor=predictor,
                                                                                min_ratio_dead_filters=min_filters_pruned_for_one_time,
                                                                                max_ratio_dead_filters=max_filters_pruned_for_one_time,
                                                                                filter_num_lower_bound=filter_num_lower_bound)
@@ -235,26 +240,26 @@ def prune_dead_neural_with_logistic_regression(net,
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
         success = False
-        while not success:
-            old_net = copy.deepcopy(net)
-            success = train.train(net=net,
-                                  net_name=net_name,
-                                  num_epochs=num_epoch,
-                                  target_accuracy=target_accuracy,
-                                  learning_rate=learning_rate,
-                                  load_net=False,
-                                  checkpoint_step=checkpoint_step,
-                                  dataset_name=dataset_name,
-                                  optimizer=optimizer,
-                                  batch_size=batch_size,
-                                  learning_rate_decay=learning_rate_decay,
-                                  learning_rate_decay_factor=learning_rate_decay_factor,
-                                  weight_decay=weight_decay,
-                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                  test_net=True,
-                                  )
-            if not success:
-                net = old_net
+        # while not success:
+        #     old_net = copy.deepcopy(net)
+        #     success = train.train(net=net,
+        #                           net_name=net_name,
+        #                           num_epochs=num_epoch,
+        #                           target_accuracy=target_accuracy,
+        #                           learning_rate=learning_rate,
+        #                           load_net=False,
+        #                           checkpoint_step=checkpoint_step,
+        #                           dataset_name=dataset_name,
+        #                           optimizer=optimizer,
+        #                           batch_size=batch_size,
+        #                           learning_rate_decay=learning_rate_decay,
+        #                           learning_rate_decay_factor=learning_rate_decay_factor,
+        #                           weight_decay=weight_decay,
+        #                           learning_rate_decay_epoch=learning_rate_decay_epoch,
+        #                           test_net=True,
+        #                           )
+        #     if not success:
+        #         net = old_net
         filter_dead_ratio *= filter_dead_ratio_decay
         neural_dead_times *= neural_dead_times_decay
 
