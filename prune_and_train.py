@@ -54,7 +54,7 @@ def prune_dead_neural_with_predictor(net,
                                      learning_rate_decay_factor=conf.learning_rate_decay_factor,
                                      weight_decay=conf.weight_decay,
                                      learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-                                     **kwargs,
+                                     **kwargs
                                      ):
     '''
 

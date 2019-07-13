@@ -361,22 +361,23 @@ if __name__ == "__main__":
                                                            num_workers=num_worker,
                                                            dataset_name='cifar10',
                                                             dataset_path='./dataset')
-
-    train(net=net,
-          net_name='resnet56_baseline',
-          dataset_name='cifar10',
-          optimizer=optim.SGD,
-          learning_rate=0.1,
-          learning_rate_decay=False,
-          learning_rate_decay_epoch=[ 100, 200, 300],
-          learning_rate_decay_factor=0.1,
-          test_net=False,
-          load_net=True,
-          batch_size=1024,
-          num_epochs=450,
-          weight_decay=0.0006,
-          train_loader=train_loader,
-          validation_loader=validation_loader)
+    for i in range(10):
+        print(i)
+        train(net=net,
+              net_name='resnet56_baseline'+str(i),
+              dataset_name='cifar10',
+              optimizer=optim.SGD,
+              learning_rate=0.1,
+              learning_rate_decay=False,
+              learning_rate_decay_epoch=[ 100, 200, 300],
+              learning_rate_decay_factor=0.1,
+              test_net=False,
+              load_net=True,
+              batch_size=1024,
+              num_epochs=450,
+              weight_decay=0.0006,
+              train_loader=train_loader,
+              validation_loader=validation_loader)
 
 
 
