@@ -639,12 +639,33 @@ def prune_layer_gradually():
 
 
 if __name__ == "__main__":
-    net=create_net.vgg_cifar10('vgg16_bn',pretrained=True)
-    prune_filters_randomly(net,net_name='vgg16_bn_debug_test',target_accuracy=0.931,round_of_prune=6,dataset_name='cifar10')
+    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    # checkpoint = torch.load('./vgg16_bn,baseline.tar')
 
-    # prune_and_train(model_name='vgg16_bn',
-    #                 pretrained=True,
-    #                 checkpoint_step=5000,
-    #                 percent_of_pruning=0.9,
-    #                 num_epochs=20,
-    #                 learning_rate=0.005)
+    net = checkpoint['net']
+    net.load_state_dict(checkpoint['state_dict'])
+    print(checkpoint['highest_accuracy'])
+
+
+
+    prune_filters_randomly(net=net,
+                                                     net_name='vgg16bn_cifar10_randomly_pruned',
+                                                       round_of_prune=11,
+                                                       final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
+                                                     dataset_name='cifar10',
+
+                                                     target_accuracy=0.933,
+                                                     batch_size=1600,
+                                                     num_epoch=450,
+                                                     checkpoint_step=1600,
+
+                                                     # optimizer=optim.Adam,
+                                                     # learning_rate=1e-3,
+                                                     # weight_decay=0
+                                                     optimizer=optim.SGD,
+                                                     learning_rate=0.01,
+                                                     learning_rate_decay=True,
+                                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                                                     learning_rate_decay_factor=0.5,
+
+                                                     )
