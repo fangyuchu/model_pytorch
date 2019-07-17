@@ -174,14 +174,10 @@ def prune_dead_neural_with_predictor(net,
 
         if round==round_for_train+1:
             # use filters from (round_for_train)rounds to train the classifier
-            stat_df = predict_dead_filter.statistics(dead_filter)
-            stat_lf = predict_dead_filter.statistics(lived_filter)
-            train_x = np.vstack((stat_df, stat_lf))  # dead filters are in the front
-            train_y = np.zeros(train_x.shape[0])
-            train_y[:stat_df.shape[0]] = 1  # dead filters are labeled 1
-            ##logistic regression######################################################################################################
+
+            ##train the predictor######################################################################################################
             predictor=predict_dead_filter.predictor(name=predictor_name,**kwargs)
-            predictor.fit(train_x, train_y)
+            predictor.fit(lived_filter=lived_filter, dead_filter=dead_filter)
 
         if round<=round_for_train:
             print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(), filter_dead_ratio,
@@ -240,28 +236,28 @@ def prune_dead_neural_with_predictor(net,
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
         success = False
-        while not success:
-            old_net = copy.deepcopy(net)
-            success = train.train(net=net,
-                                  net_name=net_name,
-                                  num_epochs=num_epoch,
-                                  target_accuracy=target_accuracy,
-                                  learning_rate=learning_rate,
-                                  load_net=False,
-                                  checkpoint_step=checkpoint_step,
-                                  dataset_name=dataset_name,
-                                  optimizer=optimizer,
-                                  batch_size=batch_size,
-                                  learning_rate_decay=learning_rate_decay,
-                                  learning_rate_decay_factor=learning_rate_decay_factor,
-                                  weight_decay=weight_decay,
-                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                  test_net=True,
-                                  )
-            if not success:
-                net = old_net
-        filter_dead_ratio *= filter_dead_ratio_decay
-        neural_dead_times *= neural_dead_times_decay
+        # while not success:
+        #     old_net = copy.deepcopy(net)
+        #     success = train.train(net=net,
+        #                           net_name=net_name,
+        #                           num_epochs=num_epoch,
+        #                           target_accuracy=target_accuracy,
+        #                           learning_rate=learning_rate,
+        #                           load_net=False,
+        #                           checkpoint_step=checkpoint_step,
+        #                           dataset_name=dataset_name,
+        #                           optimizer=optimizer,
+        #                           batch_size=batch_size,
+        #                           learning_rate_decay=learning_rate_decay,
+        #                           learning_rate_decay_factor=learning_rate_decay_factor,
+        #                           weight_decay=weight_decay,
+        #                           learning_rate_decay_epoch=learning_rate_decay_epoch,
+        #                           test_net=True,
+        #                           )
+        #     if not success:
+        #         net = old_net
+        # filter_dead_ratio *= filter_dead_ratio_decay
+        # neural_dead_times *= neural_dead_times_decay
 
 
 def prune_dead_neural(net,

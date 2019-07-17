@@ -74,10 +74,10 @@ def validate(val_loader, model):
 def same_two_nets(net1,net2,print_diffrent_module=False):
     '''
     Compare net1 and net2. If their structure and weights are identical, return True.
-    :param net1: 
-    :param net2: 
-    :param print_diffrent_module: 
-    :return: 
+    :param net1:
+    :param net2:
+    :param print_diffrent_module:
+    :return:
     '''
     param1 = net1.state_dict()
     param2=net2.state_dict()
@@ -117,8 +117,8 @@ def evaluate_net(  net,
     :param net: net of NN
     :param data_loader: data loader of test set
     :param save_net: Boolean. Whether or not to save the net.
-    :param checkpoint_path: 
-    :param highest_accuracy_path: 
+    :param checkpoint_path:
+    :param highest_accuracy_path:
     :param sample_num_path:
     :param sample_num: sample num of the current trained net
     :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
@@ -177,43 +177,56 @@ def predict_dead_filters_classifier_version(net,
 
     :return:
     '''
+
+    dead_filter_index_data,_,_=find_dead_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
+
     dead_filter_index=list()
-    i=0
+    df_num_max=list()                           #max number of filter num
+    df_num_min=list()                           #min number of filter num
+    filter_num=list()                           #filter num in each layer
+    weight=list()
+    num_conv=0
     for mod in net.features:
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            weight=list(mod.weight.data.cpu().numpy())
-
-            df_num_min=math.ceil(min_ratio_dead_filters*len(weight))                                            #lower bound of dead_filter's num
+            weight+=list(mod.weight.data.cpu().numpy())
+            filter_num.append(mod.weight.data.cpu().numpy().shape[0])
+            df_num_min.append(math.ceil(min_ratio_dead_filters*filter_num[num_conv]))                                            #lower bound of dead_filter's num
             if filter_num_lower_bound is not None:                                                              #upper bound of dead_filter's num
-                df_num_max=min(int(max_ratio_dead_filters*len(weight)),len(weight)-filter_num_lower_bound[i])
+                df_num_max.append(min(int(max_ratio_dead_filters*len(weight)),filter_num[num_conv]-filter_num_lower_bound[num_conv]))
             else:
-                df_num_max=int(max_ratio_dead_filters*len(weight))
+                df_num_max.append(int(max_ratio_dead_filters*len(weight)))
 
-            if df_num_max<df_num_min:
-                print('Number of filters in layer{} is {}. At most {} filters will be predicted to be dead.'.format(i,len(weight),df_num_max))
+            if df_num_max[num_conv]<df_num_min[num_conv]:
+                print('Number of filters in layer{} is {}. At most {} filters will be predicted to be dead.'.format(num_conv,filter_num[num_conv],df_num_max[num_conv]))
+            num_conv+=1
 
-            stat_filters=predict_dead_filter.statistics(weight)
+#todo:全部的卷积核一起标准化更合理
+    stat_filters,_=predict_dead_filter.statistics(weight,min_max_scaler=predictor.min_max_scaler)
 
-            output=predictor.predict_proba(stat_filters)
-            dead_filter_proba_sorted=np.argsort(-output[:,1])                   #filter indices sorted by the probability of which to be dead
-            dead_filter_predicted=np.where(np.argmax(output,1))[0]             #filter indices of which are predicted to be dead
-            if dead_filter_predicted.shape[0]<df_num_min:
-                dead_filter_predicted=dead_filter_proba_sorted[:df_num_min]
-            if dead_filter_predicted.shape[0]>df_num_max:
-                dead_filter_predicted=dead_filter_proba_sorted[:df_num_max]
-            dead_filter_index.append(dead_filter_predicted)
-            i+=1
+    s=0
+    for i in range(num_conv):
+        output = predictor.predict_proba(stat_filters[s:s+filter_num[i]])
+        dead_filter_proba_sorted=np.argsort(-output[:,1])                   #filter indices sorted by the probability of which to be dead
+        dead_filter_predicted=np.where(np.argmax(output,1))[0]             #filter indices of which are predicted to be dead
+        if dead_filter_predicted.shape[0]<df_num_min[i]:
+            print(i,'死亡卷积核太少')
+            dead_filter_predicted=dead_filter_proba_sorted[:df_num_min[i]]
+        if dead_filter_predicted.shape[0]>df_num_max[i]:
+            print(i,'死亡卷积核太多')
+            dead_filter_predicted=dead_filter_proba_sorted[:df_num_max[i]]
+        dead_filter_index.append(dead_filter_predicted)
+        s += filter_num[i]
     return dead_filter_index
 
 
 def find_dead_filters_data_version(net,
-                      filter_dead_ratio,
-                      dataset_name='cifar10',
-                      use_random_data=True,
-                      relu_list=None,
-                      neural_list=None,
-                      batch_size=None,
-                      neural_dead_times=None,
+                                   filter_dead_ratio,
+                                   batch_size,
+                                   neural_dead_times,
+                                   dataset_name='cifar10',
+                                   use_random_data=True,
+                                   relu_list=None,
+                                   neural_list=None,
                       ):
     '''
     use validation set or random generated data to find dead filters in net
@@ -387,7 +400,7 @@ if __name__ == "__main__":
     # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 
-    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
     #checkpoint = torch.load('./vgg16_bn,baseline.tar')
 
     net=checkpoint['net']
@@ -398,16 +411,18 @@ if __name__ == "__main__":
     #measure_flops.measure_model(net,dataset_name='cifar10')
 
     # prune_and_train.prune_dead_neural(net=net,
-    #                                   net_name='tmp',
+    #                                   net_name='vgg16_bn_cifar10_normal_distribution',
     #                                   dataset_name='cifar10',
-    #                                   neural_dead_times=8000,
+    #                                   neural_dead_times=9000,
     #                                   filter_dead_ratio=0.9,
     #                                   neural_dead_times_decay=0.95,
     #                                   filter_dead_ratio_decay=0.98,
     #                                   filter_preserve_ratio=0.1,
     #                                   max_filters_pruned_for_one_time=0.3,
-    #                                   target_accuracy=0.931,
-    #                                   batch_size=300,
+    #                                   target_accuracy=0.933,
+    #                                   tar_acc_gradual_decent=True,
+    #                                   flop_expected=5e7,
+    #                                   batch_size=1600,
     #                                   num_epoch=300,
     #                                   checkpoint_step=1600,
     #
@@ -426,7 +441,7 @@ if __name__ == "__main__":
                                       net_name='tmp',
                                          # predictor_name='logistic_regression',
                                        predictor_name='svm',
-                                                     kernel='sigmoid',
+                                                     kernel='rbf',
                                        round_for_train=2,
                                       dataset_name='cifar10',
                                       use_random_data=True,
