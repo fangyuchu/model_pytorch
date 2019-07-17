@@ -410,54 +410,21 @@ if __name__ == "__main__":
 
     #measure_flops.measure_model(net,dataset_name='cifar10')
 
-    # prune_and_train.prune_dead_neural(net=net,
-    #                                   net_name='vgg16_bn_cifar10_normal_distribution',
-    #                                   dataset_name='cifar10',
-    #                                   neural_dead_times=9000,
-    #                                   filter_dead_ratio=0.9,
-    #                                   neural_dead_times_decay=0.95,
-    #                                   filter_dead_ratio_decay=0.98,
-    #                                   filter_preserve_ratio=0.1,
-    #                                   max_filters_pruned_for_one_time=0.3,
-    #                                   target_accuracy=0.933,
-    #                                   tar_acc_gradual_decent=True,
-    #                                   flop_expected=5e7,
-    #                                   batch_size=1600,
-    #                                   num_epoch=300,
-    #                                   checkpoint_step=1600,
-    #
-    #                                   # optimizer=optim.Adam,
-    #                                   # learning_rate=1e-3,
-    #                                   # weight_decay=0
-    #                                   optimizer=optim.SGD,
-    #                                   learning_rate=0.01,
-    #                                   learning_rate_decay=True,
-    #                                   learning_rate_decay_epoch=[50,100,150,250,300,350,400],
-    #                                   learning_rate_decay_factor=0.5,
-    #                                   )
-
-
-    prune_and_train.prune_dead_neural_with_predictor(net=net,
-                                      net_name='tmp',
-                                         # predictor_name='logistic_regression',
-                                       predictor_name='svm',
-                                                     kernel='rbf',
-                                       round_for_train=2,
+    prune_and_train.prune_dead_neural(net=net,
+                                      net_name='vgg16_bn_cifar10_normal_distribution2',
                                       dataset_name='cifar10',
-                                      use_random_data=True,
-                                      neural_dead_times=1600,
+                                      neural_dead_times=9000,
                                       filter_dead_ratio=0.9,
-                                      neural_dead_times_decay=0.99,
+                                      neural_dead_times_decay=0.95,
                                       filter_dead_ratio_decay=0.98,
-                                      filter_preserve_ratio=0.01,
-                                      max_filters_pruned_for_one_time=0.2,
+                                      filter_preserve_ratio=0.1,
+                                      max_filters_pruned_for_one_time=0.3,
                                       target_accuracy=0.933,
-                                      batch_size=1600,
-                                      num_epoch=450,
-                                      checkpoint_step=1600,
-
                                       tar_acc_gradual_decent=True,
                                       flop_expected=5e7,
+                                      batch_size=1600,
+                                      num_epoch=300,
+                                      checkpoint_step=1600,
 
                                       # optimizer=optim.Adam,
                                       # learning_rate=1e-3,
@@ -467,8 +434,41 @@ if __name__ == "__main__":
                                       learning_rate_decay=True,
                                       learning_rate_decay_epoch=[50,100,150,250,300,350,400],
                                       learning_rate_decay_factor=0.5,
-
                                       )
+
+
+    # prune_and_train.prune_dead_neural_with_predictor(net=net,
+    #                                   net_name='tmp',
+    #                                      # predictor_name='logistic_regression',
+    #                                    predictor_name='svm',
+    #                                                  kernel='rbf',
+    #                                    round_for_train=2,
+    #                                   dataset_name='cifar10',
+    #                                   use_random_data=True,
+    #                                   neural_dead_times=1600,
+    #                                   filter_dead_ratio=0.9,
+    #                                   neural_dead_times_decay=0.99,
+    #                                   filter_dead_ratio_decay=0.98,
+    #                                   filter_preserve_ratio=0.01,
+    #                                   max_filters_pruned_for_one_time=0.2,
+    #                                   target_accuracy=0.933,
+    #                                   batch_size=1600,
+    #                                   num_epoch=450,
+    #                                   checkpoint_step=1600,
+    #
+    #                                   tar_acc_gradual_decent=True,
+    #                                   flop_expected=5e7,
+    #
+    #                                   # optimizer=optim.Adam,
+    #                                   # learning_rate=1e-3,
+    #                                   # weight_decay=0
+    #                                   optimizer=optim.SGD,
+    #                                   learning_rate=0.01,
+    #                                   learning_rate_decay=True,
+    #                                   learning_rate_decay_epoch=[50,100,150,250,300,350,400],
+    #                                   learning_rate_decay_factor=0.5,
+    #
+    #                                   )
 
 
 

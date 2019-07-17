@@ -81,13 +81,13 @@ def trimmed_mean(filter,p):
     filter=filter[min_ind:max_ind]
     return np.mean(filter)
 
-def statistics(filters,balance_channel=False,min_max_scaler=None,data_num=None,scaler=None):
+def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=None,scaler=None):
     '''
     均值，截断均值（20%），中位数，极差，中列数，四分位数（第一第三个四分位数），四分位数极差，标准差，最大值，最小值
     :param filters:
     :return:
     '''
-    feature_num=21
+    feature_num=22
     stat=np.zeros(shape=[len(filters),feature_num],dtype=np.float)
     for i in range(len(filters)):
         stat[i][0]=np.mean(filters[i])                                  #均值
@@ -102,14 +102,15 @@ def statistics(filters,balance_channel=False,min_max_scaler=None,data_num=None,s
         stat[i][9]=filters[i].max()                                     #最大值
         stat[i][10]=filters[i].min()                                    #最小值
         stat[i][11]=filters[i].shape[0]                                 #通道数
-        stat[i][12:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
+        stat[i][12]=layer[i]                                            #哪一层
+        stat[i][13:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
 
-    # if min_max_scaler is None:
-    #     #归一化
-    #     min_max_scaler=preprocessing.MinMaxScaler().fit(stat)
-    #     stat=min_max_scaler.transform(stat)
-    # else:
-    #     stat=min_max_scaler.transform(stat)
+    if min_max_scaler is None:
+        #归一化
+        min_max_scaler=preprocessing.MinMaxScaler().fit(stat)
+        stat=min_max_scaler.transform(stat)
+    else:
+        stat=min_max_scaler.transform(stat)
 
     #标准化
     if scaler is None:
@@ -323,18 +324,18 @@ if __name__ == "__main__":
     #test=predictor(name='svm',kernel='rbf')
 
 
-    df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集',neural_dead_times=1200)
-    df_val,lf_val=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集',neural_dead_times=1200)
+    df,lf,df_layer,lf_layer=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集',neural_dead_times=1200)
+    df_val,lf_val,df_layer_val,lf_layer_val=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集',neural_dead_times=1200)
 
     #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
 
     #df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent3/dead_neural',neural_dead_times=1200)
-    _,min_max_scaler,scaler=statistics(df+lf)
+    _,min_max_scaler,scaler=statistics(df+lf,layer=df_layer+lf_layer)
 
-    stat_df,_,_=statistics(df,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler)
-    stat_lf,_,_=statistics(lf,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler)#,data_num=stat_df.shape[0])
-    stat_df_val,_,_=statistics(df_val,min_max_scaler=min_max_scaler,scaler=scaler)
-    stat_lf_val,_,_=statistics(lf_val,min_max_scaler=min_max_scaler,scaler=scaler)
+    stat_df,_,_=statistics(df,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer)
+    stat_lf,_,_=statistics(lf,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer)#,data_num=stat_df.shape[0])
+    stat_df_val,_,_=statistics(df_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val)
+    stat_lf_val,_,_=statistics(lf_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer_val)
 
     # tmp1=stat_df.tolist()
     # tmp1.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
@@ -361,7 +362,7 @@ if __name__ == "__main__":
     clf = GridSearchCV(svc, param_grid, scoring='f1', n_jobs=-1, cv=5)
 
     clf.fit(train_x,train_y)
-    val_x1, _ ,_= statistics(df_val+lf_val, min_max_scaler=min_max_scaler,scaler=scaler)
+    val_x1, _ ,_= statistics(df_val+lf_val, min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val+lf_layer_val)
     prediction=clf.predict(val_x1)
 
     f_score,precision,recall=cal_F_score(prediction,val_y)
