@@ -302,7 +302,7 @@ def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     #register a hook for ReLU
     for mod in net.modules():
         if isinstance(mod, torch.nn.ReLU):
-            handle.append(mod.register_forward_hook(check_if_dead))
+            handle.append(mod.register_forward_hook(compute_dead_times))
 
     if data_loader is not None:
         evaluate_net(net, data_loader, False)
@@ -359,7 +359,7 @@ def plot_dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filt
 
 
 
-def check_if_dead(module, input, output):
+def compute_dead_times(module, input, output):
     if module not in relu_list:
         relu_list.append(module)
         neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
@@ -378,7 +378,9 @@ def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
     for (k,v) in neural_list_temp.items():
         dead_num+=np.sum(v>=neural_dead_times)                                   #neural unactivated for more than 40000 times
         neural_num+=v.size
-    print("{} {:.3f}% of nodes are dead".format(datetime.now(),100*float(dead_num)/neural_num))
+    dead_neural_rate=100*float(dead_num)/neural_num
+    print("{} {:.3f}% of nodes are dead".format(datetime.now(),dead_neural_rate))
+    return dead_neural_rate
 
 
 if __name__ == "__main__":
@@ -411,7 +413,7 @@ if __name__ == "__main__":
     #measure_flops.measure_model(net,dataset_name='cifar10')
 
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16_bn_cifar10_normal_distribution2',
+                                      net_name='tmp',
                                       dataset_name='cifar10',
                                       neural_dead_times=9000,
                                       filter_dead_ratio=0.9,

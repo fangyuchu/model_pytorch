@@ -113,11 +113,12 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
         stat=min_max_scaler.transform(stat)
 
     #标准化
-    if scaler is None:
-        scaler=preprocessing.StandardScaler().fit(stat)
-        stat=scaler.transform(stat)
-    else:
-        stat = scaler.transform(stat)
+    # if scaler is None:
+    #     scaler=preprocessing.StandardScaler().fit(stat)
+    #     stat=scaler.transform(stat)
+    # else:
+    #     stat = scaler.transform(stat)
+    stat=preprocessing.scale(stat)
 
 
     if balance_channel is True:
@@ -363,7 +364,7 @@ if __name__ == "__main__":
 
     clf.fit(train_x,train_y)
     val_x1, _ ,_= statistics(df_val+lf_val, min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val+lf_layer_val)
-    prediction=clf.predict(val_x1)
+    prediction=clf.predict(val_x)
 
     f_score,precision,recall=cal_F_score(prediction,val_y)
     print('svm:f_score:{},precision:{},recall:{}'.format(f_score,precision,recall))
