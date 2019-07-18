@@ -14,10 +14,25 @@ from sklearn import svm
 import vgg
 import predict_dead_filter
 from predict_dead_filter import fc
-
-checkpoint=torch.load('/media/victorfang/FANG/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent2_2_continue_2/checkpoint/sample_num=10800000,accuracy=0.93390.tar')
+import prune
+import generate_random_data
+checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 net=checkpoint['net']
-measure_flops.measure_model(net,dataset_name='cifar10')
+
+evaluate.check_conv_alive_layerwise(net=net,neural_dead_times=800,data=generate_random_data.random_normal(num=800,dataset_name='cifar10'),batch_size=800)
+
+df_index,_,_=evaluate.find_dead_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=800,neural_dead_times=9000,use_random_data=False)
+num_conv = 0  # num of conv layers in the net
+dead_filter_index=list()
+for mod in net.features:
+    if isinstance(mod, torch.nn.modules.conv.Conv2d):
+        num_conv += 1
+for i in range(num_conv):
+    df_index,_,_=evaluate.find_dead_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=800,neural_dead_times=800,use_random_data=True)
+    dead_filter_index.append(df_index[i])
+    net = prune.prune_conv_layer(model=net, layer_index=i + 1,
+                                 filter_index=df_index[i])  # prune the dead filter
+
 
 
 

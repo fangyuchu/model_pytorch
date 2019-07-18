@@ -299,10 +299,11 @@ def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     relu_list=list()
     neural_list=dict()
 
+
     #register a hook for ReLU
     for mod in net.modules():
         if isinstance(mod, torch.nn.ReLU):
-            handle.append(mod.register_forward_hook(compute_dead_times))
+            handle.append(mod.register_forward_hook(cal_dead_times))
 
     if data_loader is not None:
         evaluate_net(net, data_loader, False)
@@ -322,6 +323,69 @@ def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     relu_list_temp=relu_list
     del relu_list,neural_list
     return relu_list_temp,neural_list_temp
+
+def check_conv_alive_layerwise(net,neural_dead_times,data_loader,batch_size):
+    '''
+    generate random data as input for each conv layer to test the dead neural
+    :param net:
+    :param neural_dead_times:
+    :param data:
+    :param data_loader:
+    :param use_random_data:
+    :return:
+    '''
+    handle = list()
+    global conv_list                                                        #list containing relu module
+    global neural_list
+    global input_shape,output_shape
+    conv_list=list()
+    neural_list=dict()
+    input_shape=list()
+    output_shape=list()
+
+    module_block_list=list()                                                      #2-d list
+
+    #register a hook for ReLU
+    num_conv=-1
+    new_block=False
+    for mod in net.modules():
+        if new_block is True:
+            module_block_list[num_conv].append(mod)
+        if isinstance(mod, torch.nn.Conv2d):
+            num_conv+=1
+            module_block_list.append([mod])
+            conv_list.append(mod)
+            new_block=True
+            handle.append(mod.register_forward_hook(record_input_output_size))
+        if isinstance(mod,torch.nn.ReLU):
+            new_block=False
+    num_conv+=1
+
+    for i, (data, target) in enumerate(data_loader):
+        net.eval()
+        net(data)
+        break
+
+
+    #close the hook
+    for h in handle:
+        h.remove()
+    for i in range(num_conv):
+        input_size=input_shape[i]
+        data_foward=generate_random_data.random_normal(num=batch_size,size=input_size)
+        for mod in module_block_list[i]:
+            data_foward=mod(data_foward)
+        cal_dead_times(module=conv_list[i],input=None,output=data_foward)
+
+    neural_list_temp = neural_list
+    conv_list_temp = conv_list
+    del conv_list, neural_list
+    return conv_list_temp, neural_list_temp
+
+def record_input_output_size(module, input, output):
+    #todo:改成计算每一层的均值std的
+    input_shape.append(input[0].shape[1:])
+    output_shape.append(output.shape[1:])
 
 
 
@@ -359,10 +423,13 @@ def plot_dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filt
 
 
 
-def compute_dead_times(module, input, output):
-    if module not in relu_list:
-        relu_list.append(module)
-        neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
+def cal_dead_times(module, input, output):
+    if module is torch.nn.ReLU:
+        if module not in relu_list:
+            relu_list.append(module)
+
+    neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
+
     output=output.detach()                                              #set requires_grad to False
     zero_matrix=np.zeros(output.shape,dtype=np.int)
     zero_matrix[output.cpu().numpy()==0]=1

@@ -118,7 +118,6 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
     #     stat=scaler.transform(stat)
     # else:
     #     stat = scaler.transform(stat)
-    stat=preprocessing.scale(stat)
 
 
     if balance_channel is True:
@@ -142,6 +141,9 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
             s+=channel_num_list[i]
             stat_returned[i*sample_num:(i+1)*sample_num]=stat[ind]
         stat=stat_returned
+
+    stat=preprocessing.scale(stat)
+
     return stat,min_max_scaler,scaler
 
 def cal_F_score(prediction,label,beta=1):
@@ -331,7 +333,7 @@ if __name__ == "__main__":
     #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
 
     #df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent3/dead_neural',neural_dead_times=1200)
-    _,min_max_scaler,scaler=statistics(df+lf,layer=df_layer+lf_layer)
+    _,min_max_scaler,scaler=statistics(df+lf,layer=df_layer+lf_layer,balance_channel=True)
 
     stat_df,_,_=statistics(df,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer)
     stat_lf,_,_=statistics(lf,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer)#,data_num=stat_df.shape[0])
