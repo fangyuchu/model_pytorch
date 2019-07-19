@@ -14,7 +14,7 @@ import numpy as np
 import create_net
 
 
-def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225]):
+def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225],is_image=True):
     '''
     generate random normal data to imitate image data
     :param num:number of images created
@@ -30,20 +30,23 @@ def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406
     if dataset_name is 'imagenet':
         size=[3,224,224]
 
-    def one_image():
-        image = np.random.normal(loc=mean, scale=std, size=(size[1],size[2],size[0]))   #generate data
-        while image.max() >= 1 or image.min() < 0:            #ensure all data are in range[0,1]
-            for i in range(3):
-                image[:, :, i][image[:, :, i] >= 1] = np.random.normal(loc=mean[i], scale=std[i])
-                image[:, :, i][image[:, :, i] <0] = np.random.normal(loc=mean[i], scale=std[i])
-        image=image.swapaxes(0,2)
+    def one_tensor(is_image):
+        simulated_tensor = np.random.normal(loc=mean, scale=std, size=(size[1],size[2],size[0]))   #generate data
+        if is_image is True:
+            while simulated_tensor.max() >= 1 or simulated_tensor.min() < 0:            #ensure all data are in range[0,1]
+                for i in range(3):
+                    simulated_tensor[:, :, i][simulated_tensor[:, :, i] >= 1] = np.random.normal(loc=mean[i], scale=std[i])
+                    simulated_tensor[:, :, i][simulated_tensor[:, :, i] <0] = np.random.normal(loc=mean[i], scale=std[i])
+        simulated_tensor=simulated_tensor.swapaxes(0,2)
         for i in range(3):                                      #normalize the data
-            image[i,:,:]=(image[i,:,:]-mean[i])/std[i]
-        return image
+            simulated_tensor[i,:,:]=(simulated_tensor[i,:,:]-mean[i])/std[i]
+        if is_image is False:
+            simulated_tensor[simulated_tensor<0]=0
+        return simulated_tensor
 
     out=np.zeros(shape=[num,size[0],size[1],size[2]],dtype=np.float)
     for i in range(num):
-        out[i]=one_image()
+        out[i]=one_tensor(is_image=is_image)
     out=torch.from_numpy(out).type(torch.FloatTensor).to(device)
     return out
 

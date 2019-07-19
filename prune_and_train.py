@@ -765,7 +765,7 @@ def prune_resnet(net,
 
     '''计算Conv的层数'''
     conv_list = []  # List，保存要剪枝的Conv层索引，下标从1开始
-    i = 1;
+    i = 1
     index_in_block = -1
     filter_num_lower_bound = list()  # 最低filter数量
     filter_num = list()

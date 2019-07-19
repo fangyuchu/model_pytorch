@@ -188,6 +188,7 @@ def predict_dead_filters_classifier_version(net,
     num_conv=0
     for mod in net.features:
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            #todo:注意这里的data和grad的问题！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
             weight+=list(mod.weight.data.cpu().numpy())
             filter_num.append(mod.weight.data.cpu().numpy().shape[0])
             df_num_min.append(math.ceil(min_ratio_dead_filters*filter_num[num_conv]))                                            #lower bound of dead_filter's num
@@ -225,7 +226,7 @@ def find_dead_filters_data_version(net,
                                    neural_dead_times,
                                    dataset_name='cifar10',
                                    use_random_data=True,
-                                   relu_list=None,
+                                   module_list=None,
                                    neural_list=None,
                       ):
     '''
@@ -234,18 +235,18 @@ def find_dead_filters_data_version(net,
     :param filter_dead_ratio:
     :param dataset_name:
     :param use_random_data:
-    :param relu_list:
+    :param module_list:
     :param neural_list:
     :param batch_size:
     :param neural_dead_times:
     :return:
     '''
-    if relu_list is None or neural_list is None:
+    if module_list is None or neural_list is None:
         #calculate dead neural
         if use_random_data is True:
             random_data=generate_random_data.random_normal(num=batch_size,dataset_name=dataset_name)
             print('{} generate random data.'.format(datetime.now()))
-            relu_list, neural_list = check_ReLU_alive(net=net, neural_dead_times=neural_dead_times, data=random_data)
+            module_list, neural_list = check_ReLU_alive(net=net, neural_dead_times=neural_dead_times, data=random_data)
             del random_data
         else:
             if dataset_name is 'imagenet':
@@ -266,7 +267,7 @@ def find_dead_filters_data_version(net,
                                                                      num_workers=2,
                                                                      dataset_name=dataset_name,
                                                                      )
-            relu_list,neural_list=check_ReLU_alive(net=net,data_loader=validation_loader,neural_dead_times=neural_dead_times)
+            module_list,neural_list=check_ReLU_alive(net=net,data_loader=validation_loader,neural_dead_times=neural_dead_times)
 
     num_conv = 0  # num of conv layers in the net
     filter_num = list()
@@ -276,21 +277,21 @@ def find_dead_filters_data_version(net,
             filter_num.append(mod.out_channels)
     dead_filter_index=list()
     for i in range(num_conv):
-        for relu_key in list(neural_list.keys()):
-            if relu_list[i] is relu_key:  # find the neural_list_statistics in layer i+1
-                dead_relu_list = neural_list[relu_key]
-                neural_num = dead_relu_list.shape[1] * dead_relu_list.shape[2]  # neural num for one filter
+        for module_key in list(neural_list.keys()):
+            if module_list[i] is module_key:  # find the neural_list_statistics in layer i+1
+                dead_module_list = neural_list[module_key]
+                neural_num = dead_module_list.shape[1] * dead_module_list.shape[2]  # neural num for one filter
 
                 # judge dead filter by neural_dead_times and dead_filter_ratio
-                dead_relu_list[dead_relu_list < neural_dead_times] = 0
-                dead_relu_list[dead_relu_list >= neural_dead_times] = 1
-                dead_relu_list = np.sum(dead_relu_list, axis=(1, 2))  # count the number of dead neural for one filter
+                dead_module_list[dead_module_list < neural_dead_times] = 0
+                dead_module_list[dead_module_list >= neural_dead_times] = 1
+                dead_module_list = np.sum(dead_module_list, axis=(1, 2))  # count the number of dead neural for one filter
 
-                df_num=np.where(dead_relu_list >= neural_num * filter_dead_ratio)[0].shape[0]                    #number of dead filters
-                df_index=np.argsort(-dead_relu_list)[:df_num].tolist()                                           #dead filters' indices. sorted by the times that they died.
+                df_num=np.where(dead_module_list >= neural_num * filter_dead_ratio)[0].shape[0]                    #number of dead filters
+                df_index=np.argsort(-dead_module_list)[:df_num].tolist()                                           #dead filters' indices. sorted by the times that they died.
                 dead_filter_index.append(df_index)
 
-    return dead_filter_index,relu_list,neural_list
+    return dead_filter_index,module_list,neural_list
 
 def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     handle = list()
@@ -324,7 +325,7 @@ def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     del relu_list,neural_list
     return relu_list_temp,neural_list_temp
 
-def check_conv_alive_layerwise(net,neural_dead_times,data_loader,batch_size):
+def check_conv_alive_layerwise(net,neural_dead_times,batch_size):
     '''
     generate random data as input for each conv layer to test the dead neural
     :param net:
@@ -337,11 +338,14 @@ def check_conv_alive_layerwise(net,neural_dead_times,data_loader,batch_size):
     handle = list()
     global conv_list                                                        #list containing relu module
     global neural_list
-    global input_shape,output_shape
+    global input_shape_list,output_shape_list
+    global mean_list,std_list
     conv_list=list()
     neural_list=dict()
-    input_shape=list()
-    output_shape=list()
+    input_shape_list=list()
+    output_shape_list=list()
+    mean_list=[[0.485, 0.456, 0.406]]                                       #mean list initiated with mean value in layer one
+    std_list=[[0.229, 0.224, 0.225]]
 
     module_block_list=list()                                                      #2-d list
 
@@ -359,35 +363,41 @@ def check_conv_alive_layerwise(net,neural_dead_times,data_loader,batch_size):
             handle.append(mod.register_forward_hook(record_input_output_size))
         if isinstance(mod,torch.nn.ReLU):
             new_block=False
+        if isinstance(mod,torch.nn.BatchNorm2d):
+            handle.append(mod.register_forward_hook(record_mean_std_layerwise))
     num_conv+=1
 
-    for i, (data, target) in enumerate(data_loader):
-        net.eval()
-        net(data)
-        break
-
+    data=generate_random_data.random_normal(num=1,dataset_name='cifar10')
+    net.eval()
+    net(data)
 
     #close the hook
     for h in handle:
         h.remove()
+
     for i in range(num_conv):
-        input_size=input_shape[i]
-        data_foward=generate_random_data.random_normal(num=batch_size,size=input_size)
+        if i == 0:
+            data_foward=generate_random_data.random_normal(num=batch_size,size=input_shape_list[i],mean=mean_list[i],std=std_list[i],is_image=True)
+        else:
+            data_foward=generate_random_data.random_normal(num=batch_size,size=input_shape_list[i],mean=mean_list[i],std=std_list[i],is_image=False)
+
         for mod in module_block_list[i]:
             data_foward=mod(data_foward)
         cal_dead_times(module=conv_list[i],input=None,output=data_foward)
 
+    cal_dead_neural_rate(neural_dead_times)
     neural_list_temp = neural_list
     conv_list_temp = conv_list
     del conv_list, neural_list
     return conv_list_temp, neural_list_temp
 
 def record_input_output_size(module, input, output):
-    #todo:改成计算每一层的均值std的
-    input_shape.append(input[0].shape[1:])
-    output_shape.append(output.shape[1:])
+    input_shape_list.append(input[0].shape[1:])
+    output_shape_list.append(output.shape[1:])
 
-
+def record_mean_std_layerwise(module,input,output):
+    mean_list.append(module.running_mean.cpu().numpy())
+    std_list.append(np.sqrt(module.running_var.cpu().numpy()))
 
 def plot_dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_dead_ratio):
     dead_filter_num=list()                                                                      #num of dead filters in each layer
@@ -424,11 +434,11 @@ def plot_dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filt
 
 
 def cal_dead_times(module, input, output):
-    if module is torch.nn.ReLU:
+    if isinstance(module,torch.nn.ReLU):
         if module not in relu_list:
             relu_list.append(module)
-
-    neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
+    if module not in neural_list.keys():
+        neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
 
     output=output.detach()                                              #set requires_grad to False
     zero_matrix=np.zeros(output.shape,dtype=np.int)
