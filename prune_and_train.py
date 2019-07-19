@@ -465,26 +465,32 @@ def prune_filters_randomly(net,
                            net_name,
                            target_accuracy,
                            round_of_prune,
-                           final_filter_num=[23,59,65,65,149,132,99,181,125,116,181,254,223],
+                           final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
+                           tar_acc_gradual_decent=False,
+                           flop_expected=None,
+                           validation_loader=None,
                            dataset_name='cifar10',
                            batch_size=conf.batch_size,
                            num_workers=conf.num_workers,
                            optimizer=optim.Adam,
                            learning_rate=0.01,
                            checkpoint_step=1000,
-                           num_epoch=350,
+                           num_epoch=450,
                            learning_rate_decay=False,
                            learning_rate_decay_factor=conf.learning_rate_decay_factor,
                            weight_decay=conf.weight_decay,
                            learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                            ):
     '''
-    proved to be useless
+
     :param net:
     :param net_name:
     :param target_accuracy:
     :param round_of_prune:
-    :param final_filter_num:list[int], the number of filters in each layer after pruning
+    :param final_filter_num:
+    :param tar_acc_gradual_decent:
+    :param flop_expected:
+    :param validation_loader:
     :param dataset_name:
     :param batch_size:
     :param num_workers:
@@ -510,6 +516,9 @@ def prune_filters_randomly(net,
           'target_accuracy:{}\n'
           'round of prune:{}\n'
           'final_filter_num:{}\n'
+          'tar_acc_gradual_decent:{}\n'
+          'flop_expected:{}\n'
+          'validation_loader:{}\n'
           'dataset_name:{}\n'
           'batch_size:{}\n'
           'num_workers:{}\n'
@@ -522,7 +531,7 @@ def prune_filters_randomly(net,
           'weight_decay:{}\n'
           'learning_rate_decay_epoch:{}'
           .format(net, net_name,   target_accuracy,
-                  round_of_prune,final_filter_num,
+                  round_of_prune,final_filter_num,tar_acc_gradual_decent,flop_expected,validation_loader,
                   dataset_name, batch_size, num_workers, optimizer,
                   learning_rate, checkpoint_step,
                   num_epoch, learning_rate_decay,
@@ -535,6 +544,20 @@ def prune_filters_randomly(net,
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
+
+    if validation_loader is None :
+        validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+                                                                 num_workers=num_workers,
+                                                                 dataset_name=dataset_name,
+                                                                 )
+
+    flop_original_net = measure_flops.measure_model(net, dataset_name)
+    original_accuracy = evaluate.evaluate_net(net=net,
+                                              data_loader=validation_loader,
+                                              save_net=False)
+    if tar_acc_gradual_decent is True:
+        flop_drop_expected = flop_original_net - flop_expected
+        acc_drop_tolerance = original_accuracy - target_accuracy
 
     num_conv = 0  # num of conv layers in the net
     filter_num=list()
@@ -556,7 +579,14 @@ def prune_filters_randomly(net,
             net = prune.prune_conv_layer(model=net, layer_index=i + 1,
                                          filter_index=pruning_filter_index)  # prune the dead filter
 
-        measure_flops.measure_model(net, 'cifar10')
+
+
+        flop_pruned_net = measure_flops.measure_model(net, dataset_name)
+
+        if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
+            flop_reduced=flop_original_net-flop_pruned_net
+            target_accuracy=original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected)
+            print('{} current target accuracy:{}'.format(datetime.now(),target_accuracy))
 
         success=False
         while not success:
@@ -635,7 +665,7 @@ def prune_layer_gradually():
 
 
 if __name__ == "__main__":
-    checkpoint = torch.load('/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar')
+    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
     # checkpoint = torch.load('./vgg16_bn,baseline.tar')
 
     net = checkpoint['net']
@@ -643,25 +673,24 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
 
 
-
     prune_filters_randomly(net=net,
-                                                     net_name='vgg16bn_cifar10_randomly_pruned',
-                                                       round_of_prune=11,
-                                                       final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
-                                                     dataset_name='cifar10',
 
-                                                     target_accuracy=0.933,
-                                                     batch_size=1600,
-                                                     num_epoch=450,
-                                                     checkpoint_step=1600,
+                            net_name='vgg16bn_cifar10_randomly_pruned',
+                           round_of_prune=11,
+                           final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
+                           dataset_name='cifar10',
+                            tar_acc_gradual_decent=True,
+                           flop_expected=5e7,
+                             target_accuracy=0.933,
+                             batch_size=1600,
+                             num_epoch=450,
+                             checkpoint_step=1600,
 
-                                                     # optimizer=optim.Adam,
-                                                     # learning_rate=1e-3,
-                                                     # weight_decay=0
-                                                     optimizer=optim.SGD,
-                                                     learning_rate=0.01,
-                                                     learning_rate_decay=True,
-                                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-                                                     learning_rate_decay_factor=0.5,
+
+                             optimizer=optim.SGD,
+                             learning_rate=0.01,
+                             learning_rate_decay=True,
+                             learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                             learning_rate_decay_factor=0.5,
 
                                                      )

@@ -480,7 +480,7 @@ if __name__ == "__main__":
     #measure_flops.measure_model(net,dataset_name='cifar10')
 
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='tmp',
+                                      net_name='vgg16bn_cifar10_validation',
                                       dataset_name='cifar10',
                                       neural_dead_times=9000,
                                       filter_dead_ratio=0.9,
@@ -494,7 +494,7 @@ if __name__ == "__main__":
                                       batch_size=1600,
                                       num_epoch=300,
                                       checkpoint_step=1600,
-
+                                      use_random_data=False,
                                       # optimizer=optim.Adam,
                                       # learning_rate=1e-3,
                                       # weight_decay=0
