@@ -16,6 +16,15 @@ import predict_dead_filter
 from predict_dead_filter import fc
 import prune
 import generate_random_data
+
+def tmp(index_real,index):
+    for i in range(len(index_real)):
+        hit=0
+        for ind in index_real[i]:
+            if ind in index[i]:
+                hit+=1
+        print('in layer {}, number of true answer is {}. {} of total {} predictions are correct.'.format(i,len(index_real[i]),hit,len(index[i])))
+
 checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 net=checkpoint['net']
 
@@ -24,9 +33,16 @@ df_index,_,_=evaluate.find_dead_filters_data_version(net=net,filter_dead_ratio=0
 
 conv_list,neural_list=evaluate.check_conv_alive_layerwise(net=net,neural_dead_times=800,batch_size=800)
 df_index_random_data_conv,_,_=evaluate.find_dead_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=800,neural_dead_times=800,module_list=conv_list,neural_list=neural_list)
+tmp(df_index,df_index_random_data_conv)
+
+print('--------------------------------------------')
 
 relu_list,neural_list=evaluate.check_ReLU_alive(net=net,neural_dead_times=800,data=generate_random_data.random_normal(num=800,dataset_name='cifar10'))
 df_index_random_data_relu,_,_=evaluate.find_dead_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=800,neural_dead_times=800,module_list=relu_list,neural_list=neural_list)
+
+tmp(df_index,df_index_random_data_relu)
+
+
 
 num_conv = 0  # num of conv layers in the net
 dead_filter_index=list()

@@ -16,7 +16,7 @@ import math
 import generate_random_data
 import matplotlib.pyplot as plt
 import predict_dead_filter
-
+import copy
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 
@@ -246,7 +246,7 @@ def find_dead_filters_data_version(net,
         if use_random_data is True:
             random_data=generate_random_data.random_normal(num=batch_size,dataset_name=dataset_name)
             print('{} generate random data.'.format(datetime.now()))
-            module_list, neural_list = check_ReLU_alive(net=net, neural_dead_times=neural_dead_times, data=random_data)
+            module_list, neural_list = check_conv_alive_layerwise(net=net,neural_dead_times=batch_size,batch_size=batch_size)#check_ReLU_alive(net=net, neural_dead_times=neural_dead_times, data=random_data)
             del random_data
         else:
             if dataset_name is 'imagenet':
@@ -279,7 +279,7 @@ def find_dead_filters_data_version(net,
     for i in range(num_conv):
         for module_key in list(neural_list.keys()):
             if module_list[i] is module_key:  # find the neural_list_statistics in layer i+1
-                dead_module_list = neural_list[module_key]
+                dead_module_list = copy.deepcopy(neural_list[module_key])
                 neural_num = dead_module_list.shape[1] * dead_module_list.shape[2]  # neural num for one filter
 
                 # judge dead filter by neural_dead_times and dead_filter_ratio
@@ -490,9 +490,9 @@ if __name__ == "__main__":
     #measure_flops.measure_model(net,dataset_name='cifar10')
 
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16bn_cifar10_validation',
+                                      net_name='vgg16bn_cifar10_DeadNeural_conv_version',
                                       dataset_name='cifar10',
-                                      neural_dead_times=9000,
+                                      neural_dead_times=1600,
                                       filter_dead_ratio=0.9,
                                       neural_dead_times_decay=0.95,
                                       filter_dead_ratio_decay=0.98,
@@ -504,7 +504,7 @@ if __name__ == "__main__":
                                       batch_size=1600,
                                       num_epoch=300,
                                       checkpoint_step=1600,
-                                      use_random_data=False,
+                                      use_random_data=True,
                                       # optimizer=optim.Adam,
                                       # learning_rate=1e-3,
                                       # weight_decay=0

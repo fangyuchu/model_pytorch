@@ -83,8 +83,13 @@ def trimmed_mean(filter,p):
 
 def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=None,scaler=None):
     '''
-    均值，截断均值（20%），中位数，极差，中列数，四分位数（第一第三个四分位数），四分位数极差，标准差，最大值，最小值
+
     :param filters:
+    :param layer: layer index of the filter
+    :param balance_channel: boolean, whether sample same number of filters in each bin of channel
+    :param min_max_scaler:
+    :param data_num: total number of filters used for the data returned
+    :param scaler:
     :return:
     '''
     feature_num=22
@@ -113,11 +118,11 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
         stat=min_max_scaler.transform(stat)
 
     #标准化
-    # if scaler is None:
-    #     scaler=preprocessing.StandardScaler().fit(stat)
-    #     stat=scaler.transform(stat)
-    # else:
-    #     stat = scaler.transform(stat)
+    if scaler is None:
+        scaler=preprocessing.StandardScaler().fit(stat)
+        stat=scaler.transform(stat)
+    else:
+        stat = scaler.transform(stat)
 
 
     if balance_channel is True:
@@ -142,7 +147,7 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
             stat_returned[i*sample_num:(i+1)*sample_num]=stat[ind]
         stat=stat_returned
 
-    stat=preprocessing.scale(stat)
+    #stat=preprocessing.scale(stat)
 
     return stat,min_max_scaler,scaler
 
@@ -327,8 +332,8 @@ if __name__ == "__main__":
     #test=predictor(name='svm',kernel='rbf')
 
 
-    df,lf,df_layer,lf_layer=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集',neural_dead_times=1200)
-    df_val,lf_val,df_layer_val,lf_layer_val=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集',neural_dead_times=1200)
+    df,lf,df_layer,lf_layer=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集',neural_dead_times=1600)
+    df_val,lf_val,df_layer_val,lf_layer_val=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集',neural_dead_times=1600)
 
     #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
 

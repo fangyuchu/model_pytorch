@@ -183,7 +183,7 @@ def prune_dead_neural_with_predictor(net,
             print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(), filter_dead_ratio,
                                                                                 neural_dead_times))
             #find dead filters
-            dead_filter_index,relu_list,neural_list = evaluate.find_dead_filters_data_version(net=net, filter_dead_ratio=filter_dead_ratio,
+            dead_filter_index,module_list,neural_list = evaluate.find_dead_filters_data_version(net=net, filter_dead_ratio=filter_dead_ratio,
                                                            neural_dead_times=neural_dead_times, batch_size=batch_size,use_random_data=use_random_data)
             # save dead and lived filters for training the classifier
             i = 0
@@ -388,7 +388,7 @@ def prune_dead_neural(net,
                                                                             neural_dead_times))
 
         # find dead filters
-        dead_filter_index, relu_list, neural_list = evaluate.find_dead_filters_data_version(net=net,
+        dead_filter_index, module_list, neural_list = evaluate.find_dead_filters_data_version(net=net,
                                                                                filter_dead_ratio=filter_dead_ratio,
                                                                                neural_dead_times=neural_dead_times,
                                                                                batch_size=batch_size,
@@ -398,7 +398,7 @@ def prune_dead_neural(net,
             os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
 
         torch.save({'neural_dead_times': neural_dead_times, 'filter_dead_ratio': filter_dead_ratio,
-                    'net': net, 'relu_list': relu_list,
+                    'net': net, 'module_list': module_list,
                     'neural_list': neural_list, 'state_dict': net.state_dict()},
                    conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
 
@@ -808,7 +808,7 @@ def prune_resnet(net,
             print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(), filter_dead_ratio,
                                                                                 neural_dead_times))
             '''找到死亡卷积核'''
-            dead_filter_index, relu_list, neural_list \
+            dead_filter_index, module_list, neural_list \
                 = evaluate.find_dead_filters_data_version(net=net,
                                                           filter_dead_ratio=filter_dead_ratio,
                                                           neural_dead_times=neural_dead_times,
@@ -901,12 +901,11 @@ if __name__ == "__main__":
 
     prune_filters_randomly(net=net,
 
-                            net_name='vgg16bn_cifar10_randomly_pruned',
+                            net_name='vgg16bn_cifar10_randomly_pruned_acc_not_decent',
                            round_of_prune=11,
                            final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
                            dataset_name='cifar10',
-                            tar_acc_gradual_decent=True,
-                           flop_expected=5e7,
+                            tar_acc_gradual_decent=False,
                              target_accuracy=0.933,
                              batch_size=1600,
                              num_epoch=450,
