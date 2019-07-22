@@ -399,7 +399,7 @@ def prune_dead_neural(net,
 
         torch.save({'neural_dead_times': neural_dead_times, 'filter_dead_ratio': filter_dead_ratio,
                     'net': net, 'module_list': module_list,
-                    'neural_list': neural_list, 'state_dict': net.state_dict()},
+                    'neural_list': neural_list, 'state_dict': net.state_dict(),'batch_size':batch_size},
                    conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
 
         net_compressed = False
@@ -764,15 +764,17 @@ def prune_resnet(net,
         acc_drop_tolerance = original_accuracy - target_accuracy
 
     '''计算Conv的层数'''
-    conv_list = []  # List，保存要剪枝的Conv层索引，下标从1开始
-    i = 1
+    conv_list = []  # List，保存要剪枝的Conv层索引，下标从0开始
+    i = 0
     index_in_block = -1
     filter_num_lower_bound = list()  # 最低filter数量
     filter_num = list()
+    num_conv=0
     for mod in net.modules():
         if isinstance(mod, resnet_copied.BasicBlock):
             index_in_block = 1
         elif isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv+=1
             if index_in_block == 1:
                 index_in_block = 2
                 conv_list.append(i)
@@ -815,23 +817,23 @@ def prune_resnet(net,
                                                           batch_size=batch_size,
                                                           use_random_data=use_random_data)
             # save dead and lived filters for training the classifier
-            i = 0
-            for mod in net.features:
-                if isinstance(mod, torch.nn.modules.conv.Conv2d):
-                    conv_weight = copy.deepcopy(mod).weight.cpu().detach().numpy()
-                    dead_filter += list(conv_weight[dead_filter_index[i]])
-                    lived_filter += list(
-                        conv_weight[[j for j in range(conv_weight.shape[0]) if j not in dead_filter_index[i]]])
-
-                    # ensure the number of filters pruned will not be too large for one time
-                    if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
-                        dead_filter_index[i] \
-                            = dead_filter_index[i][:int(filter_num[i] * max_filters_pruned_for_one_time)]
-                    # ensure the lower bound of filter number
-                    if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
-                        dead_filter_index[i] \
-                            = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
-                    i += 1
+            # i = 0
+            # for mod in net.features:
+            #     if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            #         conv_weight = copy.deepcopy(mod).weight.cpu().detach().numpy()
+            #         dead_filter += list(conv_weight[dead_filter_index[i]])
+            #         lived_filter += list(
+            #             conv_weight[[j for j in range(conv_weight.shape[0]) if j not in dead_filter_index[i]]])
+            #
+            #         # ensure the number of filters pruned will not be too large for one time
+            #         if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
+            #             dead_filter_index[i] \
+            #                 = dead_filter_index[i][:int(filter_num[i] * max_filters_pruned_for_one_time)]
+            #         # ensure the lower bound of filter number
+            #         if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
+            #             dead_filter_index[i] \
+            #                 = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
+            #         i += 1
         else:
             dead_filter_index \
                 = evaluate.predict_dead_filters_classifier_version(net=net,
@@ -842,7 +844,7 @@ def prune_resnet(net,
 
         net_compressed = False
         '''卷积核剪枝'''
-        for i in range(num_conv):
+        for i in conv_list:
             filter_num[i] = filter_num[i] - len(dead_filter_index[i])
             if len(dead_filter_index[i]) > 0:
                 net_compressed = True
@@ -891,31 +893,47 @@ def prune_resnet(net,
 
 
 if __name__ == "__main__":
-    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    # checkpoint = torch.load('./vgg16_bn,baseline.tar')
 
-    net = checkpoint['net']
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    #checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+
+    net = resnet_copied.resnet56().to(device)
     net.load_state_dict(checkpoint['state_dict'])
     print(checkpoint['highest_accuracy'])
 
+    prune_resnet(net=net,
+                 net_name='resnet56_cifar10_test',
+                 neural_dead_times=9000,
+                 filter_dead_ratio=0.85,
+                 target_accuracy=0.933,
+                 tar_acc_gradual_decent=True,
+                 dataset_name='cifar10',
+                 flop_expected=4e7,
+                 round_for_train=11,
+                 use_random_data=False,
+                 batch_size=1600)
 
-    prune_filters_randomly(net=net,
 
-                            net_name='vgg16bn_cifar10_randomly_pruned_acc_not_decent',
-                           round_of_prune=11,
-                           final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
-                           dataset_name='cifar10',
-                            tar_acc_gradual_decent=False,
-                             target_accuracy=0.933,
-                             batch_size=1600,
-                             num_epoch=450,
-                             checkpoint_step=1600,
-
-
-                             optimizer=optim.SGD,
-                             learning_rate=0.01,
-                             learning_rate_decay=True,
-                             learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-                             learning_rate_decay_factor=0.5,
-
-                                                     )
+    # prune_filters_randomly(net=net,
+    #
+    #                         net_name='vgg16bn_cifar10_randomly_pruned_acc_not_decent',
+    #                        round_of_prune=11,
+    #                        final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
+    #                        dataset_name='cifar10',
+    #                         tar_acc_gradual_decent=False,
+    #                          target_accuracy=0.933,
+    #                          batch_size=1600,
+    #                          num_epoch=450,
+    #                          checkpoint_step=1600,
+    #
+    #
+    #                          optimizer=optim.SGD,
+    #                          learning_rate=0.01,
+    #                          learning_rate_decay=True,
+    #                          learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+    #                          learning_rate_decay_factor=0.5,
+    #
+    #                                                  )

@@ -32,11 +32,13 @@ from torch.autograd import Variable
 
 __all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet1202']
 
+
 def _weights_init(m):
     classname = m.__class__.__name__
-    #print(classname)
+    # print(classname)
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
         init.kaiming_normal(m.weight)
+
 
 class LambdaLayer(nn.Module):
     def __init__(self, lambd):
@@ -54,11 +56,11 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
+        self.relu1 = nn.ReLU(True)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-
-        self.planes=planes                                                                  #changed
-
+        self.planes = planes  # changed
+        self.relu2 = nn.ReLU(True)
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
             if option == 'A':
@@ -70,19 +72,18 @@ class BasicBlock(nn.Module):
                 #                             F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes//4, planes//4), "constant", 0))
             elif option == 'B':
                 self.shortcut = nn.Sequential(
-                     nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
-                     nn.BatchNorm2d(self.expansion * planes)
+                    nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
+                    nn.BatchNorm2d(self.expansion * planes)
                 )
 
-    def tmp_func(self,x):
+    def tmp_func(self, x):
         return F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, self.planes // 4, self.planes // 4), "constant", 0)
 
-
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.relu1(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
-        out = F.relu(out)
+        out = self.relu2(out)
         return out
 
 
@@ -93,6 +94,7 @@ class ResNet(nn.Module):
 
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
+        self.relu1 = nn.ReLU(True)
         self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
@@ -101,16 +103,23 @@ class ResNet(nn.Module):
         self.apply(_weights_init)
 
     def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes * block.expansion
+        strides = [stride] + [1] * (num_blocks - 1)
 
-        return nn.Sequential(*layers)
+        layers=OrderedDict()
+        block_ind=0
+        for stride in strides:
+            layers['block'+str(block_ind)]=block(self.in_planes, planes, stride)
+            self.in_planes = planes * block.expansion
+            block_ind+=1
+        # layers = []
+        # for stride in strides:
+        #     layers.append(block(self.in_planes, planes, stride))
+        #     self.in_planes = planes * block.expansion
+
+        return nn.Sequential(layers)
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.relu1((self.bn1(self.conv1(x))))
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
@@ -151,7 +160,8 @@ def test(net):
     for x in filter(lambda p: p.requires_grad, net.parameters()):
         total_params += np.prod(x.data.numpy().shape)
     print("Total number of params", total_params)
-    print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
+    print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size()) > 1, net.parameters()))))
+
 
 def checkpoint_conversion(path):
     '''
@@ -159,7 +169,7 @@ def checkpoint_conversion(path):
     :param path:
     :return:
     '''
-    c_original=torch.load(path)
+    c_original = torch.load(path)
     new_state_dict = OrderedDict()
     for k, v in c_original['state_dict'].items():
         if 'module.' not in k:
@@ -167,17 +177,42 @@ def checkpoint_conversion(path):
         name = k[7:]  # remove module.
         new_state_dict[name] = v
 
-    c_new={'highest_accuracy': c_original['best_prec1'],
-           'state_dict': new_state_dict}
+    c_new = {'highest_accuracy': c_original['best_prec1'],
+             'state_dict': new_state_dict}
 
-    torch.save(c_new,path)
+    torch.save(c_new, path)
 
+def checkpoint_conversion_with_block(path,net):
+    '''
+    convert checkpoint downloaded to fit net which does not support parallel training.
+    :param path:
+    :return:
+    '''
+    c_original = torch.load(path)
+    new_state_dict = OrderedDict()
+    for k, v in c_original['state_dict'].items():
+        if 'layer'  in k:
+            list_k=list(k)
+            list_k.insert(7,'block')
+            k=''.join(list_k)
+        new_state_dict[k] = v
+
+    c_new = {'highest_accuracy': c_original['highest_accuracy'],
+             'state_dict': new_state_dict}
+
+    torch.save(c_new, path)
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net=resnet56().to(device)
-    checkpoint_conversion('/home/victorfang/Desktop/resnet56.th')
-    checkpoint=torch.load('/home/victorfang/Desktop/resnet56.th')
+    path='/home/victorfang/PycharmProjects/model_pytorch/baseline/resnet56_cifar10,accuracy=0.94230.tar'
+
+    checkpoint=torch.load(path)
+    torch.save({'highest_accuracy': checkpoint['highest_accuracy'],
+             'state_dict': checkpoint['state_dict']},path)
+
+    #checkpoint_conversion_with_block(path=path,net=net)
+    checkpoint=torch.load(path)
 
     net.load_state_dict(checkpoint['state_dict'])
 

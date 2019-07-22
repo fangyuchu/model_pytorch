@@ -8,6 +8,7 @@ from datetime import datetime
 import random
 from torch import optim
 from sklearn.metrics import classification_report
+from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import f1_score
 from sklearn.metrics import precision_score
@@ -15,6 +16,9 @@ from sklearn.metrics import SCORERS
 import copy
 import operate_excel
 from sklearn import preprocessing
+from sklearn.decomposition import PCA
+from sklearn.metrics import make_scorer
+
 
 
 
@@ -23,12 +27,20 @@ from sklearn import preprocessing
 
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               balance=False,
-              neural_dead_times=999,
-              filter_dead_ratio=0.85):
-    dead_filter =list()
-    dead_filter_layer=list()
-    living_filter = list()
-    living_filter_layer=list()
+              regression_or_classification='classification',
+              batch_size=None):
+    if regression_or_classification is 'regression':
+        filter=list()
+        filter_layer=list()
+        filter_label=list()
+    elif regression_or_classification is 'classification':
+        dead_filter = list()
+        dead_filter_layer = list()
+        living_filter = list()
+        living_filter_layer = list()
+    else:
+        raise AttributeError
+
     file_list = os.listdir(path)
     for file_name in file_list:
         if '.tar' in file_name:
@@ -37,7 +49,11 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
             net=checkpoint['net']
             net.load_state_dict(checkpoint['state_dict'])
             neural_list=checkpoint['neural_list']
-            relu_list=checkpoint['relu_list']
+            module_list=checkpoint['module_list']
+            neural_dead_times=checkpoint['neural_dead_times']
+            filter_dead_ratio=checkpoint['filter_dead_ratio']
+            if batch_size is None:
+                batch_size=checkpoint['batch_size']
 
             num_conv = 0  # num of conv layers in the net
             filter_num=list()
@@ -49,30 +65,44 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                     filters.append(mod)
 
             for i in range(num_conv):
-                for relu_key in list(neural_list.keys()):
-                    if relu_list[i] is relu_key:                                    #find the neural_list_statistics in layer i+1
-                        dead_relu_list=neural_list[relu_key]
-                        neural_num=dead_relu_list.shape[1]*dead_relu_list.shape[2]  #neural num for one filter
+                for module_key in list(neural_list.keys()):
+                    if module_list[i] is module_key:                                    #find the neural_list_statistics in layer i+1
+                        dead_times=neural_list[module_key]
+                        neural_num=dead_times.shape[1]*dead_times.shape[2]  #neural num for one filter
+                        filter_weight = filters[i].weight.data.cpu().numpy()
 
-                        # judge dead filter by neural_dead_times and dead_filter_ratio
-                        dead_relu_list[dead_relu_list<neural_dead_times]=0
-                        dead_relu_list[dead_relu_list>=neural_dead_times]=1
-                        dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
-                        dead_filter_index=np.where(dead_relu_list>neural_num*filter_dead_ratio)[0].tolist()
-                        living_filter_index=[i for i in range(filter_num[i]) if i not in dead_filter_index]
+                        if regression_or_classification is 'classification':
+                            # judge dead filter by neural_dead_times and dead_filter_ratio
+                            dead_times[dead_times<neural_dead_times]=0
+                            dead_times[dead_times>=neural_dead_times]=1
+                            dead_times=np.sum(dead_times,axis=(1,2))            #count the number of dead neural for one filter
+                            dead_filter_index=np.where(dead_times>neural_num*filter_dead_ratio)[0].tolist()
+                            living_filter_index=[i for i in range(filter_num[i]) if i not in dead_filter_index]
 
-                        filter_weight=filters[i].weight.data.cpu().numpy()
-                        for ind in dead_filter_index:
-                            dead_filter.append(filter_weight[ind])
-                        dead_filter_layer+=[i for j in range(len(dead_filter_index))]
-                        for ind in living_filter_index:
-                            living_filter.append(filter_weight[ind])
-                        living_filter_layer += [i for j in range(len(living_filter_index))]
+                            for ind in dead_filter_index:
+                                dead_filter.append(filter_weight[ind])
+                            dead_filter_layer+=[i for j in range(len(dead_filter_index))]
+                            for ind in living_filter_index:
+                                living_filter.append(filter_weight[ind])
+                            living_filter_layer += [i for j in range(len(living_filter_index))]
+                        else:
+                            #compute sum(dead_times)/(batch_size*neural_num) as label for each filter
+                            #todo: not finished
+                            dead_times=np.sum(dead_times,axis=(1,2))
+                            dead_ratio=dead_times/(neural_num*batch_size)
+                            for f in filter_weight:
+                                filter.append(f)
+                            filter_label+=dead_ratio.tolist()
+                            filter_layer+=[i for j in range(filter_weight.shape[0])]
 
-    if balance is True:
+    if regression_or_classification is 'classification' and balance is True:
         living_filter=living_filter[:len(dead_filter)]
         living_filter_layer=living_filter_layer[:len(living_filter_index)]
-    return dead_filter,living_filter,dead_filter_layer,living_filter_layer
+
+    if regression_or_classification is 'classification':
+        return dead_filter,living_filter,dead_filter_layer,living_filter_layer
+    elif regression_or_classification is 'regression':
+        return filter,filter_label,filter_layer
 
 def trimmed_mean(filter,p):
     filter=filter.flatten()
@@ -81,7 +111,7 @@ def trimmed_mean(filter,p):
     filter=filter[min_ind:max_ind]
     return np.mean(filter)
 
-def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=None,scaler=None):
+def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=None,scaler=None,pca=None):
     '''
 
     :param filters:
@@ -92,7 +122,7 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
     :param scaler:
     :return:
     '''
-    feature_num=22
+    feature_num=13
     stat=np.zeros(shape=[len(filters),feature_num],dtype=np.float)
     for i in range(len(filters)):
         stat[i][0]=np.mean(filters[i])                                  #均值
@@ -108,7 +138,16 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
         stat[i][10]=filters[i].min()                                    #最小值
         stat[i][11]=filters[i].shape[0]                                 #通道数
         stat[i][12]=layer[i]                                            #哪一层
-        stat[i][13:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
+        #stat[i][13:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
+
+
+
+    # #标准化
+    # if scaler is None:
+    #     scaler=preprocessing.StandardScaler().fit(stat)
+    #     stat=scaler.transform(stat)
+    # else:
+    #     stat = scaler.transform(stat)
 
     if min_max_scaler is None:
         #归一化
@@ -117,39 +156,39 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
     else:
         stat=min_max_scaler.transform(stat)
 
-    #标准化
-    if scaler is None:
-        scaler=preprocessing.StandardScaler().fit(stat)
-        stat=scaler.transform(stat)
-    else:
-        stat = scaler.transform(stat)
+    # stat_copy = copy.deepcopy(stat) - np.mean(stat, axis=0)
+    # val, vec = np.linalg.eig(np.matmul(stat_copy.T, stat_copy))
+    #
+    # tmp = -np.sort(-val)
+    # if pca is None:
+    #     pca=PCA(n_components=15)
+    #     pca.fit(stat)
+    #     pca.transform(stat)
+    # else:
+    #     pca.transform(stat)
 
-
-    if balance_channel is True:
-        stat = stat[np.argsort(stat[:, 11])]
-
-        # bin=np.bincount(stat[:,11].astype(int),minlength=20)
-        bin = np.histogram(stat[:, 11])[0]
-
-        channel_num_list = bin[bin > 0]
-        # channel=np.argwhere(bin>0).flatten()
-
-        if data_num is None:
-            sample_num = min(channel_num_list)
-        else:
-            sample_num = int(min(data_num/channel_num_list.shape[0],min(channel_num_list)))
-
-        stat_returned=np.zeros(shape=[sample_num*(len(channel_num_list)),feature_num],dtype=np.float)
-        s=0
-        for i in range(len(channel_num_list)):
-            ind=random.sample([j for j in range(s,s+channel_num_list[i])], sample_num)
-            s+=channel_num_list[i]
-            stat_returned[i*sample_num:(i+1)*sample_num]=stat[ind]
-        stat=stat_returned
+    # if balance_channel is True:
+    #     stat = stat[np.argsort(stat[:, 11])]
+    #     bin = np.histogram(stat[:, 11])[0]
+    #     channel_num_list = bin[bin > 0]
+    #
+    #     if data_num is None:
+    #         sample_num = min(channel_num_list)
+    #     else:
+    #         sample_num = int(min(data_num/channel_num_list.shape[0],min(channel_num_list)))
+    #
+    #     stat_returned=np.zeros(shape=[sample_num*(len(channel_num_list)),feature_num],dtype=np.float)
+    #     s=0
+    #     for i in range(len(channel_num_list)):
+    #         ind=random.sample([j for j in range(s,s+channel_num_list[i])], sample_num)
+    #         s+=channel_num_list[i]
+    #         stat_returned[i*sample_num:(i+1)*sample_num]=stat[ind]
+    #     stat=stat_returned
 
     #stat=preprocessing.scale(stat)
 
-    return stat,min_max_scaler,scaler
+
+    return stat,min_max_scaler,scaler,pca
 
 def cal_F_score(prediction,label,beta=1):
     '''
@@ -183,7 +222,7 @@ class fc(nn.Module):
         super(fc, self).__init__()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.net = nn.Sequential(
-            nn.Linear(11, 128),
+            nn.Linear(13, 128),
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(128, 128),
@@ -327,23 +366,94 @@ class predictor:
         x, _ = statistics(filter, min_max_scaler=self.min_max_scaler)
         return self.classifier.predict(x)
 
+
+def dead_filter_metric(label,prediction):
+    true_positive=np.bitwise_and(prediction>0, prediction==label)
+    false_positive=np.bitwise_xor(prediction>0,true_positive)
+    true_negative=np.bitwise_and(prediction==0, prediction==label)
+    false_negative=np.bitwise_xor(prediction==0,true_negative)
+    #count
+    true_positive=np.sum(true_positive)
+    false_positive=np.sum(false_positive)
+    #true_negative=np.sum(true_negative)
+    false_negative=np.sum(false_negative)
+
+    precision=true_positive/(true_positive+false_positive)
+    recall=true_positive/(true_positive+false_negative)
+
+    beta=0.5
+    f_score=(1+beta**2)*precision*recall/((beta**2)*precision+recall)
+
+    return f_score
+
 if __name__ == "__main__":
+    import sklearn
+    print(sorted(sklearn.metrics.SCORERS.keys()))
+    #回归#################################################################################################################################################
+    filter_train,filter_label_train,filter_layer_train=read_data(batch_size=1600,regression_or_classification='regression',path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集')
+    filter_val,filter_label_val,filter_layer_val=read_data(batch_size=1600,regression_or_classification='regression',path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集')
 
-    #test=predictor(name='svm',kernel='rbf')
+    _, min_max_scaler, scaler, pca = statistics(filter_train, layer=filter_layer_train, balance_channel=False)
+    stat_train,_,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
+    stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
+
+    from sklearn import svm
+    print('svm',end='')
+    model=svm.SVR(kernel='rbf')
+    # param_grid = {
+    #     'C': [2 ** i for i in range(-5, 15, 2)],
+    #     'gamma': [2 ** i for i in range(3, -15, -2)],
+    # }
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
+    model.fit(stat_train,filter_label_train)
+    prediction=model.predict(stat_val)
+    c=mean_absolute_error(filter_label_val,prediction)
+    print(c)
 
 
-    df,lf,df_layer,lf_layer=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集',neural_dead_times=1600)
-    df_val,lf_val,df_layer_val,lf_layer_val=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集',neural_dead_times=1600)
+    from sklearn import ensemble
+    print('bagging',end='')
+    model=ensemble.BaggingRegressor()
+    model.fit(stat_train,filter_label_train)
+    prediction=model.predict(stat_val)
+    c=mean_absolute_error(filter_label_val,prediction)
+    print(c)
+
+    from sklearn import ensemble
+    print('adaboost',end='')
+    model = ensemble.AdaBoostRegressor(n_estimators=100)  # 这里使用50个决策树
+    model.fit(stat_train,filter_label_train)
+    prediction=model.predict(stat_val)
+    c=mean_absolute_error(filter_label_val,prediction)
+    print(c)
+
+    # 7.GBRT回归
+    from sklearn import ensemble
+    print('GBRT',end='')
+    model = ensemble.GradientBoostingRegressor(n_estimators=100)  # 这里使用100个决策树
+    model.fit(stat_train,filter_label_train)
+    prediction=model.predict(stat_val)
+    c=mean_absolute_error(filter_label_val,prediction)
+    print(c)
+
+    print('瞎jb猜',end='')
+    prediction=np.random.random(size=stat_val.shape[0])
+    c=mean_absolute_error(filter_label_val,prediction)
+    print(c)
+    #分类#################################################################################################################################################
+
+    df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集')
+    df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集')
 
     #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
 
     #df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent3/dead_neural',neural_dead_times=1200)
-    _,min_max_scaler,scaler=statistics(df+lf,layer=df_layer+lf_layer,balance_channel=True)
+    _,min_max_scaler,scaler,pca=statistics(df+lf,layer=df_layer+lf_layer,balance_channel=True)
 
-    stat_df,_,_=statistics(df,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer)
-    stat_lf,_,_=statistics(lf,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer)#,data_num=stat_df.shape[0])
-    stat_df_val,_,_=statistics(df_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val)
-    stat_lf_val,_,_=statistics(lf_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer_val)
+    stat_df,_,_,_=statistics(df,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer,pca=pca)
+    stat_lf,_,_,_=statistics(lf,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer,pca=pca)#,data_num=stat_df.shape[0])
+    stat_df_val,_,_,_=statistics(df_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val,pca=pca)
+    stat_lf_val,_,_,_=statistics(lf_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer_val,pca=pca)
 
     # tmp1=stat_df.tolist()
     # tmp1.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
@@ -367,10 +477,12 @@ if __name__ == "__main__":
         'C': [2 ** i for i in range(-5, 15, 2)],
         'gamma': [2 ** i for i in range(3, -15, -2)],
     }
-    clf = GridSearchCV(svc, param_grid, scoring='f1', n_jobs=-1, cv=5)
+
+    customize_score={'cm':make_scorer(dead_filter_metric,greater_is_better=True)}
+    clf = GridSearchCV(svc, param_grid, scoring='precision', n_jobs=-1, cv=5)
 
     clf.fit(train_x,train_y)
-    val_x1, _ ,_= statistics(df_val+lf_val, min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val+lf_layer_val)
+    # val_x1, _ ,_= statistics(df_val+lf_val, min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val+lf_layer_val)
     prediction=clf.predict(val_x)
 
     f_score,precision,recall=cal_F_score(prediction,val_y)
@@ -380,14 +492,14 @@ if __name__ == "__main__":
     print(classification_report(val_y,prediction))
 
 
-    pr=predictor(name='svm',min_max_scaler=min_max_scaler,kernel='rbf')
-    pr.fit(dead_filter=df,lived_filter=lf)
-    prediction=pr.predict(df_val+lf_val)
-
-    print(classification_report(val_y, prediction))
-
-    f_score, precision, recall = cal_F_score(prediction, val_y)
-    print('predictor:f_score:{},precision:{},recall:{}'.format(f_score, precision, recall))
+    # pr=predictor(name='svm',min_max_scaler=min_max_scaler,kernel='rbf')
+    # pr.fit(dead_filter=df,lived_filter=lf)
+    # prediction=pr.predict(df_val+lf_val)
+    #
+    # print(classification_report(val_y, prediction))
+    #
+    # f_score, precision, recall = cal_F_score(prediction, val_y)
+    # print('predictor:f_score:{},precision:{},recall:{}'.format(f_score, precision, recall))
 
 
     ##logistic regression######################################################################################################
@@ -470,8 +582,8 @@ if __name__ == "__main__":
                                   'highest_accuracy': acc,
                                   'state_dict': net.state_dict(),
                                   }
-                    torch.save(checkpoint,
-                               '/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=%.5f.tar' % (acc))
+                    # torch.save(checkpoint,
+                    #            '/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=%.5f.tar' % (acc))
                     print("{} net saved ".format(datetime.now()))
 
 

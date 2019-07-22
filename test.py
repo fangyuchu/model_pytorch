@@ -16,6 +16,7 @@ import predict_dead_filter
 from predict_dead_filter import fc
 import prune
 import generate_random_data
+import resnet
 
 def tmp(index_real,index):
     for i in range(len(index_real)):

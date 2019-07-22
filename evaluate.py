@@ -271,7 +271,7 @@ def find_dead_filters_data_version(net,
 
     num_conv = 0  # num of conv layers in the net
     filter_num = list()
-    for mod in net.features:
+    for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
             filter_num.append(mod.out_channels)
@@ -490,7 +490,7 @@ if __name__ == "__main__":
     #measure_flops.measure_model(net,dataset_name='cifar10')
 
     prune_and_train.prune_dead_neural(net=net,
-                                      net_name='vgg16bn_cifar10_DeadNeural_conv_version',
+                                      net_name='tmp',
                                       dataset_name='cifar10',
                                       neural_dead_times=1600,
                                       filter_dead_ratio=0.9,
@@ -499,7 +499,7 @@ if __name__ == "__main__":
                                       filter_preserve_ratio=0.1,
                                       max_filters_pruned_for_one_time=0.3,
                                       target_accuracy=0.933,
-                                      tar_acc_gradual_decent=True,
+                                      tar_acc_gradual_decent=False,
                                       flop_expected=5e7,
                                       batch_size=1600,
                                       num_epoch=300,

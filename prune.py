@@ -1,8 +1,8 @@
 import torch
 import numpy as np
 import vgg
-
-
+import copy
+import torch.nn as nn
 def replace_layers(module,old_mod,new_mod):
     for i in range(len(old_mod)):
         if module is old_mod[i]:
@@ -21,7 +21,13 @@ def prune_conv_layer(model, layer_index, filter_index):
     batch_norm=None                                                         #如果有的话：获取要删的conv后的batch normalization层
     next_conv=None                                                          #如果有的话：获取要删的那层后一层的conv，用于删除对应通道
     i=0
-    for mod in model.features:
+
+    #todo:用引用可以直接改，可行
+    # model.layer1.block0=torch.nn.Sequential(nn.Linear(512 * 7 * 7, 4096),
+    #         nn.ReLU(True),
+    #         nn.Dropout(),)
+
+    for mod in model.modules():
         if conv is not None:
             if isinstance(mod, torch.nn.modules.conv.Conv2d):            #要删的filter后一层的conv
                 next_conv = mod
@@ -33,7 +39,9 @@ def prune_conv_layer(model, layer_index, filter_index):
         if isinstance(mod,torch.nn.modules.conv.Conv2d):
             i+=1
             if i==layer_index:                                              #要删filter的conv
-                conv=mod
+                #conv=mod
+                conv=model.features._modules['0']
+
 
     new_conv = torch.nn.Conv2d(                                             #创建新的conv替代要删filter的conv
                                 in_channels=conv.in_channels,
@@ -56,6 +64,13 @@ def prune_conv_layer(model, layer_index, filter_index):
         new_bias[:] = old_bias[[i for i in range(old_bias.shape[0]) if i not in filter_index]]  # 复制剩余的filters的bias
     if torch.cuda.is_available():
         new_conv.cuda()
+
+    # tmp=getattr(model,'_modules')['features']
+    # tmp=getattr(tmp,'_modules')
+    # tmp['0']=new_conv
+    #
+    # model.features._modules['0']=new_conv
+
     model.features = torch.nn.Sequential(                                           #生成替换为new_conv的features
         *(replace_layers(mod, [conv], [new_conv]) for mod in model.features))
 
