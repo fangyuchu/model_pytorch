@@ -204,7 +204,7 @@ def checkpoint_conversion_with_block(path,net):
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net=resnet56().to(device)
+    net=resnet32().to(device)
     path='/home/victorfang/PycharmProjects/model_pytorch/baseline/resnet56_cifar10,accuracy=0.94230.tar'
 
     checkpoint=torch.load(path)

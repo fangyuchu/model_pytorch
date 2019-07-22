@@ -377,7 +377,8 @@ if __name__ == "__main__":
               num_epochs=450,
               weight_decay=0.0006,
               train_loader=train_loader,
-              validation_loader=validation_loader)
+              validation_loader=validation_loader,
+              )
 
 
 

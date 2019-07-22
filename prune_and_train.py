@@ -669,7 +669,7 @@ def prune_resnet(net,
                  filter_dead_ratio,  # no use
                  target_accuracy,
                  predictor_name='logistic_regression',  # no use
-                 round_for_train=2,  # no use
+                 round_for_train=11,  # no use
                  tar_acc_gradual_decent=False,
                  flop_expected=None,
                  filter_dead_ratio_decay=0.95,  # no use
@@ -748,7 +748,7 @@ def prune_resnet(net,
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
-
+    net.to(device)
     '''加载数据集'''
     if validation_loader is None:
         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
@@ -765,30 +765,31 @@ def prune_resnet(net,
 
     '''计算Conv的层数'''
     conv_list = []  # List，保存要剪枝的Conv层索引，下标从0开始
-    i = 0
+    i = 0  # Conv总数
     index_in_block = -1
     filter_num_lower_bound = list()  # 最低filter数量
     filter_num = list()
-    num_conv=0
     for mod in net.modules():
         if isinstance(mod, resnet_copied.BasicBlock):
             index_in_block = 1
         elif isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv+=1
-            if index_in_block == 1:
+            if index_in_block == 1:  # 在block里面
                 index_in_block = 2
                 conv_list.append(i)
                 filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
                 filter_num.append(mod.out_channels)
             elif index_in_block == 2:  # 不需要剪枝的Conv层
                 index_in_block = -1
-            elif index_in_block == -1:
-                conv_list.append(i)
+                filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
+                filter_num.append(mod.out_channels)
+            elif index_in_block == -1:  # 不在block里面
+                # conv_list.append(i)
                 filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
                 filter_num.append(mod.out_channels)
             i += 1
-    # i的值是所有Conv的数量
-    # len(conv_list)是要剪枝的Conv数量
+    num_conv=i
+
+    modules_list=create_modulesList(net)  # 创建一个list保存每一个module的名字
 
     lived_filter = list()
     dead_filter = list()
@@ -816,24 +817,6 @@ def prune_resnet(net,
                                                           neural_dead_times=neural_dead_times,
                                                           batch_size=batch_size,
                                                           use_random_data=use_random_data)
-            # save dead and lived filters for training the classifier
-            # i = 0
-            # for mod in net.features:
-            #     if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            #         conv_weight = copy.deepcopy(mod).weight.cpu().detach().numpy()
-            #         dead_filter += list(conv_weight[dead_filter_index[i]])
-            #         lived_filter += list(
-            #             conv_weight[[j for j in range(conv_weight.shape[0]) if j not in dead_filter_index[i]]])
-            #
-            #         # ensure the number of filters pruned will not be too large for one time
-            #         if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
-            #             dead_filter_index[i] \
-            #                 = dead_filter_index[i][:int(filter_num[i] * max_filters_pruned_for_one_time)]
-            #         # ensure the lower bound of filter number
-            #         if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
-            #             dead_filter_index[i] \
-            #                 = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
-            #         i += 1
         else:
             dead_filter_index \
                 = evaluate.predict_dead_filters_classifier_version(net=net,
@@ -845,13 +828,22 @@ def prune_resnet(net,
         net_compressed = False
         '''卷积核剪枝'''
         for i in conv_list:
+
+            # ensure the number of filters pruned will not be too large for one time
+            if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
+                dead_filter_index[i] = dead_filter_index[i][:int(filter_num[i] * max_filters_pruned_for_one_time)]
+            # ensure the lower bound of filter number
+            if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
+                dead_filter_index[i] = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
+
             filter_num[i] = filter_num[i] - len(dead_filter_index[i])
             if len(dead_filter_index[i]) > 0:
                 net_compressed = True
             print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i], len(dead_filter_index[i])))
-            net = prune.prune_conv_layer(model=net,
-                                         layer_index=i + 1,
-                                         filter_index=dead_filter_index[i])
+            net = prune.prune_conv_layer_resnet(net=net,
+                                                layer_index=i + 1,
+                                                filter_index=dead_filter_index[i],
+                                                modules_list=modules_list)
 
         if net_compressed is False:
             round -= 1
@@ -868,28 +860,82 @@ def prune_resnet(net,
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
         success = False
-        # while not success:
-        #     old_net = copy.deepcopy(net)
-        #     success = train.train(net=net,
-        #                           net_name=net_name,
-        #                           num_epochs=num_epoch,
-        #                           target_accuracy=target_accuracy,
-        #                           learning_rate=learning_rate,
-        #                           load_net=False,
-        #                           checkpoint_step=checkpoint_step,
-        #                           dataset_name=dataset_name,
-        #                           optimizer=optimizer,
-        #                           batch_size=batch_size,
-        #                           learning_rate_decay=learning_rate_decay,
-        #                           learning_rate_decay_factor=learning_rate_decay_factor,
-        #                           weight_decay=weight_decay,
-        #                           learning_rate_decay_epoch=learning_rate_decay_epoch,
-        #                           test_net=True,
-        #                           )
-        #     if not success:
-        #         net = old_net
-        # filter_dead_ratio *= filter_dead_ratio_decay
-        # neural_dead_times *= neural_dead_times_decay
+        while not success:
+            old_net = copy.deepcopy(net)
+            success = train.train(net=net,
+                                  net_name=net_name,
+                                  num_epochs=num_epoch,
+                                  target_accuracy=target_accuracy,
+                                  learning_rate=learning_rate,
+                                  load_net=False,
+                                  checkpoint_step=checkpoint_step,
+                                  dataset_name=dataset_name,
+                                  optimizer=optimizer,
+                                  batch_size=batch_size,
+                                  learning_rate_decay=learning_rate_decay,
+                                  learning_rate_decay_factor=learning_rate_decay_factor,
+                                  weight_decay=weight_decay,
+                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                  test_net=True,
+                                  )
+            if not success:
+                net = old_net
+        filter_dead_ratio *= filter_dead_ratio_decay
+        neural_dead_times *= neural_dead_times_decay
+def create_modulesList(net):
+    """
+    创建一个list保存每一个module的名字
+    :param net:
+    :return: modules_list
+    """
+    modules_list = []
+    num_conv = 0  # 统计Conv总数
+    block_i = -1  # block从0开始
+    index_in_block = -1
+    layer = 1  # layer从1开始
+    tag=0
+    for mod in net.modules():
+        if isinstance(mod, torch.nn.modules.container.Sequential):  # layer
+            if tag==0:# 上一层不是Sequential
+                temp_string = "layer" + str(layer) + "."
+                tag=1
+            elif tag==1:#上一层是Sequential
+                layer+=1
+                temp_string = "layer" + str(layer) + "."
+                block_i=-1
+                tag=1
+        elif isinstance(mod,resnet_copied.LambdaLayer):
+            temp_string = "layer" + str(layer) + "."
+        elif isinstance(mod, resnet_copied.BasicBlock):
+            block_i += 1  # block索引
+            index_in_block = 1
+            temp_string += "block" + str(block_i) + "."
+            tag=0
+        elif isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+            if index_in_block != -1:  # 在block里面
+                tmp = temp_string + "conv" + str(index_in_block)
+                modules_list.append(tmp)  # layer_i.block_j.conv_k
+            elif index_in_block == -1:  # 在block外面
+                modules_list.append("conv" + str(num_conv))
+
+            tag=0
+        elif isinstance(mod, torch.nn.modules.batchnorm.BatchNorm2d):
+            if index_in_block != -1:  # 在block里面
+                tmp = temp_string + "bn" + str(index_in_block)
+                modules_list.append(tmp)  # layer_i.block_j.bn_k
+            elif index_in_block == -1:  # 在block外面
+                modules_list.append("bn" + str(num_conv))
+            tag=0
+        elif isinstance(mod, torch.nn.modules.activation.ReLU):
+            if index_in_block != -1:  # 在block里面
+                tmp = temp_string + "relu" + str(index_in_block)
+                modules_list.append(tmp)  # layer_i.block_j.relu_k
+                index_in_block+=1
+            elif index_in_block == -1:  # 在block外面
+                modules_list.append("relu" + str(num_conv))
+            tag=0
+    return modules_list
 
 
 if __name__ == "__main__":
@@ -905,16 +951,26 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
 
     prune_resnet(net=net,
-                 net_name='resnet56_cifar10_test',
+                 net_name='resnet56_cifar10_DeadNeural_realdata',
                  neural_dead_times=9000,
-                 filter_dead_ratio=0.85,
+                 filter_dead_ratio=0.9,
                  target_accuracy=0.933,
                  tar_acc_gradual_decent=True,
                  dataset_name='cifar10',
                  flop_expected=4e7,
-                 round_for_train=11,
+                 round_for_train=20,
                  use_random_data=False,
-                 batch_size=1600)
+                 batch_size=1600,
+                 optimizer=optim.SGD,
+                 learning_rate=0.01,
+                 learning_rate_decay=True,
+                 learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                 learning_rate_decay_factor=0.5,
+                 neural_dead_times_decay=0.95,
+                 filter_dead_ratio_decay=0.98,
+                 filter_preserve_ratio=0.1,
+                 max_filters_pruned_for_one_time=0.3,
+                 )
 
 
     # prune_filters_randomly(net=net,

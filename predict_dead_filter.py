@@ -167,23 +167,23 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
     # else:
     #     pca.transform(stat)
 
-    # if balance_channel is True:
-    #     stat = stat[np.argsort(stat[:, 11])]
-    #     bin = np.histogram(stat[:, 11])[0]
-    #     channel_num_list = bin[bin > 0]
-    #
-    #     if data_num is None:
-    #         sample_num = min(channel_num_list)
-    #     else:
-    #         sample_num = int(min(data_num/channel_num_list.shape[0],min(channel_num_list)))
-    #
-    #     stat_returned=np.zeros(shape=[sample_num*(len(channel_num_list)),feature_num],dtype=np.float)
-    #     s=0
-    #     for i in range(len(channel_num_list)):
-    #         ind=random.sample([j for j in range(s,s+channel_num_list[i])], sample_num)
-    #         s+=channel_num_list[i]
-    #         stat_returned[i*sample_num:(i+1)*sample_num]=stat[ind]
-    #     stat=stat_returned
+    if balance_channel is True:
+        stat = stat[np.argsort(stat[:, 11])]
+        bin = np.histogram(stat[:, 11])[0]
+        channel_num_list = bin[bin > 0]
+
+        if data_num is None:
+            sample_num = min(channel_num_list)
+        else:
+            sample_num = int(min(data_num/channel_num_list.shape[0],min(channel_num_list)))
+
+        stat_returned=np.zeros(shape=[sample_num*(len(channel_num_list)),feature_num],dtype=np.float)
+        s=0
+        for i in range(len(channel_num_list)):
+            ind=random.sample([j for j in range(s,s+channel_num_list[i])], sample_num)
+            s+=channel_num_list[i]
+            stat_returned[i*sample_num:(i+1)*sample_num]=stat[ind]
+        stat=stat_returned
 
     #stat=preprocessing.scale(stat)
 
@@ -389,13 +389,16 @@ def dead_filter_metric(label,prediction):
 if __name__ == "__main__":
     import sklearn
     print(sorted(sklearn.metrics.SCORERS.keys()))
+
     #回归#################################################################################################################################################
     filter_train,filter_label_train,filter_layer_train=read_data(batch_size=1600,regression_or_classification='regression',path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集')
     filter_val,filter_label_val,filter_layer_val=read_data(batch_size=1600,regression_or_classification='regression',path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集')
 
     _, min_max_scaler, scaler, pca = statistics(filter_train, layer=filter_layer_train, balance_channel=False)
-    stat_train,_,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
+    stat_train,_,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
     stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
+
+
 
     from sklearn import svm
     print('svm',end='')
@@ -436,6 +439,27 @@ if __name__ == "__main__":
     c=mean_absolute_error(filter_label_val,prediction)
     print(c)
 
+    truth = np.argsort(-np.array(filter_label_val))
+    truth_top1000 = truth[:truth.shape[0] - 1500]
+    for i in range(100,3000,500):
+        print(i)
+        prediction_top1000=np.argsort(-prediction)[:i]
+        sum=0
+        for j in prediction_top1000:
+            if j in truth_top1000:
+                sum+=1
+        print(sum/i)
+    from sklearn.feature_selection import RFE
+    for i in range(5,13):
+        print(i)
+        fs=RFE(estimator=ensemble.GradientBoostingRegressor(n_estimators=100),n_features_to_select=7)
+        fs.fit(stat_train,filter_label_train)
+        print(fs.support_)
+        print(fs.ranking_)
+        print(mean_absolute_error(filter_label_val,fs.predict(stat_val)))
+
+
+
     print('瞎jb猜',end='')
     prediction=np.random.random(size=stat_val.shape[0])
     c=mean_absolute_error(filter_label_val,prediction)
@@ -455,6 +479,15 @@ if __name__ == "__main__":
     stat_df_val,_,_,_=statistics(df_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val,pca=pca)
     stat_lf_val,_,_,_=statistics(lf_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer_val,pca=pca)
 
+    # test,_,_,_=statistics(df_val+lf_val,min_max_scaler=min_max_scaler,balance_channel=False,layer=df_layer_val+lf_layer_val)
+
+    # mean_df=np.mean(stat_df,axis=0)
+    # mean_lf=np.mean(stat_lf,axis=0)
+    #
+    # norm_dead=np.linalg.norm(test-mean_df,ord=2,axis=1)
+    # norm_lived=np.linalg.norm(test-mean_lf,ord=2,axis=1)
+
+
     # tmp1=stat_df.tolist()
     # tmp1.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
     # tmp2=stat_lf.tolist()
@@ -470,16 +503,56 @@ if __name__ == "__main__":
     val_y=np.zeros(val_x.shape[0],dtype=np.int)
     val_y[:stat_df_val.shape[0]]=1
 
+    ### GBDT(Gradient Boosting Decision Tree) Classifier
+    from sklearn.ensemble import GradientBoostingClassifier
+    print('GradientBoostingClassifier')
+    clf = GradientBoostingClassifier(n_estimators=200)
+    clf.fit(train_x, train_y)
+    prediction=clf.predict(val_x)
+    print(classification_report(val_y, prediction))
+
+    ###AdaBoost Classifier
+    from sklearn.ensemble import AdaBoostClassifier
+    print('AdaBoost')
+    clf = AdaBoostClassifier()
+    clf.fit(train_x, train_y)
+    prediction=clf.predict(val_x)
+    print(classification_report(val_y, prediction))
+
+    ### Random Forest Classifier
+    from sklearn.ensemble import RandomForestClassifier
+    print('RandomForest')
+    clf = RandomForestClassifier(n_estimators=8)
+    clf.fit(train_x, train_y)
+    prediction = clf.predict(val_x)
+    print(classification_report(val_y, prediction))
+
+    ### KNN Classifier
+    from sklearn.neighbors import KNeighborsClassifier
+    print('KNN')
+    clf = KNeighborsClassifier()
+    clf.fit(train_x, train_y)
+    prediction = clf.predict(val_x)
+    print(classification_report(val_y, prediction))
+
+    ### Multinomial Naive Bayes Classifier
+    from sklearn.naive_bayes import MultinomialNB
+    print('Multinomial Naive Bayes Classifier')
+    clf = MultinomialNB(alpha=0.01)
+    clf.fit(train_x, train_y)
+    prediction = clf.predict(val_x)
+    print(classification_report(val_y, prediction))
+
 
     ####svm ##########################################################################################################
-    svc=svm.SVC(kernel='rbf',class_weight='balanced')
+    svc=svm.SVC(kernel='rbf',class_weight='balanced',C=1)
     param_grid = {
-        'C': [2 ** i for i in range(-5, 15, 2)],
+        #'C': [2 ** i for i in range(-5, 15, 2)],
         'gamma': [2 ** i for i in range(3, -15, -2)],
     }
 
     customize_score={'cm':make_scorer(dead_filter_metric,greater_is_better=True)}
-    clf = GridSearchCV(svc, param_grid, scoring='precision', n_jobs=-1, cv=5)
+    clf = GridSearchCV(svc, param_grid, scoring='f1', n_jobs=-1, cv=5)
 
     clf.fit(train_x,train_y)
     # val_x1, _ ,_= statistics(df_val+lf_val, min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val+lf_layer_val)
@@ -490,17 +563,6 @@ if __name__ == "__main__":
 
     print(clf.best_estimator_)
     print(classification_report(val_y,prediction))
-
-
-    # pr=predictor(name='svm',min_max_scaler=min_max_scaler,kernel='rbf')
-    # pr.fit(dead_filter=df,lived_filter=lf)
-    # prediction=pr.predict(df_val+lf_val)
-    #
-    # print(classification_report(val_y, prediction))
-    #
-    # f_score, precision, recall = cal_F_score(prediction, val_y)
-    # print('predictor:f_score:{},precision:{},recall:{}'.format(f_score, precision, recall))
-
 
     ##logistic regression######################################################################################################
     logistic_regression=LogisticRegressionCV(class_weight='balanced',max_iter=1000,cv=3,Cs=[1, 10,100,1000])
