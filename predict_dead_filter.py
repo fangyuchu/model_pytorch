@@ -18,11 +18,8 @@ import operate_excel
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from sklearn.metrics import make_scorer
-
-
-
-
-
+from sklearn import ensemble
+import matplotlib.pyplot as plt
 
 
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
@@ -328,12 +325,13 @@ class predictor:
         self.name=name
         self.min_max_scaler=None
         if name is 'gradient_boosting':
+            #todo:容易过拟合
             self.regressor=ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
-                          learning_rate=0.1, loss='ls', max_depth=17,
+                          learning_rate=0.01, loss='ls', max_depth=17,
                           max_features='log2', max_leaf_nodes=None,
                           min_impurity_decrease=0.0, min_impurity_split=None,
                           min_samples_leaf=12, min_samples_split=0.005,
-                          min_weight_fraction_leaf=0.0, n_estimators=1000,
+                          min_weight_fraction_leaf=0.0, n_estimators=100,
                           n_iter_no_change=None, presort='auto',
                           random_state=None, subsample=1.0, tol=0.0001,
                           validation_fraction=0.1, verbose=0, warm_start=False)
@@ -422,83 +420,101 @@ if __name__ == "__main__":
     filter_train,filter_label_train,filter_layer_train=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/训练集')
     filter_val,filter_label_val,filter_layer_val=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/测试集')
 
+    #汇至cdf和pdf##################################################################################################
+    # title='pdf:'+str(4)+'round'
+    # label=1-np.array(filter_label_train)
+    # plt.figure()
+    # plt.title(title)
+    # plt.hist(label,cumulative=False,histtype='step',bins=100) #cumulative=False为pdf，true为cdf
+    # plt.xlabel('filter activation ratio')
+    # plt.ylabel('number of filters')
+    # plt.legend()
+    # # plt.show()
+    # plt.savefig(title+'.png', format='png')
+
+
+
     _, min_max_scaler, scaler, pca = statistics(filter_train, layer=filter_layer_train, balance_channel=False)
     stat_train,_,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
     stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
 
 
-
-    from sklearn import svm
-    print('svm',end='')
-    model=svm.SVR(kernel='rbf')
-    # param_grid = {
-    #     'C': [2 ** i for i in range(-5, 15, 2)],
-    #     'gamma': [2 ** i for i in range(3, -15, -2)],
-    # }
-    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
-    model.fit(stat_train,filter_label_train)
-    prediction=model.predict(stat_val)
-    c=mean_absolute_error(filter_label_val,prediction)
-    print(c)
-
-
-    from sklearn import ensemble
-    print('bagging',end='')
-    model=ensemble.BaggingRegressor()
-    model.fit(stat_train,filter_label_train)
-    prediction=model.predict(stat_val)
-    c=mean_absolute_error(filter_label_val,prediction)
-    print(c)
-
-    from sklearn import ensemble
-    print('adaboost',end='')
-    model = ensemble.AdaBoostRegressor(n_estimators=100)  # 这里使用50个决策树
-    model.fit(stat_train,filter_label_train)
-    prediction=model.predict(stat_val)
-    c=mean_absolute_error(filter_label_val,prediction)
-    print(c)
+    #
+    # from sklearn import svm
+    # print('svm',end='')
+    # model=svm.SVR(kernel='rbf')
+    # # param_grid = {
+    # #     'C': [2 ** i for i in range(-5, 15, 2)],
+    # #     'gamma': [2 ** i for i in range(3, -15, -2)],
+    # # }
+    # # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
+    # model.fit(stat_train,filter_label_train)
+    # prediction=model.predict(stat_val)
+    # c=mean_absolute_error(filter_label_val,prediction)
+    # print(c)
+    #
+    #
+    # from sklearn import ensemble
+    # print('bagging',end='')
+    # model=ensemble.BaggingRegressor()
+    # model.fit(stat_train,filter_label_train)
+    # prediction=model.predict(stat_val)
+    # c=mean_absolute_error(filter_label_val,prediction)
+    # print(c)
+    #
+    # from sklearn import ensemble
+    # print('adaboost',end='')
+    # model = ensemble.AdaBoostRegressor(n_estimators=100)  # 这里使用50个决策树
+    # model.fit(stat_train,filter_label_train)
+    # prediction=model.predict(stat_val)
+    # c=mean_absolute_error(filter_label_val,prediction)
+    # print(c)
 
     # 7.GBRT回归
     from sklearn import ensemble
     print('GBRT',end='')
 
     # model = ensemble.GradientBoostingRegressor(n_estimators=1000,learning_rate=0.1)  # 这里使用100个决策树
-
-
-
-    model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
-                          learning_rate=0.1, loss='ls', max_depth=13,
-                          max_features='sqrt', max_leaf_nodes=None,
-                          min_impurity_decrease=0.0, min_impurity_split=None,
-                          min_samples_leaf=1, min_samples_split=0.005,
-                          min_weight_fraction_leaf=0.0, n_estimators=1000,
-                          n_iter_no_change=None, presort='auto',
-                          random_state=None, subsample=1.0, tol=0.0001,
-                          validation_fraction=0.1, verbose=0, warm_start=False)
-
-    model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
-                          learning_rate=0.1, loss='ls', max_depth=17,
-                          max_features='log2', max_leaf_nodes=None,
-                          min_impurity_decrease=0.0, min_impurity_split=None,
-                          min_samples_leaf=12, min_samples_split=0.005,
-                          min_weight_fraction_leaf=0.0, n_estimators=1000,
-                          n_iter_no_change=None, presort='auto',
-                          random_state=None, subsample=1.0, tol=0.0001,
-                          validation_fraction=0.1, verbose=0, warm_start=False)
-    param_grid = {
-        'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
-        'learning_rate': [0.05, 0.1, 0.2],
-        'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
-        'max_features':['sqrt','log2',None],
-        'subsample':[0.8,0.9,1],
-        'max_depth':[11,13,15,17,19],
-        'min_samples_leaf':[10,12,14,16,18],
-    }
-    model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
-    model.fit(stat_train,filter_label_train)
-    prediction=model.predict(stat_val)
-    c=mean_absolute_error(filter_label_val,prediction)
+    mt=predictor(name='gradient_boosting')
+    mt.fit(stat_train,filter_label_train)
+    prediction=mt.predict(stat_val)
+    c = mean_absolute_error(filter_label_val, prediction)
     print(c)
+
+
+    # model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
+    #                       learning_rate=0.1, loss='ls', max_depth=13,
+    #                       max_features='sqrt', max_leaf_nodes=None,
+    #                       min_impurity_decrease=0.0, min_impurity_split=None,
+    #                       min_samples_leaf=1, min_samples_split=0.005,
+    #                       min_weight_fraction_leaf=0.0, n_estimators=1000,
+    #                       n_iter_no_change=None, presort='auto',
+    #                       random_state=None, subsample=1.0, tol=0.0001,
+    #                       validation_fraction=0.1, verbose=0, warm_start=False)
+    #
+    # model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
+    #                       learning_rate=0.1, loss='ls', max_depth=17,
+    #                       max_features='log2', max_leaf_nodes=None,
+    #                       min_impurity_decrease=0.0, min_impurity_split=None,
+    #                       min_samples_leaf=12, min_samples_split=0.005,
+    #                       min_weight_fraction_leaf=0.0, n_estimators=1000,
+    #                       n_iter_no_change=None, presort='auto',
+    #                       random_state=None, subsample=1.0, tol=0.0001,
+    #                       validation_fraction=0.1, verbose=0, warm_start=False)
+    # param_grid = {
+    #     'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
+    #     'learning_rate': [0.05, 0.1, 0.2],
+    #     'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
+    #     'max_features':['sqrt','log2',None],
+    #     'subsample':[0.8,0.9,1],
+    #     'max_depth':[11,13,15,17,19],
+    #     'min_samples_leaf':[10,12,14,16,18],
+    # }
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
+    # model.fit(stat_train,filter_label_train)
+    # prediction=model.predict(stat_val)
+    # c=mean_absolute_error(filter_label_val,prediction)
+    # print(c)
 
     truth = np.argsort(-np.array(filter_label_val))
     prediction_argsort=np.argsort(-prediction)

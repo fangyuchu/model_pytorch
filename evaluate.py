@@ -178,7 +178,7 @@ def predict_dead_filters_classifier_version(net,
     :return:
     '''
 
-    dead_filter_index_data,_,_=find_dead_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
+    dead_filter_index_data,_,_=find_useless_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
 
     dead_filter_index=list()
     df_num_max=list()                           #max number of filter num
@@ -220,27 +220,44 @@ def predict_dead_filters_classifier_version(net,
     return dead_filter_index
 
 
-def find_dead_filters_data_version(net,
-                                   filter_dead_ratio,
-                                   batch_size,
-                                   neural_dead_times,
-                                   dataset_name='cifar10',
-                                   use_random_data=True,
-                                   module_list=None,
-                                   neural_list=None,
+def find_useless_filters_data_version(net,
+                                      batch_size,
+                                      dataset_name='cifar10',
+                                      use_random_data=True,
+                                      module_list=None,
+                                      neural_list=None,
+                                      dead_or_inactive='dead',
+                                      neural_dead_times=None,
+                                      filter_dead_ratio=None,
+                                      inactive_filter_ratio=None,
                       ):
     '''
-    use validation set or random generated data to find dead filters in net
+    use validation set or random generated data to find useless filters in net
     :param net:
-    :param filter_dead_ratio:
+    :param batch_size:
     :param dataset_name:
     :param use_random_data:
     :param module_list:
     :param neural_list:
-    :param batch_size:
+    :param dead_or_inactive:
+    param for dead filter
     :param neural_dead_times:
+    :param filter_dead_ratio:
+    param for inactive filter
+    :param inactive_filter_ratio:
     :return:
     '''
+    if dead_or_inactive is 'dead':
+        if neural_dead_times is None or filter_dead_ratio is None:
+            print('neural_dead_times and filter_dead_ratio are required to find dead filters.')
+            raise AttributeError
+    elif dead_or_inactive is 'inactive':
+        if inactive_filter_ratio is None:
+            print('inactive_filter_ratio is required to find dead filters.')
+            raise AttributeError
+    else:
+        print('unknown type of dead_or_inactive')
+        raise AttributeError
     if module_list is None or neural_list is None:
         #calculate dead neural
         if use_random_data is True:
@@ -254,11 +271,13 @@ def find_dead_filters_data_version(net,
                 std = conf.imagenet['std']
                 validation_set_path = conf.imagenet['validation_set_path']
                 default_image_size = conf.imagenet['default_image_size']
+                validation_set_size=conf.imagenet['validation_set_size']
             elif dataset_name is 'cifar10':
                 mean = conf.cifar10['mean']
                 std = conf.cifar10['std']
                 validation_set_path = conf.cifar10['validation_set_path']
                 default_image_size = conf.cifar10['default_image_size']
+                validation_set_size=conf.cifar10['validation_set_size']
             validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
                                                                      default_image_size=default_image_size,
                                                                      mean=mean,
@@ -275,23 +294,46 @@ def find_dead_filters_data_version(net,
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
             filter_num.append(mod.out_channels)
-    dead_filter_index=list()
+            
+    useless_filter_index=list()
+    if dead_or_inactive is 'inactive':
+        filter_index=list()                                 #index of the filter in its layer
+        filter_layer=list()                                 #which layer the filter is in
+        dead_ratio=list()
     for i in range(num_conv):
         for module_key in list(neural_list.keys()):
             if module_list[i] is module_key:  # find the neural_list_statistics in layer i+1
-                dead_module_list = copy.deepcopy(neural_list[module_key])
-                neural_num = dead_module_list.shape[1] * dead_module_list.shape[2]  # neural num for one filter
+                dead_times = copy.deepcopy(neural_list[module_key])
+                neural_num = dead_times.shape[1] * dead_times.shape[2]  # neural num for one filter
 
-                # judge dead filter by neural_dead_times and dead_filter_ratio
-                dead_module_list[dead_module_list < neural_dead_times] = 0
-                dead_module_list[dead_module_list >= neural_dead_times] = 1
-                dead_module_list = np.sum(dead_module_list, axis=(1, 2))  # count the number of dead neural for one filter
+                if dead_or_inactive is 'dead':
+                    # judge dead filter by neural_dead_times and dead_filter_ratio
+                    dead_times[dead_times < neural_dead_times] = 0
+                    dead_times[dead_times >= neural_dead_times] = 1
+                    dead_times = np.sum(dead_times, axis=(1, 2))  # count the number of dead neural for one filter
+    
+                    df_num=np.where(dead_times >= neural_num * filter_dead_ratio)[0].shape[0]                    #number of dead filters
+                    df_index=np.argsort(-dead_times)[:df_num].tolist()                                           #dead filters' indices. sorted by the times that they died.
+                    useless_filter_index.append(df_index)
+                elif dead_or_inactive is 'inactive':
+                    # compute sum(dead_times)/(batch_size*neural_num) as label for each filter
+                    dead_times = np.sum(dead_times, axis=(1, 2))
+                    if use_random_data is True:
+                        dead_ratio += (dead_times / (neural_num * batch_size)).tolist()
+                    else:
+                        dead_ratio += (dead_times / (neural_num * validation_set_size)).tolist()
+                    filter_layer += [i for j in range(dead_times.shape[0])]
+                    filter_index+=[j for j in range(dead_times.shape[0])]
 
-                df_num=np.where(dead_module_list >= neural_num * filter_dead_ratio)[0].shape[0]                    #number of dead filters
-                df_index=np.argsort(-dead_module_list)[:df_num].tolist()                                           #dead filters' indices. sorted by the times that they died.
-                dead_filter_index.append(df_index)
-
-    return dead_filter_index,module_list,neural_list
+    if dead_or_inactive is 'inactive':
+        inactive_rank=np.argsort(-np.array(dead_ratio))[:int(inactive_filter_ratio*len(dead_ratio))]                #arg for top inactive_filter_ratio*100% of inactive filters
+        inactive_filter_index=np.array(filter_index)[inactive_rank]
+        inactive_filter_layer=np.array(filter_layer)[inactive_rank]
+        for i in range(num_conv):
+            useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer==i)])
+        print()
+    return useless_filter_index,module_list,neural_list
+    
 
 def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     handle = list()
@@ -461,30 +503,16 @@ def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
 
 
 if __name__ == "__main__":
-
-    # net = vgg.vgg16_bn(pretrained=True)
-    # net.classifier = nn.Sequential(
-    #     nn.Dropout(),
-    #     nn.Linear(512, 512),
-    #     nn.ReLU(True),
-    #     nn.Dropout(),
-    #     nn.Linear(512, 512),
-    #     nn.ReLU(True),
-    #     nn.Linear(512, 10),
-    # )
-    # for m in net.modules():
-    #     if isinstance(m, nn.Linear):
-    #         nn.init.normal_(m.weight, 0, 0.01)
-    #         nn.init.constant_(m.bias, 0)
-    # net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-
-
     checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
     #checkpoint = torch.load('./vgg16_bn,baseline.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
     print(checkpoint['highest_accuracy'])
+
+
+
+    find_useless_filters_data_version(net=net,batch_size=1000,use_random_data=True,dead_or_inactive='inactive',inactive_filter_ratio=0.3)
 
 
     #measure_flops.measure_model(net,dataset_name='cifar10')
