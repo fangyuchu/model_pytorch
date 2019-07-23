@@ -87,7 +87,6 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                             living_filter_layer += [i for j in range(len(living_filter_index))]
                         else:
                             #compute sum(dead_times)/(batch_size*neural_num) as label for each filter
-                            #todo: not finished
                             dead_times=np.sum(dead_times,axis=(1,2))
                             dead_ratio=dead_times/(neural_num*batch_size)
                             for f in filter_weight:
@@ -122,7 +121,7 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
     :param scaler:
     :return:
     '''
-    feature_num=13
+    feature_num=22
     stat=np.zeros(shape=[len(filters),feature_num],dtype=np.float)
     for i in range(len(filters)):
         stat[i][0]=np.mean(filters[i])                                  #均值
@@ -138,7 +137,7 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
         stat[i][10]=filters[i].min()                                    #最小值
         stat[i][11]=filters[i].shape[0]                                 #通道数
         stat[i][12]=layer[i]                                            #哪一层
-        #stat[i][13:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
+        stat[i][13:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
 
 
 
@@ -324,47 +323,76 @@ class fc(nn.Module):
         #todo:incomplete
         return 1
 
-
 class predictor:
     def __init__(self, name,**kargs):
         self.name=name
         self.min_max_scaler=None
-        if name is 'svm':
-            self.classifier = svm.SVC(kernel=kargs['kernel'], class_weight='balanced')
-        elif name is 'logistic_regression':
-            self.classifier = LogisticRegressionCV(class_weight='balanced', max_iter=1000, cv=3, Cs=[1, 10, 100, 1000])
-        elif name is 'fc':
-            self.classifier = fc()
+        if name is 'gradient_boosting':
+            self.regressor=ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
+                          learning_rate=0.1, loss='ls', max_depth=17,
+                          max_features='log2', max_leaf_nodes=None,
+                          min_impurity_decrease=0.0, min_impurity_split=None,
+                          min_samples_leaf=12, min_samples_split=0.005,
+                          min_weight_fraction_leaf=0.0, n_estimators=1000,
+                          n_iter_no_change=None, presort='auto',
+                          random_state=None, subsample=1.0, tol=0.0001,
+                          validation_fraction=0.1, verbose=0, warm_start=False)
 
-    def fit(self, dead_filter, lived_filter):
-        _, self.min_max_scaler =statistics(dead_filter + lived_filter)
 
-        stat_df, _ = statistics(dead_filter, balance_channel=True, min_max_scaler=self.min_max_scaler)
-        stat_lf, _ = statistics(lived_filter, balance_channel=True, min_max_scaler=self.min_max_scaler)
-        train_x = np.vstack((stat_df, stat_lf))  # dead filters are in the front
-        train_y = np.zeros(train_x.shape[0])
-        train_y[:stat_df.shape[0]] = 1  # dead filters are labeled 1
-        if self.name is 'svm':
-            param_grid = {
-                'C': [2 ** i for i in range(-5, 15, 2)],
-                'gamma': [2 ** i for i in range(3, -15, -2)],
-            }
-            self.classifier = GridSearchCV(self.classifier, param_grid, scoring='f1', n_jobs=-1, cv=5)
-            self.classifier = self.classifier.fit(train_x, train_y)
-            print(self.classifier.best_estimator_)
-        elif self.name is 'logistic_regression':
-            self.classifier = self.classifier.fit(train_x, train_y)
-        elif self.name is 'fc':
-            self.classifier=self.classifier.fit(train_x,train_y)
+    def fit(self, filter, filter_label,):
+        if self.name is 'gradient_boosting':
+            self.regressor.fit(filter,filter_label)
 
-    def predict_proba(self,filter):
-        x,_=statistics(filter,min_max_scaler=self.min_max_scaler)
-        return self.classifier.predict_proba(x)
+
+    # def predict_proba(self,filter):
+    #     x,_=statistics(filter,min_max_scaler=self.min_max_scaler)
+    #     return self.classifier.predict_proba(x)
 
     def predict(self,filter):
-        print(self.classifier.best_estimator_)
-        x, _ = statistics(filter, min_max_scaler=self.min_max_scaler)
-        return self.classifier.predict(x)
+        # print(self.classifier.best_estimator_)
+        return self.regressor.predict(filter)
+
+
+# class predictor:
+#     def __init__(self, name,**kargs):
+#         self.name=name
+#         self.min_max_scaler=None
+#         if name is 'svm':
+#             self.classifier = svm.SVC(kernel=kargs['kernel'], class_weight='balanced')
+#         elif name is 'logistic_regression':
+#             self.classifier = LogisticRegressionCV(class_weight='balanced', max_iter=1000, cv=3, Cs=[1, 10, 100, 1000])
+#         elif name is 'fc':
+#             self.classifier = fc()
+#
+#     def fit(self, dead_filter, lived_filter):
+#         _, self.min_max_scaler =statistics(dead_filter + lived_filter)
+#
+#         stat_df, _ = statistics(dead_filter, balance_channel=True, min_max_scaler=self.min_max_scaler)
+#         stat_lf, _ = statistics(lived_filter, balance_channel=True, min_max_scaler=self.min_max_scaler)
+#         train_x = np.vstack((stat_df, stat_lf))  # dead filters are in the front
+#         train_y = np.zeros(train_x.shape[0])
+#         train_y[:stat_df.shape[0]] = 1  # dead filters are labeled 1
+#         if self.name is 'svm':
+#             param_grid = {
+#                 'C': [2 ** i for i in range(-5, 15, 2)],
+#                 'gamma': [2 ** i for i in range(3, -15, -2)],
+#             }
+#             self.classifier = GridSearchCV(self.classifier, param_grid, scoring='f1', n_jobs=-1, cv=5)
+#             self.classifier = self.classifier.fit(train_x, train_y)
+#             print(self.classifier.best_estimator_)
+#         elif self.name is 'logistic_regression':
+#             self.classifier = self.classifier.fit(train_x, train_y)
+#         elif self.name is 'fc':
+#             self.classifier=self.classifier.fit(train_x,train_y)
+#
+#     def predict_proba(self,filter):
+#         x,_=statistics(filter,min_max_scaler=self.min_max_scaler)
+#         return self.classifier.predict_proba(x)
+#
+#     def predict(self,filter):
+#         print(self.classifier.best_estimator_)
+#         x, _ = statistics(filter, min_max_scaler=self.min_max_scaler)
+#         return self.classifier.predict(x)
 
 
 def dead_filter_metric(label,prediction):
@@ -387,12 +415,12 @@ def dead_filter_metric(label,prediction):
     return f_score
 
 if __name__ == "__main__":
-    import sklearn
-    print(sorted(sklearn.metrics.SCORERS.keys()))
+    # import sklearn
+    # print(sorted(sklearn.metrics.SCORERS.keys()))
 
     #回归#################################################################################################################################################
-    filter_train,filter_label_train,filter_layer_train=read_data(batch_size=1600,regression_or_classification='regression',path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集')
-    filter_val,filter_label_val,filter_layer_val=read_data(batch_size=1600,regression_or_classification='regression',path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集')
+    filter_train,filter_label_train,filter_layer_train=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/训练集')
+    filter_val,filter_label_val,filter_layer_val=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/测试集')
 
     _, min_max_scaler, scaler, pca = statistics(filter_train, layer=filter_layer_train, balance_channel=False)
     stat_train,_,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
@@ -433,22 +461,58 @@ if __name__ == "__main__":
     # 7.GBRT回归
     from sklearn import ensemble
     print('GBRT',end='')
-    model = ensemble.GradientBoostingRegressor(n_estimators=100)  # 这里使用100个决策树
+
+    # model = ensemble.GradientBoostingRegressor(n_estimators=1000,learning_rate=0.1)  # 这里使用100个决策树
+
+
+
+    model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
+                          learning_rate=0.1, loss='ls', max_depth=13,
+                          max_features='sqrt', max_leaf_nodes=None,
+                          min_impurity_decrease=0.0, min_impurity_split=None,
+                          min_samples_leaf=1, min_samples_split=0.005,
+                          min_weight_fraction_leaf=0.0, n_estimators=1000,
+                          n_iter_no_change=None, presort='auto',
+                          random_state=None, subsample=1.0, tol=0.0001,
+                          validation_fraction=0.1, verbose=0, warm_start=False)
+
+    model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
+                          learning_rate=0.1, loss='ls', max_depth=17,
+                          max_features='log2', max_leaf_nodes=None,
+                          min_impurity_decrease=0.0, min_impurity_split=None,
+                          min_samples_leaf=12, min_samples_split=0.005,
+                          min_weight_fraction_leaf=0.0, n_estimators=1000,
+                          n_iter_no_change=None, presort='auto',
+                          random_state=None, subsample=1.0, tol=0.0001,
+                          validation_fraction=0.1, verbose=0, warm_start=False)
+    param_grid = {
+        'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
+        'learning_rate': [0.05, 0.1, 0.2],
+        'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
+        'max_features':['sqrt','log2',None],
+        'subsample':[0.8,0.9,1],
+        'max_depth':[11,13,15,17,19],
+        'min_samples_leaf':[10,12,14,16,18],
+    }
+    model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
     model.fit(stat_train,filter_label_train)
     prediction=model.predict(stat_val)
     c=mean_absolute_error(filter_label_val,prediction)
     print(c)
 
     truth = np.argsort(-np.array(filter_label_val))
-    truth_top1000 = truth[:truth.shape[0] - 1500]
-    for i in range(100,3000,500):
+    prediction_argsort=np.argsort(-prediction)
+    truth_top1000 = truth[:int(truth.shape[0] *0.3)]
+    for i in range(10,200,10):
         print(i)
-        prediction_top1000=np.argsort(-prediction)[:i]
+        prediction_top=prediction_argsort[:i]
+        # truth_top1000 = truth[:i]
         sum=0
-        for j in prediction_top1000:
+        for j in prediction_top:
             if j in truth_top1000:
                 sum+=1
         print(sum/i)
+        print()
     from sklearn.feature_selection import RFE
     for i in range(5,13):
         print(i)
@@ -466,8 +530,8 @@ if __name__ == "__main__":
     print(c)
     #分类#################################################################################################################################################
 
-    df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/训练集')
-    df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)/最少样本测试/测试集')
+    df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='./最少样本测试/训练集')
+    df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='.)/最少样本测试/测试集')
 
     #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
 
