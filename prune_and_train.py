@@ -1370,7 +1370,7 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
 
     prune_inactive_neural(net=net,
-                          net_name='tmp',
+                          net_name='vgg16bn_cifar10_inactiveFilter',
                           dataset_name='cifar10',
                           prune_ratio=0.1,
 
