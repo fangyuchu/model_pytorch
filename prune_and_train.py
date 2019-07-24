@@ -1361,62 +1361,59 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
-    checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/resnet56_cifar10_DeadNeural_realdata/checkpoint/sample_num=13300000,accuracy=0.93610.tar')
+    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    #checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
 
-    # net = resnet_copied.resnet56().to(device)
+    #net = resnet_copied.resnet56().to(device)
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
     print(checkpoint['highest_accuracy'])
 
-    measure_flops.measure_model(net,'cifar10')
+    prune_inactive_neural(net=net,
+                          net_name='vgg16bn_cifar10_inactiveFilter',
+                          dataset_name='cifar10',
+                          prune_ratio=0.1,
 
-    # prune_inactive_neural(net=net,
-    #                       net_name='tmp',
-    #                       dataset_name='cifar10',
-    #                       prune_ratio=0.1,
-    #
-    #                       filter_preserve_ratio=0.1,
-    #                       max_filters_pruned_for_one_time=0.3,
-    #                       target_accuracy=0.933,
-    #                       tar_acc_gradual_decent=True,
-    #                       flop_expected=5e7,
-    #                       batch_size=1600,
-    #                       num_epoch=300,
-    #                       checkpoint_step=1600,
-    #                       use_random_data=True,
-    #                       # optimizer=optim.Adam,
-    #                       # learning_rate=1e-3,
-    #                       # weight_decay=0
-    #                       optimizer=optim.SGD,
-    #                       learning_rate=0.01,
-    #                       learning_rate_decay=True,
-    #                       learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-    #                       learning_rate_decay_factor=0.5,
-    # )
+                          filter_preserve_ratio=0.1,
+                          max_filters_pruned_for_one_time=0.3,
+                          target_accuracy=0.933,
+                          tar_acc_gradual_decent=True,
+                          flop_expected=5e7,
+                          batch_size=1600,
+                          num_epoch=300,
+                          checkpoint_step=1600,
+                          use_random_data=True,
+                          # optimizer=optim.Adam,
+                          # learning_rate=1e-3,
+                          # weight_decay=0
+                          optimizer=optim.SGD,
+                          learning_rate=0.01,
+                          learning_rate_decay=True,
+                          learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                          learning_rate_decay_factor=0.5,
+    )
 
-    prune_resnet(net=net,
-                 net_name='tmp',
-                 neural_dead_times=7500,
-                 filter_dead_ratio=0.9,
-                 target_accuracy=0.93,
-                 tar_acc_gradual_decent=False,
-                 dataset_name='cifar10',
-                 flop_expected=4e7,
-                 round_for_train=20,
-                 use_random_data=False,
-                 batch_size=1600,
-                 optimizer=optim.SGD,
-                 learning_rate=0.01,
-                 learning_rate_decay=True,
-                 learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-                 learning_rate_decay_factor=0.5,
-                 neural_dead_times_decay=0.95,
-                 filter_dead_ratio_decay=0.98,
-                 filter_preserve_ratio=0.1,
-                 max_filters_pruned_for_one_time=0.3,
-                 )
+    # prune_resnet(net=net,
+    #              net_name='resnet56_standard_cifar10_DeadNeural_realdata',
+    #              neural_dead_times=9000,
+    #              filter_dead_ratio=0.9,
+    #              target_accuracy=0.93,
+    #              tar_acc_gradual_decent=True,
+    #              dataset_name='cifar10',
+    #              flop_expected=4e7,
+    #              round_for_train=20,
+    #              use_random_data=False,
+    #              batch_size=1600,
+    #              optimizer=optim.SGD,
+    #              learning_rate=0.01,
+    #              learning_rate_decay=True,
+    #              learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+    #              learning_rate_decay_factor=0.5,
+    #              neural_dead_times_decay=0.95,
+    #              filter_dead_ratio_decay=0.98,
+    #              filter_preserve_ratio=0.1,
+    #              max_filters_pruned_for_one_time=0.3,
+    #              )
 
 
     # prune_filters_randomly(net=net,
