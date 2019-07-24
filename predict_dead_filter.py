@@ -519,17 +519,21 @@ if __name__ == "__main__":
 
     truth = np.argsort(-np.array(filter_label_val))
     prediction_argsort=np.argsort(-prediction)
-    truth_top1000 = truth[:int(truth.shape[0] *0.3)]
-    for i in range(10,200,10):
-        print(i)
-        prediction_top=prediction_argsort[:i]
-        # truth_top1000 = truth[:i]
-        sum=0
-        for j in prediction_top:
-            if j in truth_top1000:
-                sum+=1
-        print(sum/i)
-        print()
+    for j in [0.2,0.3,0.4,0.5]:
+        print('j:'+str(j))
+        truth_top1000 = truth[:int(truth.shape[0] *j)]
+        for i in range(10,200,50):
+            print(i)
+            if i>=truth_top1000.shape[0]:
+                continue
+            prediction_top=prediction_argsort[:i]
+            # truth_top1000 = truth[:i]
+            sum=0
+            for k in prediction_top:
+                if k in truth_top1000:
+                    sum+=1
+            print(sum/i)
+        print('-----------------------------------------------------')
     from sklearn.feature_selection import RFE
     for i in range(5,13):
         print(i)
