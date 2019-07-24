@@ -47,8 +47,9 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
             net.load_state_dict(checkpoint['state_dict'])
             neural_list=checkpoint['neural_list']
             module_list=checkpoint['module_list']
-            neural_dead_times=checkpoint['neural_dead_times']
-            filter_dead_ratio=checkpoint['filter_dead_ratio']
+            if regression_or_classification is 'classification':
+                neural_dead_times=checkpoint['neural_dead_times']
+                filter_dead_ratio=checkpoint['filter_dead_ratio']
             if batch_size is None:
                 batch_size=checkpoint['batch_size']
 
