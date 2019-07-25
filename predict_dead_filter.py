@@ -338,18 +338,20 @@ class predictor:
                           validation_fraction=0.1, verbose=0, warm_start=False)
 
 
-    def fit(self, filter, filter_label,):
+    def fit(self, filter,filter_layer, filter_label,):
+        stat,self.min_max_scaler,_,_=statistics(filters=filter,layer=filter_layer,balance_channel=False)
         if self.name is 'gradient_boosting':
-            self.regressor.fit(filter,filter_label)
+            self.regressor.fit(stat,filter_label)
 
 
     # def predict_proba(self,filter):
     #     x,_=statistics(filter,min_max_scaler=self.min_max_scaler)
     #     return self.classifier.predict_proba(x)
 
-    def predict(self,filter):
+    def predict(self,filter,filter_layer):
         # print(self.classifier.best_estimator_)
-        return self.regressor.predict(filter)
+        stat, _, _, _ = statistics(filters=filter, layer=filter_layer, balance_channel=False,min_max_scaler=self.min_max_scaler)
+        return self.regressor.predict(stat)
 
 
 # class predictor:
@@ -419,19 +421,21 @@ if __name__ == "__main__":
 
     #回归#################################################################################################################################################
     filter_train,filter_label_train,filter_layer_train=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/训练集')
-    filter_val,filter_label_val,filter_layer_val=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/测试集')
+    #filter_val,filter_label_val,filter_layer_val=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/测试集')
 
     #汇至cdf和pdf##################################################################################################
-    # title='pdf:'+str(4)+'round'
-    # label=1-np.array(filter_label_train)
-    # plt.figure()
-    # plt.title(title)
-    # plt.hist(label,cumulative=False,histtype='step',bins=100) #cumulative=False为pdf，true为cdf
-    # plt.xlabel('filter activation ratio')
-    # plt.ylabel('number of filters')
-    # plt.legend()
-    # # plt.show()
-    # plt.savefig(title+'.png', format='png')
+    for i in range(13):
+        filter_label_train_tmp=np.array(filter_label_train)[np.where(np.array(filter_layer_train)==i)]
+        title='randomdata_cdf:layer'+str(i)+'round:1'
+        label=1-np.array(filter_label_train_tmp)
+        plt.figure()
+        plt.title(title)
+        plt.hist(label,cumulative=True,histtype='step',bins=100) #cumulative=False为pdf，true为cdf
+        plt.xlabel('filter activation ratio')
+        plt.ylabel('number of filters')
+        plt.legend()
+        # plt.show()
+        plt.savefig(title+'.png', format='png')
 
 
 

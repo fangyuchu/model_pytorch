@@ -178,7 +178,7 @@ def predict_dead_filters_classifier_version(net,
     :return:
     '''
 
-    dead_filter_index_data,_,_=find_useless_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
+    # dead_filter_index_data,_,_=find_useless_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
 
     dead_filter_index=list()
     df_num_max=list()                           #max number of filter num
@@ -188,7 +188,6 @@ def predict_dead_filters_classifier_version(net,
     num_conv=0
     for mod in net.features:
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            #todo:注意这里的data和grad的问题！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
             weight+=list(mod.weight.data.cpu().numpy())
             filter_num.append(mod.weight.data.cpu().numpy().shape[0])
             df_num_min.append(math.ceil(min_ratio_dead_filters*filter_num[num_conv]))                                            #lower bound of dead_filter's num
@@ -219,6 +218,37 @@ def predict_dead_filters_classifier_version(net,
         s += filter_num[i]
     return dead_filter_index
 
+def find_useless_filters_regressor_version(net,
+                                           predictor,
+                                           inactive_filter_rate,
+                                           
+                                           ):
+    filter_layer=list()
+    filter = list()
+    filter_index=list()
+    num_conv = 0
+    for mod in net.modules():
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            conv_weight = mod.weight.cpu().detach().numpy()
+            for weight in conv_weight:
+                filter.append(weight)
+            filter_layer += [num_conv for j in range(conv_weight.shape[0])]
+            filter_index += [j for j in range(conv_weight.shape[0])]
+            num_conv+=1
+
+    dead_ratio=predictor.predict(filter=filter,filter_layer=filter_layer)
+
+    inactive_rank = np.argsort(-np.array(dead_ratio))[:int(
+        inactive_filter_rate * len(dead_ratio))]  # arg for top inactive_filter_rate*100% of inactive filters
+    inactive_filter_index = np.array(filter_index)[inactive_rank]
+    inactive_filter_layer = np.array(filter_layer)[inactive_rank]
+    useless_filter_index=list()
+    for i in range(num_conv):
+        useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer == i)])
+
+    return useless_filter_index
+
+    
 
 def find_useless_filters_data_version(net,
                                       batch_size,
@@ -229,7 +259,7 @@ def find_useless_filters_data_version(net,
                                       dead_or_inactive='dead',
                                       neural_dead_times=None,
                                       filter_dead_ratio=None,
-                                      inactive_filter_ratio=None,
+                                      inactive_filter_rate=None,
                       ):
     '''
     use validation set or random generated data to find useless filters in net
@@ -244,7 +274,7 @@ def find_useless_filters_data_version(net,
     :param neural_dead_times:
     :param filter_dead_ratio:
     param for inactive filter
-    :param inactive_filter_ratio:
+    :param inactive_filter_rate:
     :return:
     '''
     if dead_or_inactive is 'dead':
@@ -252,8 +282,8 @@ def find_useless_filters_data_version(net,
             print('neural_dead_times and filter_dead_ratio are required to find dead filters.')
             raise AttributeError
     elif dead_or_inactive is 'inactive':
-        if inactive_filter_ratio is None:
-            print('inactive_filter_ratio is required to find dead filters.')
+        if inactive_filter_rate is None:
+            print('inactive_filter_rate is required to find dead filters.')
             raise AttributeError
     else:
         print('unknown type of dead_or_inactive')
@@ -325,15 +355,16 @@ def find_useless_filters_data_version(net,
                     filter_layer += [i for j in range(dead_times.shape[0])]
                     filter_index+=[j for j in range(dead_times.shape[0])]
 
-    if dead_or_inactive is 'inactive':
-        inactive_rank=np.argsort(-np.array(dead_ratio))[:int(inactive_filter_ratio*len(dead_ratio))]                #arg for top inactive_filter_ratio*100% of inactive filters
+    if dead_or_inactive is 'dead':
+        return useless_filter_index, module_list, neural_list
+    elif dead_or_inactive is 'inactive':
+        inactive_rank=np.argsort(-np.array(dead_ratio))[:int(inactive_filter_rate*len(dead_ratio))]                #arg for top inactive_filter_rate*100% of inactive filters
         inactive_filter_index=np.array(filter_index)[inactive_rank]
         inactive_filter_layer=np.array(filter_layer)[inactive_rank]
         for i in range(num_conv):
             useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer==i)])
-        print()
-    return useless_filter_index,module_list,neural_list
-    
+        return useless_filter_index,module_list,neural_list,dead_ratio
+
 
 def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
     handle = list()
@@ -512,7 +543,7 @@ if __name__ == "__main__":
 
 
 
-    find_useless_filters_data_version(net=net,batch_size=1000,use_random_data=True,dead_or_inactive='inactive',inactive_filter_ratio=0.3)
+    find_useless_filters_data_version(net=net,batch_size=1000,use_random_data=True,dead_or_inactive='inactive',inactive_filter_rate=0.3)
 
 
     #measure_flops.measure_model(net,dataset_name='cifar10')
