@@ -51,37 +51,33 @@ def prune_inactive_neural_with_regressor(net,
                                      learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                                      **kwargs
                                      ):
-    #todo:uncomplete
     '''
-
-    :param net:
-    :param net_name:
-    :param neural_dead_times:
-    :param filter_dead_ratio:
-    :param target_accuracy:
-    :param predictor_name: name of the predictor used
-    :param round_for_train:
-    :param tar_acc_gradual_decent:
-    :param flop_expected:
-    :param filter_dead_ratio_decay:
-    :param neural_dead_times_decay:
-    :param dataset_name:
-    :param use_random_data:
-    :param validation_loader:
-    :param batch_size:
-    :param num_workers:
-    :param optimizer:
-    :param learning_rate:
-    :param checkpoint_step:
-    :param num_epoch:
-    :param filter_preserve_ratio:
-    :param min_filters_pruned_for_one_time:
-    :param max_filters_pruned_for_one_time:
-    :param learning_rate_decay:
-    :param learning_rate_decay_factor:
-    :param weight_decay:
-    :param learning_rate_decay_epoch:
-    :return:
+    
+    :param net: 
+    :param net_name: 
+    :param target_accuracy: 
+    :param prune_rate: 
+    :param predictor_name: 
+    :param round_for_train: 
+    :param tar_acc_gradual_decent: 
+    :param flop_expected: 
+    :param dataset_name: 
+    :param use_random_data: 
+    :param validation_loader: 
+    :param batch_size: 
+    :param num_workers: 
+    :param optimizer: 
+    :param learning_rate: 
+    :param checkpoint_step: 
+    :param num_epoch: 
+    :param filter_preserve_ratio: 
+    :param max_filters_pruned_for_one_time: 
+    :param learning_rate_decay: 
+    :param learning_rate_decay_factor: 
+    :param weight_decay: 
+    :param learning_rate_decay_epoch: 
+    :param kwargs: 
+    :return: 
     '''
     # save the output to log
     print('save log in:' + conf.root_path + net_name + '/log.txt')
@@ -90,42 +86,35 @@ def prune_inactive_neural_with_regressor(net,
     sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
     sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
 
-    # print('net:{}\n'
-    #       'net_name:{}\n'
-    #       'use_random_data:{}\n'
-    #       'neural_dead_times:{}\n'
-    #       'filter_dead_ratio:{}\n'
-    #       'target_accuracy:{}\n'
-    #       'predictor_name:{}\n'
-    #       'round_for_train:{}\n'
-    #       'tar_acc_gradual_decent:{}\n'
-    #       'flop_expected:{}\n'
-    #       'filter_dead_ratio_decay:{}\n'
-    #       'neural_dead_times_decay:{}\n'
-    #       'dataset_name:{}\n'
-    #       'validation_loader:{}\n'
-    #       'batch_size:{}\n'
-    #       'num_workers:{}\n'
-    #       'optimizer:{}\n'
-    #       'learning_rate:{}\n'
-    #       'checkpoint_step:{}\n'
-    #       'num_epoch:{}\n'
-    #       'filter_preserve_ratio:{}\n'
-    #       'max_filters_pruned_for_one_time:{}\n'
-    #       'min_filters_pruned_for_one_time:{}\n'
-    #       'learning_rate_decay:{}\n'
-    #       'learning_rate_decay_factor:{}\n'
-    #       'weight_decay:{}\n'
-    #       'learning_rate_decay_epoch:{}'
-    #       .format(net, net_name, use_random_data, neural_dead_times, filter_dead_ratio, target_accuracy,
-    #               predictor_name,round_for_train,
-    #               tar_acc_gradual_decent,
-    #               flop_expected,
-    #               dataset_name, validation_loader, batch_size, num_workers, optimizer,
-    #               learning_rate, checkpoint_step,
-    #               num_epoch, filter_preserve_ratio, max_filters_pruned_for_one_time, learning_rate_decay,
-    #               learning_rate_decay_factor,
-    #               weight_decay, learning_rate_decay_epoch))
+    print(
+        'net:{}\n' 
+        'net_name:{}\n' 
+        'target_accuracy:{}\n' 
+        'prune_rate:{}\n' 
+        'predictor_name:{}\n' 
+        'round_for_train:{}\n' 
+        'tar_acc_gradual_decent:{}\n' 
+        'flop_expected:{}\n' 
+        'dataset_name:{}\n' 
+        'use_random_data:{}\n' 
+        'validation_loader:{}\n' 
+        'batch_size:{}\n' 
+        'num_workers:{}\n' 
+        'optimizer:{}\n' 
+        'learning_rate:{}\n' 
+        'checkpoint_step:{}\n' 
+        'num_epoch:{}\n' 
+        'filter_preserve_ratio:{}\n' 
+        'max_filters_pruned_for_one_time:{}\n' 
+        'learning_rate_decay:{}\n' 
+        'learning_rate_decay_factor:{}\n' 
+        'weight_decay:{}\n' 
+        'learning_rate_decay_epoch:{}\n'
+
+          .format(net, net_name, target_accuracy, prune_rate,predictor_name,round_for_train,tar_acc_gradual_decent,
+                  flop_expected,dataset_name,use_random_data,validation_loader,batch_size,num_workers,optimizer,learning_rate,
+                  checkpoint_step,num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
+                  weight_decay,learning_rate_decay_epoch))
     print(kwargs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -1365,13 +1354,13 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
     
     prune_inactive_neural_with_regressor(net=net,
-                                         net_name='vgg16bn_cifar10_inactive_regressor_testRun',
+                                         net_name='vgg16bn_cifar10_inactive_regressor_testRun3',
                                          prune_rate=0.1,
                                          dataset_name='cifar10',
                                          filter_preserve_ratio=0.1,
                                          max_filters_pruned_for_one_time=0.3,
-                                         target_accuracy=0.932,
-                                         tar_acc_gradual_decent=False,
+                                         target_accuracy=0.933,
+                                         tar_acc_gradual_decent=True,
                                          flop_expected=5e7,
                                          batch_size=1600,
                                          num_epoch=450,
