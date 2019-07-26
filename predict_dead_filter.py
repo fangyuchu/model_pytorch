@@ -506,241 +506,296 @@ if __name__ == "__main__":
                           n_iter_no_change=None, presort='auto',
                           random_state=None, subsample=1.0, tol=0.0001,
                           validation_fraction=0.1, verbose=0, warm_start=False)
-    param_grid = {
-        'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
-        'learning_rate': [0.05, 0.1, 0.2],
-        'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
-        'max_features':['sqrt','log2',None],
-        'subsample':[0.8,0.9,1],
-        'max_depth':[11,13,15,17,19],
-        'min_samples_leaf':[10,12,14,16,18],
-    }
-    model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
-    model.fit(stat_train,filter_label_train)
-    prediction=model.predict(stat_val)
-    c=mean_absolute_error(filter_label_val,prediction)
-    print(c)
-
-    truth = np.argsort(-np.array(filter_label_val))
-    prediction_argsort=np.argsort(-prediction)
-    for j in [0.2,0.3,0.4,0.5]:
-        print('j:'+str(j))
-        truth_top1000 = truth[:int(truth.shape[0] *j)]
-        for i in range(10,200,50):
-            print(i)
-            if i>=truth_top1000.shape[0]:
-                continue
-            prediction_top=prediction_argsort[:i]
-            # truth_top1000 = truth[:i]
-            sum=0
-            for k in prediction_top:
-                if k in truth_top1000:
-                    sum+=1
-            print(sum/i)
-        print('-----------------------------------------------------')
-    from sklearn.feature_selection import RFE
-    for i in range(5,13):
-        print(i)
-        fs=RFE(estimator=ensemble.GradientBoostingRegressor(n_estimators=100),n_features_to_select=7)
-        fs.fit(stat_train,filter_label_train)
-        print(fs.support_)
-        print(fs.ranking_)
-        print(mean_absolute_error(filter_label_val,fs.predict(stat_val)))
+    # param_grid = {
+    #     'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
+    #     'learning_rate': [0.05, 0.1, 0.2],
+    #     'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
+    #     'max_features':['sqrt','log2',None],
+    #     'subsample':[0.8,0.9,1],
+    #     'max_depth':[11,13,15,17,19],
+    #     'min_samples_leaf':[10,12,14,16,18],
+    # }
 
 
+    n_estimators= [50,100,500,1000,1200]#[100* i for i in range(1, 10, 2)],
+    learning_rate= [0.05, 0.1, 0.2]
+    min_samples_split=[0.007,0.005,0.004,0.003,0.002]
+    max_features=['sqrt','log2',None]
+    subsample=[0.8,0.9,1]
+    max_depth=[11,13,15,17,19]
+    min_samples_leaf=[10,12,14,16,18]
 
-    print('瞎jb猜',end='')
-    prediction=np.random.random(size=stat_val.shape[0])
-    c=mean_absolute_error(filter_label_val,prediction)
-    print(c)
-    #分类#################################################################################################################################################
+    min_comb=list()
+    small_comb=list()
+    min_loss=100
+    for n_e in n_estimators:
+        for lr in learning_rate:
+            for mss in min_samples_split:
+                for mf in max_features:
+                    for subsam in subsample:
+                        for md in max_depth:
+                            for msl in min_samples_leaf:
+                                model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse',
+                                                                           init=None,
+                                                                           learning_rate=lr, loss='ls', max_depth=md,
+                                                                           max_features=mf, max_leaf_nodes=None,
+                                                                           min_impurity_decrease=0.0,
+                                                                           min_impurity_split=None,
+                                                                           min_samples_leaf=msl, min_samples_split=mss,
+                                                                           min_weight_fraction_leaf=0.0,
+                                                                           n_estimators=n_e,
+                                                                           n_iter_no_change=None, presort='auto',
+                                                                           random_state=None, subsample=subsam, tol=0.0001,
+                                                                           validation_fraction=0.1, verbose=0,
+                                                                           warm_start=False)
 
-    df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='./最少样本测试/训练集')
-    df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='.)/最少样本测试/测试集')
+                                print(n_e,lr,mss,mf,subsam,md,msl)
 
-    #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
+                                # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
+                                model.fit(stat_train,filter_label_train)
 
-    #df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent3/dead_neural',neural_dead_times=1200)
-    _,min_max_scaler,scaler,pca=statistics(df+lf,layer=df_layer+lf_layer,balance_channel=True)
+                                prediction=model.predict(stat_val)
+                                loss=mean_absolute_error(filter_label_val,prediction)
+                                print('loss:{}'.format(loss))
+                                if loss<0.2:
+                                    small_comb.append([n_e,lr,mss,mf,subsam,md,msl])
+                                if loss<min_loss:
+                                    min_comb=[n_e,lr,mss,mf,subsam,md,msl]
+                                    min_loss=loss
 
-    stat_df,_,_,_=statistics(df,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer,pca=pca)
-    stat_lf,_,_,_=statistics(lf,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer,pca=pca)#,data_num=stat_df.shape[0])
-    stat_df_val,_,_,_=statistics(df_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val,pca=pca)
-    stat_lf_val,_,_,_=statistics(lf_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer_val,pca=pca)
+                                truth = np.argsort(-np.array(filter_label_val))
+                                prediction_argsort=np.argsort(-prediction)
+                                i = int(truth.shape[0] * 0.1)
+                                print(i)
+                                for j in [0.2,0.3,0.4,0.5]:
+                                    print('j:'+str(j))
+                                    truth_top1000 = truth[:int(truth.shape[0] *j)]
 
-    # test,_,_,_=statistics(df_val+lf_val,min_max_scaler=min_max_scaler,balance_channel=False,layer=df_layer_val+lf_layer_val)
+                                    if i>=truth_top1000.shape[0]:
+                                        continue
+                                    prediction_top=prediction_argsort[:i]
+                                    # truth_top1000 = truth[:i]
+                                    sum=0
+                                    for k in prediction_top:
+                                        if k in truth_top1000:
+                                            sum+=1
+                                    print(sum/i)
+                                print('-----------------------------------------------------')
 
-    # mean_df=np.mean(stat_df,axis=0)
-    # mean_lf=np.mean(stat_lf,axis=0)
+
+    print('min_comb:{},loss:{}'.format(min_comb,min_loss))
+    print('small_comb:{}'.format(small_comb))
+
+
+
+
+
+
+
+
+    # from sklearn.feature_selection import RFE
+    # for i in range(5,13):
+    #     print(i)
+    #     fs=RFE(estimator=ensemble.GradientBoostingRegressor(n_estimators=100),n_features_to_select=7)
+    #     fs.fit(stat_train,filter_label_train)
+    #     print(fs.support_)
+    #     print(fs.ranking_)
+    #     print(mean_absolute_error(filter_label_val,fs.predict(stat_val)))
     #
-    # norm_dead=np.linalg.norm(test-mean_df,ord=2,axis=1)
-    # norm_lived=np.linalg.norm(test-mean_lf,ord=2,axis=1)
-
-
-    # tmp1=stat_df.tolist()
-    # tmp1.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
-    # tmp2=stat_lf.tolist()
-    # tmp2.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
-    # operate_excel.write_excel(tmp1,'./test.xlsx',0,bool_row_append=False)
-    # operate_excel.write_excel(tmp2,'./test.xlsx',1,bool_row_append=False)
-
-    train_x = np.vstack((stat_df, stat_lf))  # dead filters are in the front
-    train_y = np.zeros(train_x.shape[0])
-    train_y[:stat_df.shape[0]]=1
-
-    val_x=np.vstack((stat_df_val,stat_lf_val))
-    val_y=np.zeros(val_x.shape[0],dtype=np.int)
-    val_y[:stat_df_val.shape[0]]=1
-
-    ### GBDT(Gradient Boosting Decision Tree) Classifier
-    from sklearn.ensemble import GradientBoostingClassifier
-    print('GradientBoostingClassifier')
-    clf = GradientBoostingClassifier(n_estimators=200)
-    clf.fit(train_x, train_y)
-    prediction=clf.predict(val_x)
-    print(classification_report(val_y, prediction))
-
-    ###AdaBoost Classifier
-    from sklearn.ensemble import AdaBoostClassifier
-    print('AdaBoost')
-    clf = AdaBoostClassifier()
-    clf.fit(train_x, train_y)
-    prediction=clf.predict(val_x)
-    print(classification_report(val_y, prediction))
-
-    ### Random Forest Classifier
-    from sklearn.ensemble import RandomForestClassifier
-    print('RandomForest')
-    clf = RandomForestClassifier(n_estimators=8)
-    clf.fit(train_x, train_y)
-    prediction = clf.predict(val_x)
-    print(classification_report(val_y, prediction))
-
-    ### KNN Classifier
-    from sklearn.neighbors import KNeighborsClassifier
-    print('KNN')
-    clf = KNeighborsClassifier()
-    clf.fit(train_x, train_y)
-    prediction = clf.predict(val_x)
-    print(classification_report(val_y, prediction))
-
-    ### Multinomial Naive Bayes Classifier
-    from sklearn.naive_bayes import MultinomialNB
-    print('Multinomial Naive Bayes Classifier')
-    clf = MultinomialNB(alpha=0.01)
-    clf.fit(train_x, train_y)
-    prediction = clf.predict(val_x)
-    print(classification_report(val_y, prediction))
-
-
-    ####svm ##########################################################################################################
-    svc=svm.SVC(kernel='rbf',class_weight='balanced',C=1)
-    param_grid = {
-        #'C': [2 ** i for i in range(-5, 15, 2)],
-        'gamma': [2 ** i for i in range(3, -15, -2)],
-    }
-
-    customize_score={'cm':make_scorer(dead_filter_metric,greater_is_better=True)}
-    clf = GridSearchCV(svc, param_grid, scoring='f1', n_jobs=-1, cv=5)
-
-    clf.fit(train_x,train_y)
-    # val_x1, _ ,_= statistics(df_val+lf_val, min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val+lf_layer_val)
-    prediction=clf.predict(val_x)
-
-    f_score,precision,recall=cal_F_score(prediction,val_y)
-    print('svm:f_score:{},precision:{},recall:{}'.format(f_score,precision,recall))
-
-    print(clf.best_estimator_)
-    print(classification_report(val_y,prediction))
-
-    ##logistic regression######################################################################################################
-    logistic_regression=LogisticRegressionCV(class_weight='balanced',max_iter=1000,cv=3,Cs=[1, 10,100,1000])
-    re=logistic_regression.fit(train_x,train_y)
-    prediction=re.predict_proba(val_x)
-    prediction=np.argmax(prediction,1)
-    #acc=np.sum(np.argmax(prediction,1)==val_y)/val_y.shape[0]
-    f_score,precision,recall=cal_F_score(prediction,val_y)
-    res=classification_report(y_true=val_y,y_pred=prediction,target_names=['lived filter','dead filter'])
-    print(res)
-    print('logistic regression:f_score:{},precision:{},recall:{}'.format(f_score,precision,recall))
-
-
-    ###neural network##########################################################################################################
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    LR=0.01
-    net = fc().to(device)
-    optimizer = torch.optim.SGD(net.parameters(), lr=LR)
-
-    #optimizer=optim.Adam(net.parameters())
-    #loss_func = nn.CrossEntropyLoss(weight=torch.Tensor([1,0.1601118217]))
-    loss_func = nn.CrossEntropyLoss()
-
-    sample_num=int(stat_df.shape[0]/2)                                                                      #random choose same number of samples from lf and df
-
-    #all training data
-    x_tensor = torch.tensor(train_x, dtype=torch.float32).to(device)
-
-
-    #validation data
-    val_x_tensor=torch.tensor(val_x,dtype=torch.float32).to(device)
-    val_y_tensor=torch.tensor(val_y,dtype=torch.long).to(device)
-
-
-    #prepare the label for training
-    train_y=np.zeros(2*sample_num,dtype=np.int)
-    train_y[:sample_num]=1                                                                                  #dead filter's label is 1
-    y_tensor = torch.tensor(train_y, dtype=torch.long).to(device)
-
-    epoch=-1
-    highest_accuracy = 0
-
-
-    #load previous trained model(optional)
-    # checkpoint=torch.load('/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=0.72553.tar')
-    # net.load_state_dict(checkpoint['state_dict'])
-    while True:
-        epoch+=1
-        ind_df=random.sample([i for i in range(stat_df.shape[0])],sample_num)
-        ind_lf=random.sample([i for i in range(stat_df.shape[0],train_x.shape[0])],sample_num)
-        ind=torch.tensor(ind_df+ind_lf,dtype=torch.long).to(device)
-
-        net.train()
-
-
-        optimizer.zero_grad()
-        output = net(torch.index_select(input=x_tensor,dim=0,index=ind))
-        loss = loss_func(output,y_tensor)
-        loss.backward()
-        optimizer.step()
-        if epoch%1000==0:
-            print("{} epoch:{},   loss is:{}".format(datetime.now(),epoch,loss))
-
-        if epoch%10000==0 :
-            net.eval()
-            output=net(val_x_tensor)
-            prediction=torch.argmax(output,1)
-            correct=(prediction==val_y_tensor).sum().float()
-            acc=correct.cpu().detach().data.numpy()/val_y_tensor.shape[0]
-            print( '{} accuracy is {}'.format(datetime.now(),acc))
-            f_score, precision, recall = cal_F_score(prediction.cpu().data.numpy(), val_y)
-            print('fc:f_score:{},precision:{},recall:{}'.format(f_score, precision, recall))
-            if acc>highest_accuracy:
-                highest_accuracy=acc
-                if highest_accuracy>0.7:
-                    print("{} Saving net...".format(datetime.now()))
-                    checkpoint = {'net': net,
-                                  'highest_accuracy': acc,
-                                  'state_dict': net.state_dict(),
-                                  }
-                    # torch.save(checkpoint,
-                    #            '/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=%.5f.tar' % (acc))
-                    print("{} net saved ".format(datetime.now()))
-
-
-            
-
-
-
-
-
+    #
+    #
+    # print('瞎jb猜',end='')
+    # prediction=np.random.random(size=stat_val.shape[0])
+    # c=mean_absolute_error(filter_label_val,prediction)
+    # print(c)
+    # #分类#################################################################################################################################################
+    #
+    # df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='./最少样本测试/训练集')
+    # df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='.)/最少样本测试/测试集')
+    #
+    # #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
+    #
+    # #df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent3/dead_neural',neural_dead_times=1200)
+    # _,min_max_scaler,scaler,pca=statistics(df+lf,layer=df_layer+lf_layer,balance_channel=True)
+    #
+    # stat_df,_,_,_=statistics(df,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer,pca=pca)
+    # stat_lf,_,_,_=statistics(lf,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer,pca=pca)#,data_num=stat_df.shape[0])
+    # stat_df_val,_,_,_=statistics(df_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val,pca=pca)
+    # stat_lf_val,_,_,_=statistics(lf_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer_val,pca=pca)
+    #
+    # # test,_,_,_=statistics(df_val+lf_val,min_max_scaler=min_max_scaler,balance_channel=False,layer=df_layer_val+lf_layer_val)
+    #
+    # # mean_df=np.mean(stat_df,axis=0)
+    # # mean_lf=np.mean(stat_lf,axis=0)
+    # #
+    # # norm_dead=np.linalg.norm(test-mean_df,ord=2,axis=1)
+    # # norm_lived=np.linalg.norm(test-mean_lf,ord=2,axis=1)
+    #
+    #
+    # # tmp1=stat_df.tolist()
+    # # tmp1.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
+    # # tmp2=stat_lf.tolist()
+    # # tmp2.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
+    # # operate_excel.write_excel(tmp1,'./test.xlsx',0,bool_row_append=False)
+    # # operate_excel.write_excel(tmp2,'./test.xlsx',1,bool_row_append=False)
+    #
+    # train_x = np.vstack((stat_df, stat_lf))  # dead filters are in the front
+    # train_y = np.zeros(train_x.shape[0])
+    # train_y[:stat_df.shape[0]]=1
+    #
+    # val_x=np.vstack((stat_df_val,stat_lf_val))
+    # val_y=np.zeros(val_x.shape[0],dtype=np.int)
+    # val_y[:stat_df_val.shape[0]]=1
+    #
+    # ### GBDT(Gradient Boosting Decision Tree) Classifier
+    # from sklearn.ensemble import GradientBoostingClassifier
+    # print('GradientBoostingClassifier')
+    # clf = GradientBoostingClassifier(n_estimators=200)
+    # clf.fit(train_x, train_y)
+    # prediction=clf.predict(val_x)
+    # print(classification_report(val_y, prediction))
+    #
+    # ###AdaBoost Classifier
+    # from sklearn.ensemble import AdaBoostClassifier
+    # print('AdaBoost')
+    # clf = AdaBoostClassifier()
+    # clf.fit(train_x, train_y)
+    # prediction=clf.predict(val_x)
+    # print(classification_report(val_y, prediction))
+    #
+    # ### Random Forest Classifier
+    # from sklearn.ensemble import RandomForestClassifier
+    # print('RandomForest')
+    # clf = RandomForestClassifier(n_estimators=8)
+    # clf.fit(train_x, train_y)
+    # prediction = clf.predict(val_x)
+    # print(classification_report(val_y, prediction))
+    #
+    # ### KNN Classifier
+    # from sklearn.neighbors import KNeighborsClassifier
+    # print('KNN')
+    # clf = KNeighborsClassifier()
+    # clf.fit(train_x, train_y)
+    # prediction = clf.predict(val_x)
+    # print(classification_report(val_y, prediction))
+    #
+    # ### Multinomial Naive Bayes Classifier
+    # from sklearn.naive_bayes import MultinomialNB
+    # print('Multinomial Naive Bayes Classifier')
+    # clf = MultinomialNB(alpha=0.01)
+    # clf.fit(train_x, train_y)
+    # prediction = clf.predict(val_x)
+    # print(classification_report(val_y, prediction))
+    #
+    #
+    # ####svm ##########################################################################################################
+    # svc=svm.SVC(kernel='rbf',class_weight='balanced',C=1)
+    # param_grid = {
+    #     #'C': [2 ** i for i in range(-5, 15, 2)],
+    #     'gamma': [2 ** i for i in range(3, -15, -2)],
+    # }
+    #
+    # customize_score={'cm':make_scorer(dead_filter_metric,greater_is_better=True)}
+    # clf = GridSearchCV(svc, param_grid, scoring='f1', n_jobs=-1, cv=5)
+    #
+    # clf.fit(train_x,train_y)
+    # # val_x1, _ ,_= statistics(df_val+lf_val, min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val+lf_layer_val)
+    # prediction=clf.predict(val_x)
+    #
+    # f_score,precision,recall=cal_F_score(prediction,val_y)
+    # print('svm:f_score:{},precision:{},recall:{}'.format(f_score,precision,recall))
+    #
+    # print(clf.best_estimator_)
+    # print(classification_report(val_y,prediction))
+    #
+    # ##logistic regression######################################################################################################
+    # logistic_regression=LogisticRegressionCV(class_weight='balanced',max_iter=1000,cv=3,Cs=[1, 10,100,1000])
+    # re=logistic_regression.fit(train_x,train_y)
+    # prediction=re.predict_proba(val_x)
+    # prediction=np.argmax(prediction,1)
+    # #acc=np.sum(np.argmax(prediction,1)==val_y)/val_y.shape[0]
+    # f_score,precision,recall=cal_F_score(prediction,val_y)
+    # res=classification_report(y_true=val_y,y_pred=prediction,target_names=['lived filter','dead filter'])
+    # print(res)
+    # print('logistic regression:f_score:{},precision:{},recall:{}'.format(f_score,precision,recall))
+    #
+    #
+    # ###neural network##########################################################################################################
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #
+    # LR=0.01
+    # net = fc().to(device)
+    # optimizer = torch.optim.SGD(net.parameters(), lr=LR)
+    #
+    # #optimizer=optim.Adam(net.parameters())
+    # #loss_func = nn.CrossEntropyLoss(weight=torch.Tensor([1,0.1601118217]))
+    # loss_func = nn.CrossEntropyLoss()
+    #
+    # sample_num=int(stat_df.shape[0]/2)                                                                      #random choose same number of samples from lf and df
+    #
+    # #all training data
+    # x_tensor = torch.tensor(train_x, dtype=torch.float32).to(device)
+    #
+    #
+    # #validation data
+    # val_x_tensor=torch.tensor(val_x,dtype=torch.float32).to(device)
+    # val_y_tensor=torch.tensor(val_y,dtype=torch.long).to(device)
+    #
+    #
+    # #prepare the label for training
+    # train_y=np.zeros(2*sample_num,dtype=np.int)
+    # train_y[:sample_num]=1                                                                                  #dead filter's label is 1
+    # y_tensor = torch.tensor(train_y, dtype=torch.long).to(device)
+    #
+    # epoch=-1
+    # highest_accuracy = 0
+    #
+    #
+    # #load previous trained model(optional)
+    # # checkpoint=torch.load('/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=0.72553.tar')
+    # # net.load_state_dict(checkpoint['state_dict'])
+    # while True:
+    #     epoch+=1
+    #     ind_df=random.sample([i for i in range(stat_df.shape[0])],sample_num)
+    #     ind_lf=random.sample([i for i in range(stat_df.shape[0],train_x.shape[0])],sample_num)
+    #     ind=torch.tensor(ind_df+ind_lf,dtype=torch.long).to(device)
+    #
+    #     net.train()
+    #
+    #
+    #     optimizer.zero_grad()
+    #     output = net(torch.index_select(input=x_tensor,dim=0,index=ind))
+    #     loss = loss_func(output,y_tensor)
+    #     loss.backward()
+    #     optimizer.step()
+    #     if epoch%1000==0:
+    #         print("{} epoch:{},   loss is:{}".format(datetime.now(),epoch,loss))
+    #
+    #     if epoch%10000==0 :
+    #         net.eval()
+    #         output=net(val_x_tensor)
+    #         prediction=torch.argmax(output,1)
+    #         correct=(prediction==val_y_tensor).sum().float()
+    #         acc=correct.cpu().detach().data.numpy()/val_y_tensor.shape[0]
+    #         print( '{} accuracy is {}'.format(datetime.now(),acc))
+    #         f_score, precision, recall = cal_F_score(prediction.cpu().data.numpy(), val_y)
+    #         print('fc:f_score:{},precision:{},recall:{}'.format(f_score, precision, recall))
+    #         if acc>highest_accuracy:
+    #             highest_accuracy=acc
+    #             if highest_accuracy>0.7:
+    #                 print("{} Saving net...".format(datetime.now()))
+    #                 checkpoint = {'net': net,
+    #                               'highest_accuracy': acc,
+    #                               'state_dict': net.state_dict(),
+    #                               }
+    #                 # torch.save(checkpoint,
+    #                 #            '/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=%.5f.tar' % (acc))
+    #                 print("{} net saved ".format(datetime.now()))
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
