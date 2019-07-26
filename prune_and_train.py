@@ -182,13 +182,7 @@ def prune_inactive_neural_with_regressor(net,
                         filter.append(weight)
                     filter_layer += [i for j in range(conv_weight.shape[0])]
 
-                    # ensure the number of filters pruned will not be too large for one time
-                    if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
-                        dead_filter_index[i] = dead_filter_index[i][
-                                               :int(filter_num[i] * max_filters_pruned_for_one_time)]
-                    # ensure the lower bound of filter number
-                    if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
-                        dead_filter_index[i] = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
+
                     i += 1
         else:
             dead_filter_index=evaluate.find_useless_filters_regressor_version(net=net,
@@ -199,6 +193,14 @@ def prune_inactive_neural_with_regressor(net,
         net_compressed = False
         #prune the network according to dead_filter_index
         for i in range(num_conv):
+            # ensure the number of filters pruned will not be too large for one time
+            if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
+                dead_filter_index[i] = dead_filter_index[i][
+                                       :int(filter_num[i] * max_filters_pruned_for_one_time)]
+            # ensure the lower bound of filter number
+            if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
+                dead_filter_index[i] = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
+
             filter_num[i] = filter_num[i] - len(dead_filter_index[i])
             if len(dead_filter_index[i]) > 0:
                 net_compressed = True
@@ -1354,11 +1356,11 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
     
     prune_inactive_neural_with_regressor(net=net,
-                                         net_name='vgg16bn_cifar10_inactive_regressor_testRun3',
+                                         net_name='vgg16bn_cifar10_inactive_regressor_testRun4',
                                          prune_rate=0.1,
                                          dataset_name='cifar10',
                                          filter_preserve_ratio=0.1,
-                                         max_filters_pruned_for_one_time=0.3,
+                                         max_filters_pruned_for_one_time=0.1,
                                          target_accuracy=0.933,
                                          tar_acc_gradual_decent=True,
                                          flop_expected=5e7,
