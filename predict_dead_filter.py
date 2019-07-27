@@ -533,8 +533,8 @@ if __name__ == "__main__":
     model.fit(stat_train, filter_label_train)
 
     for i in range(13):
-        stat_sample=stat_train[np.argwhere(np.array(filter_layer_train)==i)]
-        sample_label=np.array(filter_label_train)[np.argwhere(np.array(filter_layer_train)==i)]
+        stat_sample=stat_train[np.where(np.array(filter_layer_train)==0)[0]]
+        sample_label=np.array(filter_label_train)[np.where(np.array(filter_layer_train)==0)[0]]
 
         prediction = model.predict(stat_sample)
         loss = mean_absolute_error(sample_label, prediction)
