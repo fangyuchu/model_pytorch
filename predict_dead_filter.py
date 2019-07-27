@@ -108,84 +108,7 @@ def trimmed_mean(filter,p):
     filter=filter[min_ind:max_ind]
     return np.mean(filter)
 
-def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=None,scaler=None,pca=None):
-    '''
 
-    :param filters:
-    :param layer: layer index of the filter
-    :param balance_channel: boolean, whether sample same number of filters in each bin of channel
-    :param min_max_scaler:
-    :param data_num: total number of filters used for the data returned
-    :param scaler:
-    :return:
-    '''
-    feature_num=22
-    stat=np.zeros(shape=[len(filters),feature_num],dtype=np.float)
-    for i in range(len(filters)):
-        stat[i][0]=np.mean(filters[i])                                  #均值
-        stat[i][1]=trimmed_mean(filters[i],0.2)                         #截断均值（p=0.2）
-        stat[i][2]=np.median(filters[i])                                #中位数
-        stat[i][3]=filters[i].max()-filters[i].min()                    #极差
-        stat[i][4]=(filters[i].max()+filters[i].min())/2                #中列数(max+min)/2
-        stat[i][5]=np.percentile(filters[i],25)                         #第一四分位数
-        stat[i][6]=np.percentile(filters[i],75)                         #第三四分位数
-        stat[i][7]=stat[i][6]-stat[i][5]                                #四分位数极差
-        stat[i][8]=np.std(filters[i])                                   #标准差
-        stat[i][9]=filters[i].max()                                     #最大值
-        stat[i][10]=filters[i].min()                                    #最小值
-        stat[i][11]=filters[i].shape[0]                                 #通道数
-        stat[i][12]=layer[i]                                            #哪一层
-        stat[i][13:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
-
-
-
-    # #标准化
-    # if scaler is None:
-    #     scaler=preprocessing.StandardScaler().fit(stat)
-    #     stat=scaler.transform(stat)
-    # else:
-    #     stat = scaler.transform(stat)
-
-    if min_max_scaler is None:
-        #归一化
-        min_max_scaler=preprocessing.MinMaxScaler().fit(stat)
-        stat=min_max_scaler.transform(stat)
-    else:
-        stat=min_max_scaler.transform(stat)
-
-    # stat_copy = copy.deepcopy(stat) - np.mean(stat, axis=0)
-    # val, vec = np.linalg.eig(np.matmul(stat_copy.T, stat_copy))
-    #
-    # tmp = -np.sort(-val)
-    # if pca is None:
-    #     pca=PCA(n_components=15)
-    #     pca.fit(stat)
-    #     pca.transform(stat)
-    # else:
-    #     pca.transform(stat)
-
-    if balance_channel is True:
-        stat = stat[np.argsort(stat[:, 11])]
-        bin = np.histogram(stat[:, 11])[0]
-        channel_num_list = bin[bin > 0]
-
-        if data_num is None:
-            sample_num = min(channel_num_list)
-        else:
-            sample_num = int(min(data_num/channel_num_list.shape[0],min(channel_num_list)))
-
-        stat_returned=np.zeros(shape=[sample_num*(len(channel_num_list)),feature_num],dtype=np.float)
-        s=0
-        for i in range(len(channel_num_list)):
-            ind=random.sample([j for j in range(s,s+channel_num_list[i])], sample_num)
-            s+=channel_num_list[i]
-            stat_returned[i*sample_num:(i+1)*sample_num]=stat[ind]
-        stat=stat_returned
-
-    #stat=preprocessing.scale(stat)
-
-
-    return stat,min_max_scaler,scaler,pca
 
 def cal_F_score(prediction,label,beta=1):
     '''
@@ -415,6 +338,106 @@ def dead_filter_metric(label,prediction):
 
     return f_score
 
+def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=None,scaler=None,pca=None):
+    '''
+
+    :param filters:
+    :param layer: layer index of the filter
+    :param balance_channel: boolean, whether sample same number of filters in each bin of channel
+    :param min_max_scaler:
+    :param data_num: total number of filters used for the data returned
+    :param scaler:
+    :return:
+    '''
+    feature_num=24
+    stat=np.zeros(shape=[len(filters),feature_num],dtype=np.float)
+    for i in range(len(filters)):
+        # stat[i][0]=np.mean(filters[i])                                  #均值
+        # stat[i][1]=trimmed_mean(filters[i],0.2)                         #截断均值（p=0.2）
+        # stat[i][2]=np.median(filters[i])                                #中位数
+        # stat[i][3]=filters[i].max()-filters[i].min()                    #极差
+        # stat[i][4]=(filters[i].max()+filters[i].min())/2                #中列数(max+min)/2
+        # stat[i][5]=np.percentile(filters[i],25)                         #第一四分位数
+        # stat[i][6]=np.percentile(filters[i],75)                         #第三四分位数
+        # stat[i][7]=stat[i][6]-stat[i][5]                                #四分位数极差
+        # stat[i][8]=np.std(filters[i])                                   #标准差
+        # stat[i][9]=filters[i].max()                                     #最大值
+        # stat[i][10]=filters[i].min()                                    #最小值
+        # stat[i][11]=filters[i].shape[0]                                 #通道数
+        # stat[i][12]=layer[i]                                            #哪一层
+        # stat[i][13:22]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
+        # stat[i][22]=np.sum(filters[i])                                  #求和
+        # stat[i][23]=np.sum(np.abs(filters[i]))                          #绝对值求和
+
+        stat[i][0]=filters[i].shape[0]                                 #通道数
+        stat[i][1]=layer[i]                                            #哪一层
+        stat[i][2]=np.sum(np.abs(filters[i]))                          #绝对值求和
+        stat[i][3]=np.sum(filters[i])                                  #求和
+        stat[i][4]=filters[i].max()-filters[i].min()                    #极差
+        stat[i][5]=filters[i].max()                                     #最大值
+        stat[i][6]=stat[i][6]-stat[i][5]                                #四分位数极差
+        stat[i][7]=np.std(filters[i])                                   #标准差
+        stat[i][8]=np.percentile(filters[i],25)                         #第一四分位数
+        stat[i][9]=filters[i].min()                                    #最小值
+        stat[i][10]=np.percentile(filters[i],75)                         #第三四分位数
+        stat[i][11]=np.mean(filters[i])                                  #均值
+        stat[i][12]=np.median(filters[i])                                #中位数
+        stat[i][13]=(filters[i].max()+filters[i].min())/2                #中列数(max+min)/2
+        stat[i][14:23]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
+        stat[i][23]=trimmed_mean(filters[i],0.2)                         #截断均值（p=0.2）
+
+
+
+
+
+    # #标准化
+    # if scaler is None:
+    #     scaler=preprocessing.StandardScaler().fit(stat)
+    #     stat=scaler.transform(stat)
+    # else:
+    #     stat = scaler.transform(stat)
+
+    if min_max_scaler is None:
+        #归一化
+        min_max_scaler=preprocessing.MinMaxScaler().fit(stat)
+        stat=min_max_scaler.transform(stat)
+    else:
+        stat=min_max_scaler.transform(stat)
+
+    # stat_copy = copy.deepcopy(stat) - np.mean(stat, axis=0)
+    # val, vec = np.linalg.eig(np.matmul(stat_copy.T, stat_copy))
+    #
+    # tmp = -np.sort(-val)
+    # if pca is None:
+    #     pca=PCA(n_components=15)
+    #     pca.fit(stat)
+    #     pca.transform(stat)
+    # else:
+    #     pca.transform(stat)
+
+    if balance_channel is True:
+        stat = stat[np.argsort(stat[:, 11])]
+        bin = np.histogram(stat[:, 11])[0]
+        channel_num_list = bin[bin > 0]
+
+        if data_num is None:
+            sample_num = min(channel_num_list)
+        else:
+            sample_num = int(min(data_num/channel_num_list.shape[0],min(channel_num_list)))
+
+        stat_returned=np.zeros(shape=[sample_num*(len(channel_num_list)),feature_num],dtype=np.float)
+        s=0
+        for i in range(len(channel_num_list)):
+            ind=random.sample([j for j in range(s,s+channel_num_list[i])], sample_num)
+            s+=channel_num_list[i]
+            stat_returned[i*sample_num:(i+1)*sample_num]=stat[ind]
+        stat=stat_returned
+
+    #stat=preprocessing.scale(stat)
+
+
+    return stat,min_max_scaler,scaler,pca
+
 if __name__ == "__main__":
     # import sklearn
     # print(sorted(sklearn.metrics.SCORERS.keys()))
@@ -422,6 +445,9 @@ if __name__ == "__main__":
     #回归#################################################################################################################################################
     filter_train,filter_label_train,filter_layer_train=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/训练集')
     filter_val,filter_label_val,filter_layer_val=read_data(batch_size=1600,regression_or_classification='regression',path='./最少样本测试/测试集')
+
+
+
 
     #汇至cdf和pdf##################################################################################################
     # for i in range(13):
@@ -442,6 +468,17 @@ if __name__ == "__main__":
     _, min_max_scaler, scaler, pca = statistics(filter_train, layer=filter_layer_train, balance_channel=False)
     stat_train,_,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
     stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
+
+    # from sklearn.feature_selection import VarianceThreshold
+    #
+    # # 方差选择法，返回值为特征选择后的数据
+    # # 参数threshold为方差的阈值
+    # vt=VarianceThreshold(threshold=0.0005)
+    # vt.fit_transform(stat_train)
+    # print(vt._get_support_mask())
+    #
+    # var=np.std(stat_train,axis=0)
+    # np.argsort(-var)
 
 
     #
@@ -475,6 +512,41 @@ if __name__ == "__main__":
     # c=mean_absolute_error(filter_label_val,prediction)
     # print(c)
 
+    from sklearn import ensemble
+    print('随机森林',end='')
+    model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=11,
+                      max_features=None, max_leaf_nodes=None,
+                      min_impurity_decrease=0.0, min_impurity_split=None,
+                      min_samples_leaf=4, min_samples_split=0.001,
+                      min_weight_fraction_leaf=0.0, n_estimators=1000,
+                      n_jobs=None, oob_score=False, random_state=None,
+                      verbose=0, warm_start=False)
+    param_grid = {
+        # 'n_estimators': [50,100,500,1000],#[100* i for i in range(1, 10, 2)],
+        # 'min_samples_split':[0.005,0.003,0.002,0.001],
+        # 'max_features':['sqrt','log2',None],
+        # 'max_depth':[3,7,11,],
+        # 'min_samples_leaf':[4,6,8,10,12,14,16,18],
+        # 'max_leaf_nodes':[None,2,4,6,8,10]
+    }
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=3)
+    model.fit(stat_train, filter_label_train)
+
+    for i in range(13):
+        stat_sample=stat_train[np.argwhere(np.array(filter_layer_train)==i)]
+        sample_label=np.array(filter_label_train)[np.argwhere(np.array(filter_layer_train)==i)]
+
+        prediction = model.predict(stat_sample)
+        loss = mean_absolute_error(sample_label, prediction)
+        print('{},loss:{}'.format(i,loss))
+
+
+    prediction = model.predict(stat_val)
+    loss = mean_absolute_error(filter_label_val, prediction)
+    print('loss:{}'.format(loss))
+    # print(model.best_estimator_)
+
+
     # 7.GBRT回归
     from sklearn import ensemble
     print('GBRT',end='')
@@ -506,6 +578,12 @@ if __name__ == "__main__":
                           n_iter_no_change=None, presort='auto',
                           random_state=None, subsample=1.0, tol=0.0001,
                           validation_fraction=0.1, verbose=0, warm_start=False)
+
+    model.fit(stat_train, filter_label_train)
+
+    prediction = model.predict(stat_val)
+    loss = mean_absolute_error(filter_label_val, prediction)
+    print('loss:{}'.format(loss))
     # param_grid = {
     #     'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
     #     'learning_rate': [0.05, 0.1, 0.2],

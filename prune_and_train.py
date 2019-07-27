@@ -1356,13 +1356,13 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
     
     prune_inactive_neural_with_regressor(net=net,
-                                         net_name='vgg16bn_cifar10_inactive_regressor_testRun4',
+                                         net_name='vgg16bn_cifar10_inactive_regressor_testRun2',
                                          prune_rate=0.1,
                                          dataset_name='cifar10',
                                          filter_preserve_ratio=0.1,
                                          max_filters_pruned_for_one_time=0.1,
-                                         target_accuracy=0.933,
-                                         tar_acc_gradual_decent=True,
+                                         target_accuracy=0.932,
+                                         tar_acc_gradual_decent=False,
                                          flop_expected=5e7,
                                          batch_size=1600,
                                          num_epoch=450,
