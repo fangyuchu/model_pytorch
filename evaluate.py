@@ -316,6 +316,8 @@ def find_useless_filters_data_version(net,
                                                                      num_workers=2,
                                                                      dataset_name=dataset_name,
                                                                      )
+            if neural_dead_times is None and dead_or_inactive is 'inactive':
+                neural_dead_times=validation_set_size
             module_list,neural_list=check_ReLU_alive(net=net,data_loader=validation_loader,neural_dead_times=neural_dead_times)
 
     num_conv = 0  # num of conv layers in the net
