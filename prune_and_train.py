@@ -219,7 +219,7 @@ def prune_inactive_neural_with_regressor(net,
 
         if tar_acc_gradual_decent is True:  # decent the target_accuracy
             flop_reduced = flop_original_net - flop_pruned_net
-            target_accuracy = original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected)
+            target_accuracy =min(original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected),0.935)
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
         success = False
@@ -1356,13 +1356,13 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
     
     prune_inactive_neural_with_regressor(net=net,
-                                         net_name='vgg16bn_cifar10_realdata_regressor',
+                                         net_name='vgg16bn_cifar10_realdata_regressor2',
                                          prune_rate=0.1,
                                          dataset_name='cifar10',
                                          filter_preserve_ratio=0.1,
                                          max_filters_pruned_for_one_time=0.1,
                                          target_accuracy=0.932,
-                                         tar_acc_gradual_decent=False,
+                                         tar_acc_gradual_decent=True,
                                          flop_expected=5e7,
                                          batch_size=1600,
                                          num_epoch=450,
