@@ -6,7 +6,7 @@ import re
 import logger
 import datetime
 
-def vgg_cifar10(net_name='vgg16_bn',pretrained=True,model_path='/home/victorfang/Desktop/vgg16_bn_cifar10,accuracy=0.941.tar'):
+def vgg_cifar10(net_name='vgg16_bn',pretrained=True,model_path='./baseline/vgg16_bn_cifar10,accuracy=0.941.tar'):
     if pretrained:
         checkpoint = torch.load(model_path)
         net = checkpoint['net']

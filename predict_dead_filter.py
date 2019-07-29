@@ -48,8 +48,9 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
             neural_list=checkpoint['neural_list']
             module_list=checkpoint['module_list']
             if regression_or_classification is 'classification':
-                neural_dead_times=checkpoint['neural_dead_times']
-                filter_dead_ratio=checkpoint['filter_dead_ratio']
+                # neural_dead_times=checkpoint['neural_dead_times']
+                neural_dead_times=1500
+                filter_prediction=checkpoint['filter_prediction']
             if batch_size is None:
                 batch_size=checkpoint['batch_size']
 
@@ -74,7 +75,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                             dead_times[dead_times<neural_dead_times]=0
                             dead_times[dead_times>=neural_dead_times]=1
                             dead_times=np.sum(dead_times,axis=(1,2))            #count the number of dead neural for one filter
-                            dead_filter_index=np.where(dead_times>neural_num*filter_dead_ratio)[0].tolist()
+                            dead_filter_index=np.where(dead_times>neural_num*filter_prediction)[0].tolist()
                             living_filter_index=[i for i in range(filter_num[i]) if i not in dead_filter_index]
 
                             for ind in dead_filter_index:
@@ -86,10 +87,10 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                         else:
                             #compute sum(dead_times)/(batch_size*neural_num) as label for each filter
                             dead_times=np.sum(dead_times,axis=(1,2))
-                            dead_ratio=dead_times/(neural_num*batch_size)
+                            prediction=dead_times/(neural_num*batch_size)
                             for f in filter_weight:
                                 filter.append(f)
-                            filter_label+=dead_ratio.tolist()
+                            filter_label+=prediction.tolist()
                             filter_layer+=[i for j in range(filter_weight.shape[0])]
 
     if regression_or_classification is 'classification' and balance is True:
@@ -416,8 +417,8 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
     #     pca.transform(stat)
 
     if balance_channel is True:
-        stat = stat[np.argsort(stat[:, 11])]
-        bin = np.histogram(stat[:, 11])[0]
+        stat = stat[np.argsort(stat[:, 0])]
+        bin = np.histogram(stat[:, 0])[0]
         channel_num_list = bin[bin > 0]
 
         if data_num is None:
@@ -465,9 +466,9 @@ if __name__ == "__main__":
 
 
 
-    _, min_max_scaler, scaler, pca = statistics(filter_train, layer=filter_layer_train, balance_channel=False)
-    stat_train,_,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
-    stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,pca=pca)
+    # _, min_max_scaler, scaler, pca = statistics(filter_train, layer=filter_layer_train, balance_channel=False)
+    stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
+    stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
 
     # from sklearn.feature_selection import VarianceThreshold
     #
@@ -481,19 +482,7 @@ if __name__ == "__main__":
     # np.argsort(-var)
 
 
-    #
-    # from sklearn import svm
-    # print('svm',end='')
-    # model=svm.SVR(kernel='rbf')
-    # # param_grid = {
-    # #     'C': [2 ** i for i in range(-5, 15, 2)],
-    # #     'gamma': [2 ** i for i in range(3, -15, -2)],
-    # # }
-    # # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
-    # model.fit(stat_train,filter_label_train)
-    # prediction=model.predict(stat_val)
-    # c=mean_absolute_error(filter_label_val,prediction)
-    # print(c)
+
     #
     #
     # from sklearn import ensemble
@@ -514,27 +503,141 @@ if __name__ == "__main__":
 
     from sklearn import ensemble
     print('随机森林',end='')
-    model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=11,
-                      max_features=None, max_leaf_nodes=None,
+    model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=50,
+                      max_features='sqrt', max_leaf_nodes=None,
                       min_impurity_decrease=0.0, min_impurity_split=None,
                       min_samples_leaf=4, min_samples_split=0.001,
-                      min_weight_fraction_leaf=0.0, n_estimators=1000,
+                      min_weight_fraction_leaf=0.0, n_estimators=100,
                       n_jobs=None, oob_score=False, random_state=None,
                       verbose=0, warm_start=False)
     param_grid = {
         # 'n_estimators': [50,100,500,1000],#[100* i for i in range(1, 10, 2)],
         # 'min_samples_split':[0.005,0.003,0.002,0.001],
         # 'max_features':['sqrt','log2',None],
-        # 'max_depth':[3,7,11,],
+         #'max_depth':[i*10+10 for i in range(11)],
         # 'min_samples_leaf':[4,6,8,10,12,14,16,18],
         # 'max_leaf_nodes':[None,2,4,6,8,10]
+        #'min_weight_fraction_leaf':[0.001,0],
+        'n_estimators': range(10, 101, 10)
     }
-    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=3)
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
+
+
+
+    # test_arg=random.sample([i for i in range(stat_train.shape[0])],1000)
+    # train_arg=[i for i in range(stat_train.shape[0]) if i not in test_arg]
+    #
+    # filter_label_train=np.array(filter_label_train)
+    #
+    # model.fit(stat_train[train_arg], filter_label_train[train_arg])
+    # print(model.best_estimator_)
+    #
+    #
+    # prediction = model.predict(stat_train[test_arg])
+    # loss = mean_absolute_error(filter_label_train[test_arg], prediction)
+    # print('loss:{}'.format( loss))
+    # print(mean_absolute_error(filter_label_train[train_arg], model.predict(stat_train[train_arg])))
+
     model.fit(stat_train, filter_label_train)
 
+    # print(model.best_estimator_)
+    # print(model.oob_score_)
+
+    prediction = model.predict(stat_val)
+    loss = mean_absolute_error(filter_label_val, prediction)
+
+
+    ########测试预测的在每一层上的准确率大概是多少
+    import create_net
+    net=create_net.vgg_cifar10()
+    inactive_filter_rate=0.1
+
+    filter_layer=list()
+    filter = list()
+    filter_index=list()
+    num_conv = 0
+    for mod in net.modules():
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            conv_weight = mod.weight.cpu().detach().numpy()
+            for weight in conv_weight:
+                filter.append(weight)
+            filter_layer += [num_conv for j in range(conv_weight.shape[0])]
+            filter_index += [j for j in range(conv_weight.shape[0])]
+            num_conv+=1
+
+    inactive_rank = np.argsort(-np.array(prediction))[:int(
+        inactive_filter_rate * len(prediction))]  # arg for top inactive_filter_rate*100% of inactive filters
+    inactive_filter_index = np.array(filter_index)[inactive_rank]
+    inactive_filter_layer = np.array(filter_layer)[inactive_rank]
+    useless_filter_index_predict = list()
+    for i in range(num_conv):
+        useless_filter_index_predict.append(inactive_filter_index[np.where(inactive_filter_layer == i)])
+
+
+
+    net=create_net.vgg_cifar10()
+    inactive_filter_rate=0.1
+
+    filter_layer=list()
+    filter = list()
+    filter_index=list()
+    num_conv = 0
+    for mod in net.modules():
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            conv_weight = mod.weight.cpu().detach().numpy()
+            for weight in conv_weight:
+                filter.append(weight)
+            filter_layer += [num_conv for j in range(conv_weight.shape[0])]
+            filter_index += [j for j in range(conv_weight.shape[0])]
+            num_conv+=1
+
+    inactive_rank = np.argsort(-np.array(filter_label_val))[:int(
+        inactive_filter_rate * len(filter_label_val))]  # arg for top inactive_filter_rate*100% of inactive filters
+    inactive_filter_index = np.array(filter_index)[inactive_rank]
+    inactive_filter_layer = np.array(filter_layer)[inactive_rank]
+    useless_filter_index = list()
+    for i in range(num_conv):
+        useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer == i)])
+
+
+
+
+
+
+
+
+
+
+    print('loss:{}'.format(loss))
+    truth = np.argsort(-np.array(filter_label_val))
+    prediction_argsort = np.argsort(-prediction)
+    i = int(truth.shape[0] * 0.1)
+    print(i)
+    for j in [0.2, 0.3, 0.4, 0.5]:
+        print('j:' + str(j))
+        truth_top1000 = truth[:int(truth.shape[0] * j)]
+
+        if i >= truth_top1000.shape[0]:
+            continue
+        prediction_top = prediction_argsort[:i]
+        # truth_top1000 = truth[:i]
+        sum = 0
+        for k in prediction_top:
+            if k in truth_top1000:
+                sum += 1
+        print(sum / i)
+
+    # prediction = model.predict(stat_train[test_arg])
+    # loss = mean_absolute_error(filter_label_train[test_arg], prediction)
+    # print('loss:{}'.format( loss))
+    # print(mean_absolute_error(filter_label_train[train_arg], model.predict(stat_train[train_arg])))
+
+
+
+
     for i in range(13):
-        stat_sample=stat_train[np.where(np.array(filter_layer_train)==0)[0]]
-        sample_label=np.array(filter_label_train)[np.where(np.array(filter_layer_train)==0)[0]]
+        stat_sample=stat_train[np.where(np.array(filter_layer_train)==i)[0]]
+        sample_label=np.array(filter_label_train)[np.where(np.array(filter_layer_train)==i)[0]]
 
         prediction = model.predict(stat_sample)
         loss = mean_absolute_error(sample_label, prediction)
@@ -545,6 +648,8 @@ if __name__ == "__main__":
     loss = mean_absolute_error(filter_label_val, prediction)
     print('loss:{}'.format(loss))
     # print(model.best_estimator_)
+
+
 
 
     # 7.GBRT回归
@@ -686,18 +791,18 @@ if __name__ == "__main__":
     # prediction=np.random.random(size=stat_val.shape[0])
     # c=mean_absolute_error(filter_label_val,prediction)
     # print(c)
-    # #分类#################################################################################################################################################
-    #
+    #分类#################################################################################################################################################
+
     # df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='./最少样本测试/训练集')
-    # df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='.)/最少样本测试/测试集')
+    # df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='./最少样本测试/测试集')
     #
     # #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
     #
     # #df_val,lf_val=read_data(balance=True,path='/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent3/dead_neural',neural_dead_times=1200)
-    # _,min_max_scaler,scaler,pca=statistics(df+lf,layer=df_layer+lf_layer,balance_channel=True)
+    # _,min_max_scaler,scaler,pca=statistics(df+lf,layer=df_layer+lf_layer,balance_channel=False)
     #
-    # stat_df,_,_,_=statistics(df,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer,pca=pca)
-    # stat_lf,_,_,_=statistics(lf,balance_channel=True,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer,pca=pca)#,data_num=stat_df.shape[0])
+    # stat_df,_,_,_=statistics(df,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer,pca=pca)
+    # stat_lf,_,_,_=statistics(lf,balance_channel=False,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer,pca=pca)#,data_num=stat_df.shape[0])
     # stat_df_val,_,_,_=statistics(df_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=df_layer_val,pca=pca)
     # stat_lf_val,_,_,_=statistics(lf_val,min_max_scaler=min_max_scaler,scaler=scaler,layer=lf_layer_val,pca=pca)
     #
@@ -728,9 +833,32 @@ if __name__ == "__main__":
     # ### GBDT(Gradient Boosting Decision Tree) Classifier
     # from sklearn.ensemble import GradientBoostingClassifier
     # print('GradientBoostingClassifier')
-    # clf = GradientBoostingClassifier(n_estimators=200)
-    # clf.fit(train_x, train_y)
-    # prediction=clf.predict(val_x)
+    #
+    # model=GradientBoostingClassifier(criterion='friedman_mse', init=None,
+    #                        learning_rate=0.05, loss='deviance', max_depth=15,
+    #                        max_features=None, max_leaf_nodes=None,
+    #                        min_impurity_decrease=0.0, min_impurity_split=None,
+    #                        min_samples_leaf=1, min_samples_split=2,
+    #                        min_weight_fraction_leaf=0.0, n_estimators=500,
+    #                        n_iter_no_change=None, presort='auto',
+    #                        random_state=None, subsample=1.0, tol=0.0001,
+    #                        validation_fraction=0.1, verbose=0,
+    #                        warm_start=False)
+    #
+    # param_grid = {
+    #     'n_estimators': [50,100,500,1000],#[100* i for i in range(1, 10, 2)],
+    #     'learning_rate': [0.05, 0.1, 0.2],
+    #     # 'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
+    #     # 'max_features':['sqrt','log2',None],
+    #     # 'subsample':[0.8,0.9,1],
+    #     'max_depth':[3,5,15,25,35,45,55],
+    #     # 'min_samples_leaf':[10,12,14,16,18],
+    # }
+    #
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
+    # model.fit(train_x, train_y)
+    # print(model.best_estimator_)
+    # prediction=model.predict(val_x)
     # print(classification_report(val_y, prediction))
     #
     # ###AdaBoost Classifier
@@ -869,11 +997,11 @@ if __name__ == "__main__":
     #                 # torch.save(checkpoint,
     #                 #            '/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=%.5f.tar' % (acc))
     #                 print("{} net saved ".format(datetime.now()))
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
+
+
+
+
+
+
+
+
