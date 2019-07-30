@@ -998,7 +998,7 @@ def prune_filters_randomly(net,
 
         if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
             flop_reduced=flop_original_net-flop_pruned_net
-            target_accuracy=original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected)
+            target_accuracy=min(0.935,original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected))
             print('{} current target accuracy:{}'.format(datetime.now(),target_accuracy))
 
         success=False
@@ -1365,20 +1365,20 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
     
     prune_inactive_neural_with_regressor(net=net,
-                                         net_name='tmp',
+                                         net_name='vgg16bn_cifar10_realdata_regressor2',
                                          prune_rate=0.1,
                                          load_regressor=False,
                                          dataset_name='cifar10',
                                          filter_preserve_ratio=0.15,
-                                         max_filters_pruned_for_one_time=0.12,
+                                         max_filters_pruned_for_one_time=0.11,
                                          target_accuracy=0.932,
                                          tar_acc_gradual_decent=True,
                                          flop_expected=5e7,
-                                         batch_size=300,
+                                         batch_size=1600,
                                          num_epoch=450,
-                                         checkpoint_step=300,
+                                         checkpoint_step=3000,
                                          use_random_data=False,
-                                         round_for_train=1,
+                                         round_for_train=2,
                                          # optimizer=optim.Adam,
                                          # learning_rate=1e-3,
                                          # weight_decay=0
