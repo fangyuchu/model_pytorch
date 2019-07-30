@@ -30,7 +30,7 @@ def prune_inactive_neural_with_regressor(net,
                                      net_name,
                                      target_accuracy,
                                      prune_rate,
-                                     predictor_name='gradient_boosting',
+                                     predictor_name='random_forest',
                                      round_for_train=2,
                                      tar_acc_gradual_decent=False,
                                      flop_expected=None,
@@ -71,7 +71,7 @@ def prune_inactive_neural_with_regressor(net,
     :param checkpoint_step: 
     :param num_epoch: 
     :param filter_preserve_ratio: 
-    :param max_filters_pruned_for_one_time: 
+    :param max_filters_pruned_for_one_time: should be slightly larger than prune_rate
     :param learning_rate_decay: 
     :param learning_rate_decay_factor: 
     :param weight_decay: 
@@ -187,7 +187,8 @@ def prune_inactive_neural_with_regressor(net,
         else:
             dead_filter_index=evaluate.find_useless_filters_regressor_version(net=net,
                                                                                predictor=predictor,
-                                                                              inactive_filter_rate=prune_rate
+                                                                              inactive_filter_rate=prune_rate,
+                                                                              max_filters_pruned_for_one_time=max_filters_pruned_for_one_time
                                                                                )
 
         net_compressed = False
@@ -1356,11 +1357,11 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
     
     prune_inactive_neural_with_regressor(net=net,
-                                         net_name='vgg16bn_cifar10_realdata_regressor2',
+                                         net_name='vgg16bn_cifar10_realdata_regressor',
                                          prune_rate=0.1,
                                          dataset_name='cifar10',
-                                         filter_preserve_ratio=0.1,
-                                         max_filters_pruned_for_one_time=0.1,
+                                         filter_preserve_ratio=0.15,
+                                         max_filters_pruned_for_one_time=0.12,
                                          target_accuracy=0.932,
                                          tar_acc_gradual_decent=True,
                                          flop_expected=5e7,

@@ -221,11 +221,12 @@ def predict_dead_filters_classifier_version(net,
 def find_useless_filters_regressor_version(net,
                                            predictor,
                                            inactive_filter_rate,
-                                           
+                                           max_filters_pruned_for_one_time
                                            ):
-    filter_layer=list()
+    filter_layer=list()                                                                 #list containing layer of the filters corresponding to filter_index
     filter = list()
-    filter_index=list()
+    filter_index=list()                                                                 #index of filters in their own conv
+    max_num_filters_pruned_layerwise=list()                                             #upperbound of number of filters to prune
     num_conv = 0
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
@@ -234,17 +235,29 @@ def find_useless_filters_regressor_version(net,
                 filter.append(weight)
             filter_layer += [num_conv for j in range(conv_weight.shape[0])]
             filter_index += [j for j in range(conv_weight.shape[0])]
+            max_num_filters_pruned_layerwise.append(int(conv_weight.shape[0]*max_filters_pruned_for_one_time))
             num_conv+=1
 
     dead_ratio=predictor.predict(filter=filter,filter_layer=filter_layer)
 
-    inactive_rank = np.argsort(-np.array(dead_ratio))[:int(
-        inactive_filter_rate * len(dead_ratio))]  # arg for top inactive_filter_rate*100% of inactive filters
+    inactive_rank = np.argsort(-np.array(dead_ratio))                         # arg for most inactive filters
     inactive_filter_index = np.array(filter_index)[inactive_rank]
     inactive_filter_layer = np.array(filter_layer)[inactive_rank]
-    useless_filter_index=list()
-    for i in range(num_conv):
-        useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer == i)])
+    useless_filter_index=[[] for i in range(num_conv)]
+    num_selected_filters=0
+    num_filters_to_select=inactive_filter_rate*len(dead_ratio)
+    for i in range(inactive_filter_index.shape[0]) :
+        layer=inactive_filter_layer[i]
+        if len(useless_filter_index[layer])>=max_num_filters_pruned_layerwise[layer]:
+            continue                                                         #eunsure that num of filters pruned for each layer will not be too large
+        useless_filter_index[layer].append(inactive_filter_index[i])
+        num_selected_filters+=1
+        if num_selected_filters>num_filters_to_select:
+            break
+
+
+    # for i in range(num_conv):
+    #     useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer == i)])
 
     return useless_filter_index
 

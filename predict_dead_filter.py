@@ -260,13 +260,21 @@ class predictor:
                           n_iter_no_change=None, presort='auto',
                           random_state=None, subsample=1.0, tol=0.0001,
                           validation_fraction=0.1, verbose=0, warm_start=False)
-
+        elif name is 'random_forest':
+            self.regressor=ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
+                      max_features='sqrt', max_leaf_nodes=None,
+                      min_impurity_decrease=0.0, min_impurity_split=None,
+                      min_samples_leaf=50, min_samples_split=0.001,
+                      min_weight_fraction_leaf=0.0, n_estimators=1000,
+                      n_jobs=-1, oob_score=False, random_state=None,
+                      verbose=0, warm_start=False)
 
     def fit(self, filter,filter_layer, filter_label,):
         stat,self.min_max_scaler,_,_=statistics(filters=filter,layer=filter_layer,balance_channel=False)
         if self.name is 'gradient_boosting':
             self.regressor.fit(stat,filter_label)
-
+        if self.name is 'random_forest':
+            self.regressor.fit(stat, filter_label)
 
     # def predict_proba(self,filter):
     #     x,_=statistics(filter,min_max_scaler=self.min_max_scaler)
@@ -555,19 +563,20 @@ if __name__ == "__main__":
     prediction_argsort = np.argsort(-prediction)
     i = int(truth.shape[0] * 0.1)
     print(i)
-    for j in [0.2, 0.3, 0.4, 0.5]:
-        print('j:' + str(j))
-        truth_top1000 = truth[:int(truth.shape[0] * j)]
+    for j in [0.1,0.2, 0.3, 0.4, 0.5]:
+        truth_top = truth[:int(truth.shape[0] * j)]
 
-        if i >= truth_top1000.shape[0]:
+        if i > truth_top.shape[0]:
             continue
+        print('前' + str(j*100)+'%的准确率:',end='')
         prediction_top = prediction_argsort[:i]
-        # truth_top1000 = truth[:i]
+        # truth_top = truth[:i]
         sum = 0
         for k in prediction_top:
-            if k in truth_top1000:
+            if k in truth_top:
                 sum += 1
         print(sum / i)
+        sum=0
 
     # prediction = model.predict(stat_train[test_arg])
     # loss = mean_absolute_error(filter_label_train[test_arg], prediction)
@@ -694,15 +703,15 @@ if __name__ == "__main__":
                                 print(i)
                                 for j in [0.2,0.3,0.4,0.5]:
                                     print('j:'+str(j))
-                                    truth_top1000 = truth[:int(truth.shape[0] *j)]
+                                    truth_top = truth[:int(truth.shape[0] *j)]
 
-                                    if i>=truth_top1000.shape[0]:
+                                    if i>=truth_top.shape[0]:
                                         continue
                                     prediction_top=prediction_argsort[:i]
-                                    # truth_top1000 = truth[:i]
+                                    # truth_top = truth[:i]
                                     sum=0
                                     for k in prediction_top:
-                                        if k in truth_top1000:
+                                        if k in truth_top:
                                             sum+=1
                                     print(sum/i)
                                 print('-----------------------------------------------------')
