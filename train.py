@@ -167,17 +167,6 @@ def train(
             net=checkpoint['net']
             net.load_state_dict(checkpoint['state_dict'])
             sample_num = checkpoint['sample_num']
-    # else:
-    #     print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
-    #     accuracy=evaluate.evaluate_net(net,validation_loader,
-    #                                    save_net=True,
-    #                                    checkpoint_path=checkpoint_path,
-    #                                    sample_num=sample_num,
-    #                                    target_accuracy=target_accuracy)
-    #     if accuracy >= target_accuracy:
-    #         print('{} net reached target accuracy.'.format(datetime.now()))
-    #         return
-
 
     if test_net:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint

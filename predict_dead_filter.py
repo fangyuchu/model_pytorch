@@ -20,6 +20,8 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import make_scorer
 from sklearn import ensemble
 import matplotlib.pyplot as plt
+from sklearn.externals import joblib
+
 
 
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
@@ -285,6 +287,11 @@ class predictor:
         stat, _, _, _ = statistics(filters=filter, layer=filter_layer, balance_channel=False,min_max_scaler=self.min_max_scaler)
         return self.regressor.predict(stat)
 
+    def save(self,path):
+        joblib.dump(self.regressor,os.path.join(path,self.name+'.m'))
+
+    def load(self,path):
+        self.regressor=joblib.load(os.path.join(path,self.name+'.m'))
 
 # class predictor:
 #     def __init__(self, name,**kargs):

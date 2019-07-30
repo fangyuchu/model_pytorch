@@ -26,58 +26,62 @@ import copy
 import predict_dead_filter
 from sklearn.linear_model import LogisticRegressionCV
 import resnet_copied
+from sklearn.externals import joblib
+
 def prune_inactive_neural_with_regressor(net,
-                                     net_name,
-                                     target_accuracy,
-                                     prune_rate,
-                                     predictor_name='random_forest',
-                                     round_for_train=2,
-                                     tar_acc_gradual_decent=False,
-                                     flop_expected=None,
-                                     dataset_name='imagenet',
-                                     use_random_data=False,
-                                     validation_loader=None,
-                                     batch_size=conf.batch_size,
-                                     num_workers=conf.num_workers,
-                                     optimizer=optim.Adam,
-                                     learning_rate=0.01,
-                                     checkpoint_step=1000,
-                                     num_epoch=450,
-                                     filter_preserve_ratio=0.3,
-                                     max_filters_pruned_for_one_time=0.5,
-                                     learning_rate_decay=False,
-                                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                                     weight_decay=conf.weight_decay,
-                                     learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-                                     **kwargs
+                                         net_name,
+                                         target_accuracy,
+                                         prune_rate,
+                                         load_regressor=False,
+                                         predictor_name='random_forest',
+                                         round_for_train=2,
+                                         tar_acc_gradual_decent=False,
+                                         flop_expected=None,
+                                         dataset_name='imagenet',
+                                         use_random_data=False,
+                                         validation_loader=None,
+                                         batch_size=conf.batch_size,
+                                         num_workers=conf.num_workers,
+                                         optimizer=optim.Adam,
+                                         learning_rate=0.01,
+                                         checkpoint_step=1000,
+                                         num_epoch=450,
+                                         filter_preserve_ratio=0.3,
+                                         max_filters_pruned_for_one_time=0.5,
+                                         learning_rate_decay=False,
+                                         learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                                         weight_decay=conf.weight_decay,
+                                         learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                                         **kwargs
                                      ):
     '''
-    
-    :param net: 
-    :param net_name: 
-    :param target_accuracy: 
-    :param prune_rate: 
-    :param predictor_name: 
-    :param round_for_train: 
-    :param tar_acc_gradual_decent: 
-    :param flop_expected: 
-    :param dataset_name: 
-    :param use_random_data: 
-    :param validation_loader: 
-    :param batch_size: 
-    :param num_workers: 
-    :param optimizer: 
-    :param learning_rate: 
-    :param checkpoint_step: 
-    :param num_epoch: 
-    :param filter_preserve_ratio: 
+
+    :param net:
+    :param net_name:
+    :param target_accuracy:
+    :param prune_rate:
+    :param load_regressor:
+    :param predictor_name:
+    :param round_for_train:
+    :param tar_acc_gradual_decent:
+    :param flop_expected:
+    :param dataset_name:
+    :param use_random_data:
+    :param validation_loader:
+    :param batch_size:
+    :param num_workers:
+    :param optimizer:
+    :param learning_rate:
+    :param checkpoint_step:
+    :param num_epoch:
+    :param filter_preserve_ratio:
     :param max_filters_pruned_for_one_time: should be slightly larger than prune_rate
-    :param learning_rate_decay: 
-    :param learning_rate_decay_factor: 
-    :param weight_decay: 
-    :param learning_rate_decay_epoch: 
-    :param kwargs: 
-    :return: 
+    :param learning_rate_decay:
+    :param learning_rate_decay_factor:
+    :param weight_decay:
+    :param learning_rate_decay_epoch:
+    :param kwargs:
+    :return:
     '''
     # save the output to log
     print('save log in:' + conf.root_path + net_name + '/log.txt')
@@ -92,6 +96,7 @@ def prune_inactive_neural_with_regressor(net,
         'target_accuracy:{}\n' 
         'prune_rate:{}\n' 
         'predictor_name:{}\n' 
+        'load_regressor:{}\n'
         'round_for_train:{}\n' 
         'tar_acc_gradual_decent:{}\n' 
         'flop_expected:{}\n' 
@@ -111,7 +116,7 @@ def prune_inactive_neural_with_regressor(net,
         'weight_decay:{}\n' 
         'learning_rate_decay_epoch:{}\n'
 
-          .format(net, net_name, target_accuracy, prune_rate,predictor_name,round_for_train,tar_acc_gradual_decent,
+          .format(net, net_name, target_accuracy, prune_rate,predictor_name,load_regressor,round_for_train,tar_acc_gradual_decent,
                   flop_expected,dataset_name,use_random_data,validation_loader,batch_size,num_workers,optimizer,learning_rate,
                   checkpoint_step,num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
                   weight_decay,learning_rate_decay_epoch))
@@ -151,6 +156,10 @@ def prune_inactive_neural_with_regressor(net,
     filter=list()
     filter_layer=list()
     dead_ratio=list()
+    predictor = predict_dead_filter.predictor(name=predictor_name, **kwargs)
+    if load_regressor is True:
+        round_for_train=-1
+        predictor.load(path=conf.root_path + net_name)
     #using data to prune the network for (round_for_train)rounds
     round = 0
     while True:
@@ -158,12 +167,11 @@ def prune_inactive_neural_with_regressor(net,
         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
 
         if round==round_for_train+1:
-            # use filters from (round_for_train)rounds to train the classifier
+            # use filters from (round_for_train)rounds to train the regressor
 
             ##train the predictor######################################################################################################
-            predictor=predict_dead_filter.predictor(name=predictor_name,**kwargs)
             predictor.fit(filter=filter,filter_layer=filter_layer,filter_label=dead_ratio)
-
+            predictor.save(path=conf.root_path + net_name)
         if round<=round_for_train:
 
             dead_filter_index, module_list, neural_list, dead_ratio_tmp = evaluate.find_useless_filters_data_version(net=net,
