@@ -273,6 +273,7 @@ class predictor:
 
     def fit(self, filter,filter_layer, filter_label,):
         stat,self.min_max_scaler,_,_=statistics(filters=filter,layer=filter_layer,balance_channel=False)
+        print('training the regressor')
         if self.name is 'gradient_boosting':
             self.regressor.fit(stat,filter_label)
         if self.name is 'random_forest':
@@ -288,9 +289,11 @@ class predictor:
         return self.regressor.predict(stat)
 
     def save(self,path):
+        print('save regressor in:'+os.path.join(path,self.name+'.m'))
         joblib.dump(self.regressor,os.path.join(path,self.name+'.m'))
 
     def load(self,path):
+        print('load regressor from'+os.path.join(path,self.name+'.m'))
         self.regressor=joblib.load(os.path.join(path,self.name+'.m'))
 
 # class predictor:
