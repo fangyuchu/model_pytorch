@@ -232,26 +232,26 @@ def prune_inactive_neural_with_regressor(net,
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
         success = False
-        # while not success:
-        #     old_net = copy.deepcopy(net)
-        #     success = train.train(net=net,
-        #                           net_name=net_name,
-        #                           num_epochs=num_epoch,
-        #                           target_accuracy=target_accuracy,
-        #                           learning_rate=learning_rate,
-        #                           load_net=False,
-        #                           checkpoint_step=checkpoint_step,
-        #                           dataset_name=dataset_name,
-        #                           optimizer=optimizer,
-        #                           batch_size=batch_size,
-        #                           learning_rate_decay=learning_rate_decay,
-        #                           learning_rate_decay_factor=learning_rate_decay_factor,
-        #                           weight_decay=weight_decay,
-        #                           learning_rate_decay_epoch=learning_rate_decay_epoch,
-        #                           test_net=True,
-        #                           )
-        #     if not success:
-        #         net = old_net
+        while not success:
+            old_net = copy.deepcopy(net)
+            success = train.train(net=net,
+                                  net_name=net_name,
+                                  num_epochs=num_epoch,
+                                  target_accuracy=target_accuracy,
+                                  learning_rate=learning_rate,
+                                  load_net=False,
+                                  checkpoint_step=checkpoint_step,
+                                  dataset_name=dataset_name,
+                                  optimizer=optimizer,
+                                  batch_size=batch_size,
+                                  learning_rate_decay=learning_rate_decay,
+                                  learning_rate_decay_factor=learning_rate_decay_factor,
+                                  weight_decay=weight_decay,
+                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                  test_net=True,
+                                  )
+            if not success:
+                net = old_net
 
 
 def prune_dead_neural_with_classifier(net,
@@ -1365,7 +1365,7 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
     
     prune_inactive_neural_with_regressor(net=net,
-                                         net_name='vgg16bn_cifar10_realdata_regressor2',
+                                         net_name='vgg16bn_cifar10_realdata_regressor3',
                                          prune_rate=0.1,
                                          load_regressor=False,
                                          dataset_name='cifar10',
@@ -1378,7 +1378,7 @@ if __name__ == "__main__":
                                          num_epoch=450,
                                          checkpoint_step=3000,
                                          use_random_data=False,
-                                         round_for_train=2,
+                                         round_for_train=3,
                                          # optimizer=optim.Adam,
                                          # learning_rate=1e-3,
                                          # weight_decay=0
