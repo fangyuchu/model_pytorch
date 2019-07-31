@@ -1620,7 +1620,7 @@ if __name__ == "__main__":
     #                       learning_rate_decay_factor=0.5,
     # )
     prune_inactive_neural_with_regressor_resnet(net=net,
-                                         net_name='resnet56_inactive_realdata_regressor',
+                                         net_name='tmp',
                                          prune_rate=0.06,
                                          load_regressor=False,
                                          dataset_name='cifar10',
@@ -1629,7 +1629,7 @@ if __name__ == "__main__":
                                          target_accuracy=0.93,
                                          tar_acc_gradual_decent=True,
                                          flop_expected=4e7,
-                                         batch_size=600,
+                                         batch_size=1000,
                                          num_epoch=450,
                                          checkpoint_step=3000,
                                          use_random_data=False,

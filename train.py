@@ -180,8 +180,8 @@ def train(
             return success
 
     #ensure the net will be evaluated despite the inappropriate checkpoint_step
-    if checkpoint_step>int(train_set_size/batch_size):
-        checkpoint_step=int(train_set_size/batch_size)
+    if checkpoint_step>math.ceil(train_set_size/batch_size)-1:
+        checkpoint_step=math.ceil(train_set_size/batch_size)-1
 
     print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
