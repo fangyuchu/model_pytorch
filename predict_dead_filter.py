@@ -21,7 +21,7 @@ from sklearn.metrics import make_scorer
 from sklearn import ensemble
 import matplotlib.pyplot as plt
 from sklearn.externals import joblib
-
+import encoder
 
 
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
@@ -488,6 +488,16 @@ if __name__ == "__main__":
     stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
     stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
 
+
+    ##use auto_encoder to extract features################################################################################################
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    auto_encoder = encoder.AutoEncoder().to(device)
+    checkpoint = torch.load('./auto_encoder.tar')
+    auto_encoder.load_state_dict(checkpoint['state_dict'])
+    stat_train,_=auto_encoder.extract_feature(filters=filter_train)
+    stat_val,_=auto_encoder.extract_feature(filters=filter_val)
+
+
     # from sklearn.feature_selection import VarianceThreshold
     #
     # # 方差选择法，返回值为特征选择后的数据
@@ -500,29 +510,17 @@ if __name__ == "__main__":
     # np.argsort(-var)
 
 
-
-    #
-    #
-    # from sklearn import ensemble
-    # print('bagging',end='')
-    # model=ensemble.BaggingRegressor()
-    # model.fit(stat_train,filter_label_train)
-    # prediction=model.predict(stat_val)
-    # c=mean_absolute_error(filter_label_val,prediction)
-    # print(c)
-    #
-    # from sklearn import ensemble
-    # print('adaboost',end='')
-    # model = ensemble.AdaBoostRegressor(n_estimators=100)  # 这里使用50个决策树
-    # model.fit(stat_train,filter_label_train)
-    # prediction=model.predict(stat_val)
-    # c=mean_absolute_error(filter_label_val,prediction)
-    # print(c)
-
     from sklearn import ensemble
-    print('???')
     print('随机森林')
-
+    # for manual features
+    # model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
+    #                   max_features='sqrt', max_leaf_nodes=None,
+    #                   min_impurity_decrease=0.0, min_impurity_split=None,
+    #                   min_samples_leaf=50, min_samples_split=0.001,
+    #                   min_weight_fraction_leaf=0.0, n_estimators=1000,
+    #                   n_jobs=-1, oob_score=False, random_state=None,
+    #                   verbose=0, warm_start=False)
+    # for auto encoder
     model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
                       max_features='sqrt', max_leaf_nodes=None,
                       min_impurity_decrease=0.0, min_impurity_split=None,
@@ -530,38 +528,22 @@ if __name__ == "__main__":
                       min_weight_fraction_leaf=0.0, n_estimators=1000,
                       n_jobs=-1, oob_score=False, random_state=None,
                       verbose=0, warm_start=False)
+
     param_grid = {
         # 'n_estimators': [50,100,500,1000],#[100* i for i in range(1, 10, 2)],
         # 'min_samples_split':[0.005,0.003,0.002,0.001],
         # 'max_features':['sqrt','log2',None],
-         #'max_depth':[i*10+10 for i in range(11)],
+         'max_depth':[i*10+5 for i in range(2)],
         'min_samples_leaf':range(10,101,40),
         # 'max_leaf_nodes':[None,2,4,6,8,10]
         #'min_weight_fraction_leaf':[0.001,0],
         # 'n_estimators': range(10, 101, 10)
     }
-    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
-
-
-
-    # test_arg=random.sample([i for i in range(stat_train.shape[0])],1000)
-    # train_arg=[i for i in range(stat_train.shape[0]) if i not in test_arg]
-    #
-    # filter_label_train=np.array(filter_label_train)
-    #
-    # model.fit(stat_train[train_arg], filter_label_train[train_arg])
-    # print(model.best_estimator_)
-    #
-    #
-    # prediction = model.predict(stat_train[test_arg])
-    # loss = mean_absolute_error(filter_label_train[test_arg], prediction)
-    # print('loss:{}'.format( loss))
-    # print(mean_absolute_error(filter_label_train[train_arg], model.predict(stat_train[train_arg])))
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=4, cv=8)
 
     model.fit(stat_train, filter_label_train)
 
     # print(model.best_estimator_)
-    # print(model.oob_score_)
 
     prediction = model.predict(stat_val)
     loss = mean_absolute_error(filter_label_val, prediction)
@@ -587,14 +569,6 @@ if __name__ == "__main__":
                 sum += 1
         print(sum / i)
         sum=0
-
-    # prediction = model.predict(stat_train[test_arg])
-    # loss = mean_absolute_error(filter_label_train[test_arg], prediction)
-    # print('loss:{}'.format( loss))
-    # print(mean_absolute_error(filter_label_train[train_arg], model.predict(stat_train[train_arg])))
-
-
-
 
     for i in range(13):
         stat_sample=stat_train[np.where(np.array(filter_layer_train)==i)[0]]
