@@ -111,7 +111,8 @@ def evaluate_net(  net,
                    save_net,
                    checkpoint_path=None,
                    sample_num=0,
-                   target_accuracy=1
+                   target_accuracy=1,
+                   dataset_name='cifar10'
                    ):
     '''
     :param net: net of NN
@@ -123,6 +124,7 @@ def evaluate_net(  net,
     :param sample_num: sample num of the current trained net
     :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
     '''
+    flop_num=measure_flops.measure_model(net=net,dataset_name=dataset_name)
     if save_net:
         if checkpoint_path is None :
             raise AttributeError('please input checkpoint path')
@@ -133,13 +135,14 @@ def evaluate_net(  net,
             lists.sort(key=lambda fn: os.path.getmtime(checkpoint_path + "/" + fn))  # 按时间排序
             file_new = os.path.join(checkpoint_path, lists[-1])  # 获取最新的文件保存到file_new
 
-
         if os.path.isfile(file_new):
             checkpoint=torch.load(file_new)
             highest_accuracy = checkpoint['highest_accuracy']
+            flop_num_old=checkpoint['flop_num']
+            if flop_num!=flop_num_old:
+                highest_accuracy=0
         else:
             highest_accuracy=0
-
 
     print("{} Start Evaluation".format(datetime.now()))
     print("{} sample num = {}".format(datetime.now(), sample_num))
@@ -152,8 +155,9 @@ def evaluate_net(  net,
         checkpoint={'net':net,
                     'highest_accuracy':accuracy,
                     'state_dict':net.state_dict(),
-                    'sample_num':sample_num}
-        torch.save(checkpoint,'%s/sample_num=%d,accuracy=%.5f.tar' % (checkpoint_path, sample_num,accuracy))
+                    'sample_num':sample_num,
+                    'flop_num':flop_num}
+        torch.save(checkpoint,'%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num,accuracy))
         print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
 
     return accuracy

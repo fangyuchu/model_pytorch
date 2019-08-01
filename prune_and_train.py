@@ -1619,7 +1619,8 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
+    # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
+    checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
 
     net = resnet_copied.resnet56().to(device)
     # net=checkpoint['net']
@@ -1675,29 +1676,29 @@ if __name__ == "__main__":
     #                       learning_rate_decay_factor=0.5,
     # )
     prune_inactive_neural_with_regressor_resnet(net=net,
-                                         net_name='tmp',
-                                         prune_rate=0.06,
-                                         load_regressor=False,
-                                         dataset_name='cifar10',
-                                         filter_preserve_ratio=0.15,
-                                         max_filters_pruned_for_one_time=0.2,
-                                         target_accuracy=0.93,
-                                         tar_acc_gradual_decent=True,
-                                         flop_expected=4e7,
-                                         batch_size=1000,
-                                         num_epoch=450,
-                                         checkpoint_step=3000,
-                                         use_random_data=False,
-                                         round_for_train=3,
-                                         # optimizer=optim.Adam,
-                                         # learning_rate=1e-3,
-                                         # weight_decay=0
-                                         optimizer=optim.SGD,
-                                         learning_rate=0.01,
-                                         learning_rate_decay=True,
-                                         learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-                                         learning_rate_decay_factor=0.5,
-                 )
+                                                net_name='resnet56_inactive_realdata_regressor',
+                                                prune_rate=0.06,
+                                                load_regressor=False,
+                                                dataset_name='cifar10',
+                                                filter_preserve_ratio=0.15,
+                                                max_filters_pruned_for_one_time=0.2,
+                                                target_accuracy=0.93,
+                                                tar_acc_gradual_decent=True,
+                                                flop_expected=4e7,
+                                                batch_size=1000,
+                                                num_epoch=450,
+                                                checkpoint_step=3000,
+                                                use_random_data=False,
+                                                round_for_train=3,
+                                                # optimizer=optim.Adam,
+                                                # learning_rate=1e-3,
+                                                # weight_decay=0
+                                                optimizer=optim.SGD,
+                                                learning_rate=0.01,
+                                                learning_rate_decay=True,
+                                                learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                                                learning_rate_decay_factor=0.5,
+                                                )
     # prune_resnet(net=net,
     #              net_name='tmp',
     #              neural_dead_times=9000,
