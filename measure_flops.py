@@ -131,7 +131,8 @@ def measure_model(net, dataset_name='imagenet',print_flop=True):
     # forward过程中对全局的变量count_ops进行更新
     model.forward(data)
     restore_forward(model)
-    print('flop_num:{}'.format(count_ops))
+    if print_flop:
+        print('flop_num:{}'.format(count_ops))
     count_ops_temp=count_ops
     count_ops=0
     return count_ops_temp
