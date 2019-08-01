@@ -494,8 +494,10 @@ if __name__ == "__main__":
     auto_encoder = encoder.AutoEncoder().to(device)
     checkpoint = torch.load('./auto_encoder.tar')
     auto_encoder.load_state_dict(checkpoint['state_dict'])
-    stat_train,_=auto_encoder.extract_feature(filters=filter_train)
-    stat_val,_=auto_encoder.extract_feature(filters=filter_val)
+    # stat_train,_=auto_encoder.extract_feature(filters=filter_train)
+    # stat_val,_=auto_encoder.extract_feature(filters=filter_val)
+    stat_train_ae,_=auto_encoder.extract_feature(filters=filter_train)
+    stat_val_ae,_=auto_encoder.extract_feature(filters=filter_val)
 
 
     # from sklearn.feature_selection import VarianceThreshold
@@ -509,6 +511,8 @@ if __name__ == "__main__":
     # var=np.std(stat_train,axis=0)
     # np.argsort(-var)
 
+    stat_train=np.hstack((stat_train,stat_train_ae))
+    stat_val=np.hstack((stat_val,stat_val_ae))
 
     from sklearn import ensemble
     print('随机森林')

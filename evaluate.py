@@ -141,6 +141,7 @@ def evaluate_net(  net,
             flop_num_old=checkpoint['flop_num']
             if flop_num!=flop_num_old:
                 highest_accuracy=0
+            print('Highest accuracy from previous checkpoint is {}.'.format(highest_accuracy))
         else:
             highest_accuracy=0
 

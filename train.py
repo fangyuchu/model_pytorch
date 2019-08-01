@@ -158,11 +158,8 @@ def train(
 
     sample_num=0
     if os.path.isfile(file_new):
-        checkpoint = torch.load(file_new)
-        highest_accuracy = checkpoint['highest_accuracy']
-        print('highest accuracy from previous training is %f' % highest_accuracy)
-        del highest_accuracy
         if load_net:
+            checkpoint = torch.load(file_new)
             print('{} load net from previous checkpoint'.format(datetime.now()))
             net=checkpoint['net']
             net.load_state_dict(checkpoint['state_dict'])

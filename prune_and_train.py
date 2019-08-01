@@ -1150,36 +1150,31 @@ def prune_inactive_neural_with_regressor_resnet(net,
     sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
     sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
 
-    print(
-        'net:{}\n',
-        'net_name:{}\n'
-        'target_accuracy:{}\n'
-        'prune_rate:{}\n'
-        'load_regressor:{}\n'
-        'predictor_name:{}\n'
-        'round_for_train:{}\n'
-        'tar_acc_gradual_decent:{}\n'
-        'flop_expected:{}\n'
-        'dataset_name:{}\n'
-        'use_random_data:{}\n'
-        'validation_loader:{}\n'
-        'batch_size:{}\n'
-        'num_workers:{}\n'
-        'optimizer:{}\n'
-        'learning_rate:{}\n'
-        'checkpoint_step:{}\n'
-        'num_epoch:{}\n'
-        'filter_preserve_ratio:{}\n'
-        'max_filters_pruned_for_one_time:{}\n'
-        'learning_rate_decay:{}\n'
-        'learning_rate_decay_factor:{}\n'
-        'weight_decay:{}\n'
-        'learning_rate_decay_epoch:{}\n'
-            .format(net,net_name,target_accuracy,prune_rate,load_regressor,predictor_name,round_for_train,
-        tar_acc_gradual_decent,flop_expected,dataset_name,use_random_data,validation_loader,batch_size,
-                    num_workers,optimizer,learning_rate,checkpoint_step,num_epoch,filter_preserve_ratio,
-        max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,weight_decay,
-                    learning_rate_decay_epoch))
+    print('net:',net)
+    print('net_name:',net_name)
+    print('target_accuracy:',target_accuracy)
+    print('prune_rate:',prune_rate)
+    print('load_regressor:',load_regressor)
+    print('predictor_name:',predictor_name)
+    print('round_for_train:',round_for_train)
+    print('tar_acc_gradual_decent:',tar_acc_gradual_decent)
+    print('flop_expected:',flop_expected)
+    print('dataset_name:',dataset_name)
+    print('use_random_data:',use_random_data)
+    print('validation_loader:',validation_loader)
+    print('batch_size:',batch_size)
+    print('num_workers:',num_workers)
+    print('optimizer:',optimizer)
+    print('learning_rate:',learning_rate)
+    print('checkpoint_step:',checkpoint_step)
+    print('num_epoch:',num_epoch)
+    print('filter_preserve_ratio:',filter_preserve_ratio)
+    print('max_filters_pruned_for_one_time:',max_filters_pruned_for_one_time)
+    print('learning_rate_decay:',learning_rate_decay)
+    print('learning_rate_decay_factor:',learning_rate_decay_factor)
+    print('weight_decay:',weight_decay)
+    print('learning_rate_decay_epoch:',learning_rate_decay_epoch)
+
     print(kwargs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -1312,7 +1307,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 
         if tar_acc_gradual_decent is True:  # decent the target_accuracy
             flop_reduced = flop_original_net - flop_pruned_net
-            target_accuracy = min(original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected), 0.935)
+            target_accuracy = original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected)
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
         success = False
@@ -1676,7 +1671,7 @@ if __name__ == "__main__":
     #                       learning_rate_decay_factor=0.5,
     # )
     prune_inactive_neural_with_regressor_resnet(net=net,
-                                                net_name='resnet56_inactive_realdata_regressor',
+                                                net_name='tmp',
                                                 prune_rate=0.06,
                                                 load_regressor=False,
                                                 dataset_name='cifar10',
