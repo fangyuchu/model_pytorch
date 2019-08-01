@@ -89,7 +89,7 @@ def measure_model_mine(net,dataset_name='imagenet'):
 
 
 
-def measure_model(net, dataset_name='imagenet'):
+def measure_model(net, dataset_name='imagenet',print_flop=True):
     model=copy.deepcopy(net)                    #防止把原模型做了改变
 
     if dataset_name is 'imagenet':

@@ -124,7 +124,7 @@ def evaluate_net(  net,
     :param sample_num: sample num of the current trained net
     :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
     '''
-    flop_num=measure_flops.measure_model(net=net,dataset_name=dataset_name)
+    flop_num=measure_flops.measure_model(net=net,dataset_name=dataset_name,print_flop=False)
     if save_net:
         if checkpoint_path is None :
             raise AttributeError('please input checkpoint path')
@@ -240,7 +240,10 @@ def find_useless_filters_regressor_version(net,
                 filter.append(weight)
             filter_layer += [num_conv for j in range(conv_weight.shape[0])]
             filter_index += [j for j in range(conv_weight.shape[0])]
-            max_num_filters_pruned_layerwise.append(int(conv_weight.shape[0]*max_filters_pruned_for_one_time))
+            if type(max_filters_pruned_for_one_time) is list:
+                max_num_filters_pruned_layerwise.append(int(conv_weight.shape[0]*max_filters_pruned_for_one_time[num_conv]))
+            else:
+                max_num_filters_pruned_layerwise.append(int(conv_weight.shape[0]*max_filters_pruned_for_one_time))
             num_conv+=1
 
     dead_ratio=predictor.predict(filter=filter,filter_layer=filter_layer)
@@ -251,6 +254,7 @@ def find_useless_filters_regressor_version(net,
     useless_filter_index=[[] for i in range(num_conv)]
     num_selected_filters=0
     num_filters_to_select=inactive_filter_rate*len(dead_ratio)
+
     for i in range(inactive_filter_index.shape[0]) :
         layer=inactive_filter_layer[i]
         if len(useless_filter_index[layer])>=max_num_filters_pruned_layerwise[layer]:
