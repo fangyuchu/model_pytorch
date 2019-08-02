@@ -234,11 +234,13 @@ def train(
                 print('{} continue training'.format(datetime.now()))
 
     print("{} Training finished. Saving net...".format(datetime.now()))
+    flop_num=measure_flops.measure_model(net=net,dataset_name=dataset_name,print_flop=False)
     checkpoint = {'net': net,
                   'highest_accuracy': accuracy,
                   'state_dict': net.state_dict(),
-                  'sample_num': sample_num}
-    torch.save(checkpoint, '%s/sample_num=%d,accuracy=%.3f.tar' % (checkpoint_path, sample_num, accuracy))
+                  'sample_num': sample_num,
+                  'flop_num': flop_num}
+    torch.save(checkpoint, '%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num, accuracy))
     print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
     return not success
 
