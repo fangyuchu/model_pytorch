@@ -1637,7 +1637,7 @@ if __name__ == "__main__":
     print(checkpoint['highest_accuracy'])
     
     # prune_inactive_neural_with_regressor(net=net,
-    #                                      net_name='tmp',
+    #                                      net_name='vgg16bn_cifar10_realdata_regressor5_大幅度',
     #                                      prune_rate=0.2,
     #                                      load_regressor=False,
     #                                      dataset_name='cifar10',
@@ -1692,7 +1692,7 @@ if __name__ == "__main__":
 
     # for original baseline
     # prune_inactive_neural_with_regressor_resnet(net=net,
-    #                                             net_name='tmp',
+    #                                             net_name='resnet56_cifar10_regressor2',
     #                                             prune_rate=0.15,
     #                                             load_regressor=False,
     #                                             dataset_name='cifar10',
