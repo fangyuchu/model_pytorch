@@ -124,8 +124,8 @@ def evaluate_net(  net,
     :param sample_num: sample num of the current trained net
     :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
     '''
-    flop_num=measure_flops.measure_model(net=net,dataset_name=dataset_name,print_flop=False)
     if save_net:
+        flop_num = measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
         if checkpoint_path is None :
             raise AttributeError('please input checkpoint path')
 
