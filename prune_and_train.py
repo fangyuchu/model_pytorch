@@ -384,7 +384,7 @@ def prune_inactive_neural(net,
         dead_filter_index, module_list, neural_list, dead_ratio = evaluate.find_useless_filters_data_version(net=net,
                                                                                                  batch_size=batch_size,
                                                                                                  use_random_data=use_random_data,
-                                                                                                 inactive_filter_rate=prune_rate,
+                                                                                                 percent_of_inactive_filter=prune_rate,
                                                                                                  dead_or_inactive='inactive'
                                                                                                  )
 
@@ -1003,7 +1003,7 @@ def prune_inactive_neural_with_regressor(net,
             dead_filter_index, module_list, neural_list, dead_ratio_tmp = evaluate.find_useless_filters_data_version(net=net,
                                                                                                      batch_size=batch_size,
                                                                                                      use_random_data=use_random_data,
-                                                                                                     inactive_filter_rate=prune_rate,
+                                                                                                     percent_of_inactive_filter=prune_rate,
                                                                                                      dead_or_inactive='inactive'
                                                                                                      )
             if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
@@ -1029,7 +1029,7 @@ def prune_inactive_neural_with_regressor(net,
         else:
             dead_filter_index=evaluate.find_useless_filters_regressor_version(net=net,
                                                                                predictor=predictor,
-                                                                              inactive_filter_rate=prune_rate,
+                                                                              percent_of_inactive_filter=prune_rate,
                                                                               max_filters_pruned_for_one_time=max_filters_pruned_for_one_time
                                                                                )
 
@@ -1255,7 +1255,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                 net=net,
                 batch_size=batch_size,
                 use_random_data=use_random_data,
-                inactive_filter_rate=prune_rate,
+                percent_of_inactive_filter=prune_rate,
                 dead_or_inactive='inactive'
                 )
             if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
@@ -1279,7 +1279,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
         else:
             dead_filter_index = evaluate.find_useless_filters_regressor_version(net=net,
                                                                                 predictor=predictor,
-                                                                                inactive_filter_rate=prune_rate,
+                                                                                percent_of_inactive_filter=prune_rate,
                                                                                 max_filters_pruned_for_one_time=max_filters_pruned_for_one_time
                                                                                 )
 
@@ -1623,43 +1623,43 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #
-    # checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    # net=checkpoint['net']
+    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    net=checkpoint['net']
 
     # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
     # checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
     # net = resnet_copied.resnet56().to(device)
 
-    checkpoint=torch.load('/home/disk_new/model_saved/resnet56_cifar10_DeadNeural_realdata_good_baseline_过得去/代表/sample_num=13300000,accuracy=0.93610，flop=65931914.tar')
-    net=checkpoint['net']
+    # checkpoint=torch.load('/home/disk_new/model_saved/resnet56_cifar10_DeadNeural_realdata_good_baseline_过得去/代表/sample_num=13300000,accuracy=0.93610，flop=65931914.tar')
+    # net=checkpoint['net']
 
     net.load_state_dict(checkpoint['state_dict'])
     print(checkpoint['highest_accuracy'])
     
-    # prune_inactive_neural_with_regressor(net=net,
-    #                                      net_name='vgg16bn_cifar10_realdata_regressor5_大幅度',
-    #                                      prune_rate=0.2,
-    #                                      load_regressor=False,
-    #                                      dataset_name='cifar10',
-    #                                      filter_preserve_ratio=0.15,
-    #                                      max_filters_pruned_for_one_time=[0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
-    #                                      target_accuracy=0.933,
-    #                                      tar_acc_gradual_decent=True,
-    #                                      flop_expected=4e7,
-    #                                      batch_size=1600,
-    #                                      num_epoch=450,
-    #                                      checkpoint_step=3000,
-    #                                      use_random_data=False,
-    #                                      round_for_train=2,
-    #                                      # optimizer=optim.Adam,
-    #                                      # learning_rate=1e-3,
-    #                                      # weight_decay=0
-    #                                      optimizer=optim.SGD,
-    #                                      learning_rate=0.01,
-    #                                      learning_rate_decay=True,
-    #                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-    #                                      learning_rate_decay_factor=0.5,
-    #                                      )
+    prune_inactive_neural_with_regressor(net=net,
+                                         net_name='tmp',
+                                         prune_rate=0.2,
+                                         load_regressor=False,
+                                         dataset_name='cifar10',
+                                         filter_preserve_ratio=0.15,
+                                         max_filters_pruned_for_one_time=[0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
+                                         target_accuracy=0.933,
+                                         tar_acc_gradual_decent=True,
+                                         flop_expected=4e7,
+                                         batch_size=1600,
+                                         num_epoch=450,
+                                         checkpoint_step=3000,
+                                         use_random_data=False,
+                                         round_for_train=2,
+                                         # optimizer=optim.Adam,
+                                         # learning_rate=1e-3,
+                                         # weight_decay=0
+                                         optimizer=optim.SGD,
+                                         learning_rate=0.01,
+                                         learning_rate_decay=True,
+                                         learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                                         learning_rate_decay_factor=0.5,
+                                         )
 
     a=[0 for i in range(55)]
     a[53]=0.2

@@ -36,7 +36,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 # def validate(val_loader, model, criterion):
-def validate(val_loader, model):
+def validate(val_loader, model,max_data_to_test=99999999):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         batch_time = AverageMeter()
@@ -47,10 +47,13 @@ def validate(val_loader, model):
         model.eval()
 
         end = time.time()
+        s_n=0
         for i, (input, target) in enumerate(val_loader):
             #print('{} {}'.format(datetime.now(),i))
             target = target.to(device)
             input = input.to(device)
+
+            s_n+=input.shape[0]
 
             # compute output
             output = model(input)
@@ -65,6 +68,8 @@ def validate(val_loader, model):
             batch_time.update(time.time() - end)
             end = time.time()
 
+            if s_n>=max_data_to_test:
+                break
         print('{} Acc@1 {top1.avg:} Acc@5 {top5.avg:}'
               .format(datetime.now(),top1=top1, top5=top5))
 
@@ -112,7 +117,8 @@ def evaluate_net(  net,
                    checkpoint_path=None,
                    sample_num=0,
                    target_accuracy=1,
-                   dataset_name='cifar10'
+                   dataset_name='cifar10',
+                   max_data_to_test=99999999
                    ):
     '''
     :param net: net of NN
@@ -123,6 +129,7 @@ def evaluate_net(  net,
     :param sample_num_path:
     :param sample_num: sample num of the current trained net
     :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
+    :param max_data_to_test: use at most max_data_to_test images to evaluate the net
     '''
     if save_net:
         flop_num = measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
@@ -148,7 +155,7 @@ def evaluate_net(  net,
     print("{} Start Evaluation".format(datetime.now()))
     print("{} sample num = {}".format(datetime.now(), sample_num))
 
-    accuracy,_=validate(data_loader,net,)
+    accuracy,_=validate(data_loader,net,max_data_to_test)
 
     if save_net and (accuracy > highest_accuracy or accuracy>target_accuracy):
         # save net
@@ -225,7 +232,7 @@ def predict_dead_filters_classifier_version(net,
 
 def find_useless_filters_regressor_version(net,
                                            predictor,
-                                           inactive_filter_rate,
+                                           percent_of_inactive_filter,
                                            max_filters_pruned_for_one_time
                                            ):
     filter_layer=list()                                                                 #list containing layer of the filters corresponding to filter_index
@@ -253,7 +260,7 @@ def find_useless_filters_regressor_version(net,
     inactive_filter_layer = np.array(filter_layer)[inactive_rank]
     useless_filter_index=[[] for i in range(num_conv)]
     num_selected_filters=0
-    num_filters_to_select=inactive_filter_rate*len(dead_ratio)
+    num_filters_to_select=percent_of_inactive_filter*len(dead_ratio)
 
     for i in range(inactive_filter_index.shape[0]) :
         layer=inactive_filter_layer[i]
@@ -278,10 +285,11 @@ def find_useless_filters_data_version(net,
                                       use_random_data=True,
                                       module_list=None,
                                       neural_list=None,
-                                      dead_or_inactive='dead',
+                                      dead_or_inactive='inactive',
                                       neural_dead_times=None,
                                       filter_dead_ratio=None,
-                                      inactive_filter_rate=None,
+                                      percent_of_inactive_filter=None,
+                                      max_data_to_test=10000,
                       ):
     '''
     use validation set or random generated data to find useless filters in net
@@ -296,7 +304,8 @@ def find_useless_filters_data_version(net,
     :param neural_dead_times:
     :param filter_dead_ratio:
     param for inactive filter
-    :param inactive_filter_rate:
+    :param percent_of_inactive_filter:
+    :param use at most (max_data_to_test) images to calculate the inactive rate
     :return:
     '''
     if dead_or_inactive is 'dead':
@@ -304,8 +313,8 @@ def find_useless_filters_data_version(net,
             print('neural_dead_times and filter_dead_ratio are required to find dead filters.')
             raise AttributeError
     elif dead_or_inactive is 'inactive':
-        if inactive_filter_rate is None:
-            print('inactive_filter_rate is required to find dead filters.')
+        if percent_of_inactive_filter is None:
+            print('percent_of_inactive_filter is required to find dead filters.')
             raise AttributeError
     else:
         print('unknown type of dead_or_inactive')
@@ -321,26 +330,32 @@ def find_useless_filters_data_version(net,
             if dataset_name is 'imagenet':
                 mean = conf.imagenet['mean']
                 std = conf.imagenet['std']
-                validation_set_path = conf.imagenet['validation_set_path']
+                train_set_path = conf.imagenet['train_set_path']
                 default_image_size = conf.imagenet['default_image_size']
-                validation_set_size=conf.imagenet['validation_set_size']
+                train_set_size = conf.imagenet['train_set_size']
             elif dataset_name is 'cifar10':
                 mean = conf.cifar10['mean']
                 std = conf.cifar10['std']
-                validation_set_path = conf.cifar10['validation_set_path']
+                train_set_path = conf.cifar10['train_set_path']
                 default_image_size = conf.cifar10['default_image_size']
-                validation_set_size=conf.cifar10['validation_set_size']
-            validation_loader = data_loader.create_validation_loader(dataset_path=validation_set_path,
-                                                                     default_image_size=default_image_size,
-                                                                     mean=mean,
-                                                                     std=std,
-                                                                     batch_size=batch_size,
-                                                                     num_workers=2,
-                                                                     dataset_name=dataset_name,
+                train_set_size=conf.cifar10['train_set_size']
+            train_loader = data_loader.create_validation_loader(dataset_path=train_set_path,
+                                                                default_image_size=default_image_size,
+                                                                mean=mean,
+                                                                std=std,
+                                                                batch_size=batch_size,
+                                                                num_workers=6,
+                                                                dataset_name=dataset_name+'_trainset',
+                                                                shuffle=True,
                                                                      )
+
+            dataset_size = min(train_set_size, math.ceil(max_data_to_test / batch_size) * batch_size)
             if neural_dead_times is None and dead_or_inactive is 'inactive':
-                neural_dead_times=validation_set_size
-            module_list,neural_list=check_ReLU_alive(net=net,data_loader=validation_loader,neural_dead_times=neural_dead_times)
+                neural_dead_times=dataset_size
+
+            module_list,neural_list=check_ReLU_alive(net=net,data_loader=train_loader,
+                                                     neural_dead_times=neural_dead_times,max_data_to_test=max_data_to_test)
+
 
     num_conv = 0  # num of conv layers in the net
     filter_num = list()
@@ -375,14 +390,14 @@ def find_useless_filters_data_version(net,
                     if use_random_data is True:
                         dead_ratio += (dead_times / (neural_num * batch_size)).tolist()
                     else:
-                        dead_ratio += (dead_times / (neural_num * validation_set_size)).tolist()
+                        dead_ratio += (dead_times / (neural_num * dataset_size)).tolist()
                     filter_layer += [i for j in range(dead_times.shape[0])]
                     filter_index+=[j for j in range(dead_times.shape[0])]
 
     if dead_or_inactive is 'dead':
         return useless_filter_index, module_list, neural_list
     elif dead_or_inactive is 'inactive':
-        inactive_rank=np.argsort(-np.array(dead_ratio))[:int(inactive_filter_rate*len(dead_ratio))]                #arg for top inactive_filter_rate*100% of inactive filters
+        inactive_rank=np.argsort(-np.array(dead_ratio))[:int(percent_of_inactive_filter*len(dead_ratio))]                #arg for top percent_of_inactive_filter*100% of inactive filters
         inactive_filter_index=np.array(filter_index)[inactive_rank]
         inactive_filter_layer=np.array(filter_layer)[inactive_rank]
         for i in range(num_conv):
@@ -390,7 +405,7 @@ def find_useless_filters_data_version(net,
         return useless_filter_index,module_list,neural_list,dead_ratio
 
 
-def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
+def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None,max_data_to_test=10000):
     handle = list()
     global relu_list                                                        #list containing relu module
     global neural_list
@@ -404,7 +419,7 @@ def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None):
             handle.append(mod.register_forward_hook(cal_dead_times))
 
     if data_loader is not None:
-        evaluate_net(net, data_loader, False)
+        evaluate_net(net, data_loader, False,max_data_to_test=max_data_to_test)
         cal_dead_neural_rate(neural_dead_times)
     elif data is not None:
         net.eval()
@@ -567,7 +582,7 @@ if __name__ == "__main__":
 
 
 
-    find_useless_filters_data_version(net=net,batch_size=1000,use_random_data=True,dead_or_inactive='inactive',inactive_filter_rate=0.3)
+    find_useless_filters_data_version(net=net,batch_size=1000,use_random_data=True,dead_or_inactive='inactive',percent_of_inactive_filter=0.3)
 
 
     #measure_flops.measure_model(net,dataset_name='cifar10')

@@ -25,6 +25,7 @@ import resnet_copied
 
 def dead_neural_rate():
     # checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
+    # checkpoint=torch.load('/home/victorfang/Desktop/resnet34_imagenet_DeadReLU.tar')
     # neural_list=checkpoint['neural_list']
     # relu_list=checkpoint['relu_list']
 
@@ -37,7 +38,7 @@ def dead_neural_rate():
     val_loader=data_loader.create_validation_loader(batch_size=1000,num_workers=6,dataset_name='cifar10')
     # train_loader=data_loader.create_train_loader(batch_size=1600,num_workers=6,dataset_name='cifar10')
     #
-    relu_list,neural_list=evaluate.check_ReLU_alive(net=net,neural_dead_times=50000,data_loader=val_loader)
+    relu_list,neural_list=evaluate.check_ReLU_alive(net=net,neural_dead_times=10000,data_loader=val_loader)
     # ndt_list=[i for i in range(35000,51000,1000)]
     ndt_list=[i for i in range(6000,11000,1000)]
     dead_rate=list()
@@ -57,8 +58,8 @@ def plot_dead_filter_num_with_different_dft():
     # print()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # net=create_net.vgg_cifar10()
+    #
+    # # net=create_net.vgg_cifar10()
     checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
     net = resnet_copied.resnet56().to(device)
     net.load_state_dict(checkpoint['state_dict'])
@@ -69,14 +70,19 @@ def plot_dead_filter_num_with_different_dft():
 
     # net=vgg.vgg16_bn(pretrained=False)
     # checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
+    # net=resnet.resnet34(pretrained=True)
+    # checkpoint=torch.load('/home/victorfang/Desktop/resnet34_imagenet_DeadReLU.tar')
     # neural_list=checkpoint['neural_list']
     # relu_list=checkpoint['relu_list']
 
     neural_dead_times=8000
+    # neural_dead_times=40000
     fdt_list=[0.001*i for i in range(1,1001)]
     dead_filter_num=list()
     for fdt in fdt_list:
         dead_filter_num.append(dead_filter_statistics(net=net,neural_list=neural_list,neural_dead_times=neural_dead_times,filter_dead_ratio=fdt,relu_list=relu_list))
+        if fdt==0.8:
+            print()
     plt.figure()
     plt.title('df')
     plt.plot(fdt_list,dead_filter_num)
@@ -123,18 +129,20 @@ def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_de
     # print()
 if __name__ == "__main__":
     print()
-    # dead_neural_rate()
-    # plot_dead_filter_num_with_different_dft()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net=resnet.resnet34(pretrained=True).to(device)
-    val_loader=data_loader.create_validation_loader(batch_size=64,num_workers=8,dataset_name='imagenet')
-
-    # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
-    # net = resnet_copied.resnet56().to(device)
-    # net.load_state_dict(checkpoint['state_dict'])
-    # val_loader = data_loader.create_validation_loader(batch_size=1000, num_workers=6, dataset_name='cifar10')
-
-
-    relu_list, neural_list = evaluate.check_ReLU_alive(net=net, neural_dead_times=50000, data_loader=val_loader)
-    c={'relu_list':relu_list,'neural_list':neural_list,'net':net}
-    torch.save(c,'/home/victorfang/Desktop/resnet34_imagenet_DeadReLU.tar')
+    dead_neural_rate()
+    plot_dead_filter_num_with_different_dft()
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # net=resnet.resnet34(pretrained=True).to(device)
+    #
+    #
+    # val_loader=data_loader.create_validation_loader(batch_size=64,num_workers=8,dataset_name='imagenet')
+    #
+    # # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+    # # net = resnet_copied.resnet56().to(device)
+    # # net.load_state_dict(checkpoint['state_dict'])
+    # # val_loader = data_loader.create_validation_loader(batch_size=1000, num_workers=6, dataset_name='cifar10')
+    #
+    #
+    # relu_list, neural_list = evaluate.check_ReLU_alive(net=net, neural_dead_times=50000, data_loader=val_loader)
+    # c={'relu_list':relu_list,'neural_list':neural_list,'net':net}
+    # torch.save(c,'/home/victorfang/Desktop/resnet34_imagenet_DeadReLU.tar')

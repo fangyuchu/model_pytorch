@@ -20,6 +20,13 @@ import resnet
 import create_net
 import matplotlib.pyplot as plt
 
+d=data_loader.create_validation_loader(batch_size=1000,num_workers=8,dataset_name='cifar10')
+
+net=create_net.vgg_cifar10()
+
+evaluate.find_useless_filters_data_version(net=net,batch_size=1600,dataset_name='cifar10',
+                                           use_random_data=False,percent_of_inactive_filter=0.1,
+                                           max_data_to_test=10000)
 
 checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
 neural_list=checkpoint['neural_list']
