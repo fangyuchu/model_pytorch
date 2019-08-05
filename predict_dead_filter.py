@@ -492,12 +492,20 @@ if __name__ == "__main__":
     ##use auto_encoder to extract features################################################################################################
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     auto_encoder = encoder.AutoEncoder().to(device)
-    checkpoint = torch.load('./auto_encoder.tar')
+    checkpoint = torch.load('./auto_encoder_pad-1_144d.tar')
     auto_encoder.load_state_dict(checkpoint['state_dict'])
     # stat_train,_=auto_encoder.extract_feature(filters=filter_train)
     # stat_val,_=auto_encoder.extract_feature(filters=filter_val)
-    stat_train_ae,_=auto_encoder.extract_feature(filters=filter_train)
-    stat_val_ae,_=auto_encoder.extract_feature(filters=filter_val)
+    stat_train_ae,_=auto_encoder.extract_feature(filters=filter_train,pad_mode='-1')
+    stat_val_ae,_=auto_encoder.extract_feature(filters=filter_val,pad_mode='-1')
+
+    # stat_train=stat_train_ae
+    # stat_val=stat_val_ae
+
+    # stat_train=np.hstack((stat_train,stat_train_ae))                                            #把ae提取的特征和人工的合并
+    # stat_val=np.hstack((stat_val,stat_val_ae))
+    #
+
 
 
     # from sklearn.feature_selection import VarianceThreshold
@@ -511,8 +519,7 @@ if __name__ == "__main__":
     # var=np.std(stat_train,axis=0)
     # np.argsort(-var)
 
-    stat_train=np.hstack((stat_train,stat_train_ae))
-    stat_val=np.hstack((stat_val,stat_val_ae))
+
 
     from sklearn import ensemble
     print('随机森林')
@@ -533,17 +540,26 @@ if __name__ == "__main__":
                       n_jobs=-1, oob_score=False, random_state=None,
                       verbose=0, warm_start=False)
 
+    # model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
+    #                   max_features='sqrt', max_leaf_nodes=None,
+    #                   min_impurity_decrease=0.0, min_impurity_split=None,
+    #                   min_samples_leaf=10, min_samples_split=0.001,
+    #                   min_weight_fraction_leaf=0.0, n_estimators=100,
+    #                   n_jobs=-1, oob_score=False, random_state=None,
+    #                   verbose=0, warm_start=False)
+
     param_grid = {
         # 'n_estimators': [50,100,500,1000],#[100* i for i in range(1, 10, 2)],
         # 'min_samples_split':[0.005,0.003,0.002,0.001],
         # 'max_features':['sqrt','log2',None],
-         'max_depth':[i*10+5 for i in range(2)],
-        'min_samples_leaf':range(10,101,40),
-        # 'max_leaf_nodes':[None,2,4,6,8,10]
-        #'min_weight_fraction_leaf':[0.001,0],
+        'max_leaf_nodes':[None,2,4,6,8,10],
+        # 'min_weight_fraction_leaf':[0.001,0],
         # 'n_estimators': range(10, 101, 10)
+
+         # 'max_depth':[i*10+5 for i in range(3)],
+        # 'min_samples_leaf':range(10,101,40),
     }
-    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=4, cv=8)
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
 
     model.fit(stat_train, filter_label_train)
 
@@ -554,7 +570,7 @@ if __name__ == "__main__":
 
 
 
-    print('loss:{}'.format(loss))
+    # print('loss:{}'.format(loss))
     truth = np.argsort(-np.array(filter_label_val))
     prediction_argsort = np.argsort(-prediction)
     i = int(truth.shape[0] * 0.1)
@@ -623,20 +639,22 @@ if __name__ == "__main__":
                           random_state=None, subsample=1.0, tol=0.0001,
                           validation_fraction=0.1, verbose=0, warm_start=False)
 
+    param_grid = {
+        'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
+        'learning_rate': [0.05, 0.1, 0.2],
+        'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
+        'max_features':['sqrt','log2',None],
+        'subsample':[0.8,0.9,1],
+        'max_depth':[11,13,15,17,19],
+        'min_samples_leaf':[10,12,14,16,18],
+    }
+
     model.fit(stat_train, filter_label_train)
 
     prediction = model.predict(stat_val)
     loss = mean_absolute_error(filter_label_val, prediction)
     print('loss:{}'.format(loss))
-    # param_grid = {
-    #     'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
-    #     'learning_rate': [0.05, 0.1, 0.2],
-    #     'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
-    #     'max_features':['sqrt','log2',None],
-    #     'subsample':[0.8,0.9,1],
-    #     'max_depth':[11,13,15,17,19],
-    #     'min_samples_leaf':[10,12,14,16,18],
-    # }
+
 
 
     n_estimators= [50,100,500,1000,1200]#[100* i for i in range(1, 10, 2)],
@@ -710,7 +728,10 @@ if __name__ == "__main__":
 
 
 
-
+    # print('瞎jb猜',end='')
+    # prediction=np.random.random(size=stat_val.shape[0])
+    # c=mean_absolute_error(filter_label_val,prediction)
+    # print(c)
 
 
 
@@ -726,10 +747,7 @@ if __name__ == "__main__":
     #
     #
     #
-    # print('瞎jb猜',end='')
-    # prediction=np.random.random(size=stat_val.shape[0])
-    # c=mean_absolute_error(filter_label_val,prediction)
-    # print(c)
+
     #分类#################################################################################################################################################
 
     # df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='./最少样本测试/训练集')

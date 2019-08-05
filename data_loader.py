@@ -80,11 +80,14 @@ def create_validation_loader(
             batch_size=batch_size, shuffle=shuffle,
             num_workers=num_workers, pin_memory=True)
     else:
-        if dataset_name == 'imagenet' :
+        if 'imagenet' in dataset_name :
             mean=conf.imagenet['mean']
             std=conf.imagenet['std']
+            if dataset_name =='imagenet_trainset':
+                dataset_path=conf.imagenet['train_set_path']
             if dataset_path is None:
                 dataset_path=conf.imagenet['validation_set_path']
+
         transform = transforms.Compose([
             transforms.Resize(int(math.floor(default_image_size / scale))),
             transforms.CenterCrop(default_image_size),

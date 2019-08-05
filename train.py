@@ -66,6 +66,7 @@ def train(
                     weight_decay=conf.weight_decay,
                     target_accuracy=1.0,
                     optimizer=optim.Adam,
+                    top_acc=1
                   ):
     '''
 
@@ -90,6 +91,7 @@ def train(
     :param weight_decay:
     :param target_accuracy:float, the training will stop once the net reached target accuracy
     :param optimizer:
+    :param top_acc: can be 1 or 5
     :return:
     '''
     success=True                                                                   #if the trained net reaches target accuracy
@@ -171,7 +173,9 @@ def train(
                                        save_net=True,
                                        checkpoint_path=checkpoint_path,
                                        sample_num=sample_num,
-                                       target_accuracy=target_accuracy)
+                                       target_accuracy=target_accuracy,
+                                       dataset_name=dataset_name,
+                                       top_acc=top_acc)
         if accuracy >= target_accuracy:
             print('{} net reached target accuracy.'.format(datetime.now()))
             return success
@@ -188,10 +192,12 @@ def train(
         for step, data in enumerate(train_loader, 0):
             if sample_num / train_set_size==epoch+1:               #one epoch of training finished
                 accuracy=evaluate.evaluate_net(net,validation_loader,
-                               save_net=True,
-                               checkpoint_path=checkpoint_path,
-                               sample_num=sample_num,
-                               target_accuracy=target_accuracy)
+                                               save_net=True,
+                                               checkpoint_path=checkpoint_path,
+                                               sample_num=sample_num,
+                                               target_accuracy=target_accuracy,
+                                               dataset_name=dataset_name,
+                                               top_acc=top_acc)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
@@ -227,7 +233,9 @@ def train(
                                                 save_net=True,
                                                 checkpoint_path=checkpoint_path,
                                                 sample_num=sample_num,
-                                               target_accuracy=target_accuracy)
+                                               target_accuracy=target_accuracy,
+                                               dataset_name=dataset_name,
+                                               top_acc=top_acc)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success

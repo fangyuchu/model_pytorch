@@ -42,17 +42,17 @@ class AutoEncoder(nn.Module):
             nn.Tanh(),
             nn.Dropout(),
             nn.Linear(576, 144),
-            nn.BatchNorm1d(144),
-            nn.Tanh(),
-            nn.Dropout(),
-            nn.Linear(144, 30),
+            # nn.BatchNorm1d(144),
+            # nn.Tanh(),
+            # nn.Dropout(),
+            # nn.Linear(144, 30),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(30, 144),
-            nn.BatchNorm1d(144),
-            nn.Tanh(),
-            nn.Dropout(),
+            # nn.Linear(30, 144),
+            # nn.BatchNorm1d(144),
+            # nn.Tanh(),
+            # nn.Dropout(),
             nn.Linear(144, 576),
             nn.BatchNorm1d(576),
             nn.Tanh(),
@@ -70,7 +70,7 @@ class AutoEncoder(nn.Module):
         decoded = self.decoder(encoded)
         return encoded, decoded
 
-    def extract_feature(self,**kwargs):
+    def extract_feature(self,pad_mode,**kwargs):
         if 'net' in kwargs.keys():
             filters=get_filters(kwargs['net'])
         elif 'filters' in kwargs.keys():
@@ -78,8 +78,8 @@ class AutoEncoder(nn.Module):
         else:
             print('you must provide net or filters')
             raise AttributeError
-        filters=pad_filter(filters)
-        x = torch.from_numpy(filters).to(self.device)
+        filters=pad_filter(filters,pad_mode=pad_mode)
+        x = torch.from_numpy(filters).float().to(self.device)
         features = self.encoder(x)
         decoded = self.decoder(features)
         features=features.data.cpu().numpy()
@@ -118,26 +118,41 @@ def get_filters(net):
                 filters.append(f)
     return filters
 
-def pad_filter(filters,pad_length=3*3*512):
+def pad_filter(filters,array_length=3*3*512,pad_mode='-1'):
     '''
     
     :param filters: list of 3-d ndarray
-    :param pad_length: 
-    :return: 2d ndarray of shape[num_filters,pad_length]. each row represents one filter
+    :param array_length: length of the array returned. It usually equal to the number of parameters of the max filter(filters with most channels)
+    :return: 2d ndarray of shape[num_filters,array_length]. each row represents one filter
     '''
-    for i in range(len(filters)):
-        filters[i]=np.reshape(filters[i],-1)
-        filters[i]=np.pad(filters[i],(0,pad_length-filters[i].shape[0]),'constant',constant_values=-1)
-    return np.array(filters)
+    if pad_mode=='-1':
+        print('pad array with -1.')
+        for i in range(len(filters)):
+            filters[i]=np.reshape(filters[i],-1)
+            filters[i]=np.pad(filters[i],(0,array_length-filters[i].shape[0]),'constant',constant_values=-1)
+        padded_filter=np.array(filters)
+    elif pad_mode=='repeat':
+        print('pad array with filter repeatedly')
+        padded_filter=np.zeros(shape=[len(filters),array_length],dtype=np.float)
+        for i in range(len(filters)):
+            filters[i] = np.reshape(filters[i], -1)
+            filter_length=filters[i].shape[0]
+            j=0
+            while j < (math.ceil(array_length/filter_length)-1)*filter_length:
+                padded_filter[i,j:j+filter_length]=filters[i]                                            #pad the array with the same parameters of the filter repeatedly
+                j+=filter_length
+            padded_filter[i,j:]=filters[i][:array_length-j]                                              #pad the last bit of the array
+                
+    return padded_filter
 
 
-def train_encoder(train_dir='',val_dir=''):
+def train_encoder(train_dir='',val_dir='',pad_mode='-1'):
     filter_train=read_from_checkpoint(train_dir)
     filter_val=read_from_checkpoint(val_dir)
 
-    filter_train=pad_filter(filter_train)
+    filter_train=pad_filter(filter_train,pad_mode=pad_mode)
 
-    filter_val=pad_filter(filter_val)
+    filter_val=pad_filter(filter_val,pad_mode=pad_mode)
 
     index=[j for j in range(filter_train.shape[0])]                 #used for shuffle the training data
 
@@ -165,7 +180,7 @@ def train_encoder(train_dir='',val_dir=''):
                                             batch_size=batch_size)
 
 
-            x=torch.from_numpy(filter_train[i*batch_size:(i+1)*batch_size]).to(device)
+            x=torch.from_numpy(filter_train[i*batch_size:(i+1)*batch_size]).float().to(device)
             sample_num+=x.shape[0]
             encoded, decoded = auto_encoder(x)
             loss = loss_func(decoded, x)#+(torch.sum(torch.abs(decoded-torch.mean(x))))
@@ -173,7 +188,7 @@ def train_encoder(train_dir='',val_dir=''):
             loss.backward()
             optimizer.step()
         print("{} epoch:{},  loss is:{}".format(datetime.now(),epoch,loss))
-    checkpoint = {'auto_encoder': auto_encoder,
+    checkpoint = {
                   'state_dict': auto_encoder.state_dict(),
                   'sample_num': sample_num}
     torch.save(checkpoint, './auto_encoder.tar')
@@ -210,18 +225,22 @@ root='/home/victorfang/PycharmProjects/model_pytorch/data/model_params/'
 #                 np.save(root+'bias/'+net_name+','+str(i),bias)
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    auto_encoder=AutoEncoder().to(device)
-    checkpoint=torch.load('./auto_encoder.tar')
-    auto_encoder.load_state_dict(checkpoint['state_dict'])
-
-    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    net=checkpoint['net']
-    net.load_state_dict(checkpoint['state_dict'])
-
-    feature,decode=auto_encoder.extract_feature(net=net)
+    name='./auto_encoder_pad-1_144d.tar'
+    checkpoint=torch.load(name)
+    checkpoint_new={'state_dict':checkpoint['state_dict'],'sample_num':checkpoint['sample_num']}
+    torch.save(checkpoint_new,name)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # auto_encoder=AutoEncoder().to(device)
+    # checkpoint=torch.load('./auto_encoder.tar')
+    # auto_encoder.load_state_dict(checkpoint['state_dict'])
+    #
+    # checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    # net=checkpoint['net']
+    # net.load_state_dict(checkpoint['state_dict'])
+    #
+    # feature,decode=auto_encoder.extract_feature(net=net)
 
     print()
 
-    # train_encoder(train_dir='./auto_encoder/train',val_dir='./auto_encoder/val')
+    train_encoder(train_dir='./auto_encoder/train',val_dir='./auto_encoder/val',pad_mode='repeat')
 

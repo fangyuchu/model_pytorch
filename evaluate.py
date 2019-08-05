@@ -118,7 +118,8 @@ def evaluate_net(  net,
                    sample_num=0,
                    target_accuracy=1,
                    dataset_name='cifar10',
-                   max_data_to_test=99999999
+                   max_data_to_test=99999999,
+                   top_acc=1
                    ):
     '''
     :param net: net of NN
@@ -155,7 +156,11 @@ def evaluate_net(  net,
     print("{} Start Evaluation".format(datetime.now()))
     print("{} sample num = {}".format(datetime.now(), sample_num))
 
-    accuracy,_=validate(data_loader,net,max_data_to_test)
+    top1_accuracy,top5_accuracy=validate(data_loader,net,max_data_to_test)
+    if top_acc==1:
+        accuracy=top1_accuracy
+    elif top_acc==5:
+        accuracy=top5_accuracy
 
     if save_net and (accuracy > highest_accuracy or accuracy>target_accuracy):
         # save net
