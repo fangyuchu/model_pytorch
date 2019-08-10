@@ -1085,7 +1085,7 @@ def prune_inactive_neural_with_regressor(net,
 
         success = False
         while not success:
-            old_net = copy.deepcopy(net)
+            old_net = copy.deepcopy(net).to(torch.device('cpu'))                                    #save cuda memory
             success = train.train(net=net,
                                   net_name=net_name,
                                   num_epochs=num_epoch,
@@ -1104,7 +1104,7 @@ def prune_inactive_neural_with_regressor(net,
                                   top_acc=top_acc
                                   )
             if not success:
-                net = old_net
+                net = old_net.to(device)
                 max_training_iteration -= 1
                 if max_training_iteration == 0:
                     print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))

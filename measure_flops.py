@@ -135,6 +135,7 @@ def measure_model(net, dataset_name='imagenet',print_flop=True):
         print('flop_num:{}'.format(count_ops))
     count_ops_temp=count_ops
     count_ops=0
+    del model
     return count_ops_temp
 
 if __name__ == '__main__':

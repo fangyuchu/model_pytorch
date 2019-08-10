@@ -206,7 +206,7 @@ def train(
             # 准备数据
             images, labels = data
             images, labels = images.to(device), labels.to(device)
-            sample_num += images.shape[0]
+            sample_num += int(images.shape[0])
 
             if learning_rate_decay:
                 exponential_decay_learning_rate(optimizer=optimizer,

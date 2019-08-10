@@ -27,7 +27,9 @@ import math
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               balance=False,
               regression_or_classification='classification',
-              batch_size=None):
+              batch_size=None,
+              sample_num=None):
+    #note that classification function is abandoned, the code involved might be wrong
     if regression_or_classification is 'regression':
         filter=list()
         filter_layer=list()
@@ -102,6 +104,11 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
     if regression_or_classification is 'classification':
         return dead_filter,living_filter,dead_filter_layer,living_filter_layer
     elif regression_or_classification is 'regression':
+        if sample_num is not None:
+            index=random.sample([i for i in range(len(filter))],sample_num)
+            filter=np.array(filter)[index].tolist()
+            filter_label=np.array(filter_label)[index].tolist()
+            filter_layer=np.array(filter_layer)[index].tolist()
         return filter,filter_label,filter_layer
 
 def trimmed_mean(filter,p):
@@ -465,7 +472,7 @@ def cal_ndcg(rel,top_p):
     # print('nDCG value is '+str(nDCG))
     return nDCG
 
-def filter_inactive_rate_ndcg(filter_label_val,prediction):
+def filter_inactive_rate_ndcg(filter_label_val,prediction,ratio):
     # rel=np.array(filter_label_val)[np.argsort(-prediction)]   #以死亡程度为相关度
     arg=np.argsort(-np.array(filter_label_val)) #按死亡度从大到小排序
     rank=np.zeros(shape=len(filter_label_val),dtype=int)
@@ -473,105 +480,19 @@ def filter_inactive_rate_ndcg(filter_label_val,prediction):
         rank[arg[i]]=i              #真实label越大排名越小（靠前）
     dk=rank[np.argsort(-prediction)]#根据预测从大到小排序，dk按序保存了真实的排名，ex[2,1,3],即预测最大，实际排第二
     rel=len(filter_label_val)-dk    #以排名为相关度，排名越小，相关性越大
-    ndcg=cal_ndcg(rel,0.5)
+    ndcg=cal_ndcg(rel,ratio)
     print('ndcg is {}'.format(ndcg))
     return ndcg
 
-if __name__ == "__main__":
-
-
-
-    #回归#################################################################################################################################################
-    filter_train,filter_label_train,filter_layer_train=read_data(batch_size=10000,regression_or_classification='regression',path='./最少样本测试/训练集')
-    filter_val,filter_label_val,filter_layer_val=read_data(batch_size=10000,regression_or_classification='regression',path='./最少样本测试/测试集')
-
-
-
-
-    #汇至cdf和pdf##################################################################################################
-    # for i in range(13):
-    #     filter_label_train_tmp=np.array(filter_label_train)[np.where(np.array(filter_layer_train)==i)]
-    #     title='randomdata_cdf:layer'+str(i)+'round:1'
-    #     label=1-np.array(filter_label_train_tmp)
-    #     plt.figure()
-    #     plt.title(title)
-    #     plt.hist(label,cumulative=True,histtype='step',bins=100) #cumulative=False为pdf，true为cdf
-    #     plt.xlabel('filter activation ratio')
-    #     plt.ylabel('number of filters')
-    #     plt.legend()
-    #     # plt.show()
-    #     plt.savefig(title+'.png', format='png')
-
-
-
-    # _, min_max_scaler, scaler, pca = statistics(filter_train, layer=filter_layer_train, balance_channel=False)
-    stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
-    stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
-
-
-    ##use auto_encoder to extract features################################################################################################
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    auto_encoder = encoder.AutoEncoder().to(device)
-    checkpoint = torch.load('./auto_encoder_padrepeat_576d.tar')
-    auto_encoder.load_state_dict(checkpoint['state_dict'])
-    # stat_train,_=auto_encoder.extract_feature(filters=filter_train)
-    # stat_val,_=auto_encoder.extract_feature(filters=filter_val)
-    stat_train_ae,_=auto_encoder.extract_feature(filters=filter_train,pad_mode='repeat')
-    stat_val_ae,_=auto_encoder.extract_feature(filters=filter_val,pad_mode='repeat')
-
-    # stat_train=stat_train_ae
-    # stat_val=stat_val_ae
-
-    # stat_train=np.hstack((stat_train,stat_train_ae))                                            #把ae提取的特征和人工的合并
-    # stat_val=np.hstack((stat_val,stat_val_ae))
-    # #
-
-
-
-    # from sklearn.feature_selection import VarianceThreshold
-    #
-    # # 方差选择法，返回值为特征选择后的数据
-    # # 参数threshold为方差的阈值
-    # vt=VarianceThreshold(threshold=0.0005)
-    # vt.fit_transform(stat_train)
-    # print(vt._get_support_mask())
-    #
-    # var=np.std(stat_train,axis=0)
-    # np.argsort(-var)
-
-    # stat_train=np.random.rand(7838,24)
-
-    from sklearn.svm import SVR
-    print('svm:')
-    model=SVR(C=1.0, cache_size=200, coef0=0.0, degree=3, epsilon=0.1, gamma='scale',
-    kernel='rbf', max_iter=-1, shrinking=True, tol=0.001, verbose=False)
-
-
-    param_grid = {
-        # 'degree':range(1,9,2),
-        'kernel':['linear',  'rbf', 'sigmoid'],
-        'gamma':['scale','auto',0.1,0.2,0.3,0.4,0.01],
-        # 'coef0':[0,0.01,0.001],
-        # 'C':[40,50,60,70,15,20,25,30],
-        # 'epsilon':[0.1,0.2,0.5,0.001]
-
-    }
-    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
-
-    model.fit(stat_train, filter_label_train)
-
-    # print(model.best_estimator_)
-
-    prediction = model.predict(stat_val)
-    loss = mean_absolute_error(filter_label_val, prediction)
+def performance_evaluation(label,prediction,ratio):
+    loss = mean_absolute_error(label, prediction)
     print('loss:{}'.format(loss))
 
-    filter_inactive_rate_ndcg(filter_label_val,prediction)
+    filter_inactive_rate_ndcg(label, prediction,ratio)
 
-    truth = np.argsort(-np.array(filter_label_val))
+    truth = np.argsort(-np.array(label))
     prediction_argsort = np.argsort(-prediction)
-    i = int(truth.shape[0] * 0.1)
-    print(i)
+    i = int(truth.shape[0] * ratio)
     for j in [0.1, 0.2, 0.3, 0.4, 0.5]:
         truth_top = truth[:int(truth.shape[0] * j)]
 
@@ -585,29 +506,107 @@ if __name__ == "__main__":
             if k in truth_top:
                 sum += 1
         print(sum / i)
-        sum = 0
+    print()
 
-    for i in range(13):
-        stat_sample = stat_train[np.where(np.array(filter_layer_train) == i)[0]]
-        sample_label = np.array(filter_label_train)[np.where(np.array(filter_layer_train) == i)[0]]
+if __name__ == "__main__":
 
-        prediction = model.predict(stat_sample)
-        loss = mean_absolute_error(sample_label, prediction)
-        print('{},loss:{}'.format(i, loss))
+    ratio=0.2
+
+    #回归#################################################################################################################################################
+    filter_train,filter_label_train,filter_layer_train=read_data(batch_size=10000,regression_or_classification='regression',path='./最少样本测试/训练集')
+    filter_val,filter_label_val,filter_layer_val=read_data(sample_num=5000,batch_size=10000,regression_or_classification='regression',path='./最少样本测试/测试集')
+
+    stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
+    stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
+
+
+    ##use auto_encoder to extract features################################################################################################
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # auto_encoder = encoder.AutoEncoder().to(device)
+    # checkpoint = torch.load('./auto_encoder_padrepeat_576d.tar')
+    # auto_encoder.load_state_dict(checkpoint['state_dict'])
+    # # stat_train,_=auto_encoder.extract_feature(filters=filter_train)
+    # # stat_val,_=auto_encoder.extract_feature(filters=filter_val)
+    # stat_train_ae,_=auto_encoder.extract_feature(filters=filter_train,pad_mode='repeat')
+    # stat_val_ae,_=auto_encoder.extract_feature(filters=filter_val,pad_mode='repeat')
+
+    # stat_train=stat_train_ae
+    # stat_val=stat_val_ae
+
+    # stat_train=np.hstack((stat_train,stat_train_ae))                                            #把ae提取的特征和人工的合并
+    # stat_val=np.hstack((stat_val,stat_val_ae))
+    # #######################################################################################################################3
+
+    ##mlp######################################################################################################
+    from sklearn.neural_network import MLPRegressor
+    print('MLP:')
+    model=MLPRegressor(activation='relu', alpha=0.0001, batch_size='auto', beta_1=0.9,
+                 beta_2=0.999, early_stopping=True, epsilon=1e-08,
+                 hidden_layer_sizes=120, learning_rate='constant',
+                 learning_rate_init=0.1, max_iter=1000, momentum=0.9,
+                 n_iter_no_change=10, nesterovs_momentum=True, power_t=0.5,
+                 random_state=None, shuffle=True, solver='sgd', tol=0.0001,
+                 validation_fraction=0.1, verbose=False, warm_start=False)
+    model=MLPRegressor(activation='relu', alpha=0, batch_size='auto', beta_1=0.9,
+             beta_2=0.999, early_stopping=False, epsilon=1e-08,
+             hidden_layer_sizes=170, learning_rate='constant',
+             learning_rate_init=0.01, max_iter=1000, momentum=0.9,
+             n_iter_no_change=10, nesterovs_momentum=True, power_t=0.5,
+             random_state=None, shuffle=True, solver='adam', tol=0.0001,
+             validation_fraction=0.1, verbose=False, warm_start=False)
+    model.fit(stat_train, filter_label_train)
+    param_grid = {
+        # 'hidden_layer_sizes':[100,120,170,150],
+        # 'activation':['identity', 'logistic', 'tanh', 'relu'],
+        # 'solver':['sgd'],
+        # 'alpha':[0.0001,0.001,0.01,0],
+        # 'learning_rate':['constant', 'invscaling', 'adaptive'],
+        # 'learning_rate_init':[0.1,0.01,0.001,0.0001]
+    }
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
+    model.fit(stat_train, filter_label_train)
+    # print(model.best_estimator_)
+    prediction = model.predict(stat_val)
+    performance_evaluation(filter_label_val,prediction,ratio)
 
 
 
+
+
+    # for i in range(13):
+    #     stat_sample = stat_train[np.where(np.array(filter_layer_train) == i)[0]]
+    #     sample_label = np.array(filter_label_train)[np.where(np.array(filter_layer_train) == i)[0]]
+    #
+    #     prediction = model.predict(stat_sample)
+    #     loss = mean_absolute_error(sample_label, prediction)
+    #     print('{},loss:{}'.format(i, loss))
+
+    ####svm#####################################################################################################
+    from sklearn.svm import SVR
+    print('svm:')
+    model=SVR(C=1.0, cache_size=200, coef0=0.0, degree=3, epsilon=0.1, gamma='scale',
+    kernel='rbf', max_iter=-1, shrinking=True, tol=0.001, verbose=False)
+    param_grid = {
+        # 'degree':range(1,9,2),
+        'kernel':['linear',  'rbf', 'sigmoid'],
+        'gamma':['scale','auto',0.1,0.2,0.3,0.4,0.01],
+        # 'coef0':[0,0.01,0.001],
+        # 'C':[40,50,60,70,15,20,25,30],
+        # 'epsilon':[0.1,0.2,0.5,0.001]
+
+    }
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
+    model.fit(stat_train, filter_label_train)
+    # print(model.best_estimator_)
+    prediction = model.predict(stat_val)
+    performance_evaluation(filter_label_val,prediction,ratio)
+
+
+
+    ###random forest########################################################################################
     from sklearn import ensemble
     print('随机森林')
     # for manual features
-    # model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
-    #                   max_features='sqrt', max_leaf_nodes=None,
-    #                   min_impurity_decrease=0.0, min_impurity_split=None,
-    #                   min_samples_leaf=50, min_samples_split=0.001,
-    #                   min_weight_fraction_leaf=0.0, n_estimators=1000,
-    #                   n_jobs=-1, oob_score=False, random_state=None,
-    #                   verbose=0, warm_start=False)
-    # for auto encoder
     model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
                       max_features='sqrt', max_leaf_nodes=None,
                       min_impurity_decrease=0.0, min_impurity_split=None,
@@ -615,13 +614,12 @@ if __name__ == "__main__":
                       min_weight_fraction_leaf=0.0, n_estimators=1000,
                       n_jobs=-1, oob_score=False, random_state=None,
                       verbose=0, warm_start=False)
-
-
+    # for auto encoder
     # model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
     #                   max_features='sqrt', max_leaf_nodes=None,
     #                   min_impurity_decrease=0.0, min_impurity_split=None,
-    #                   min_samples_leaf=10, min_samples_split=0.001,
-    #                   min_weight_fraction_leaf=0.0, n_estimators=100,
+    #                   min_samples_leaf=50, min_samples_split=0.001,
+    #                   min_weight_fraction_leaf=0.0, n_estimators=1000,
     #                   n_jobs=-1, oob_score=False, random_state=None,
     #                   verbose=0, warm_start=False)
 
@@ -637,74 +635,15 @@ if __name__ == "__main__":
         # 'min_samples_leaf':range(10,101,40),
     }
     # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
-
     model.fit(stat_train, filter_label_train)
-
     # print(model.best_estimator_)
-
     prediction = model.predict(stat_val)
-    loss = mean_absolute_error(filter_label_val, prediction)
-    print('loss:{}'.format(loss))
-
-    filter_inactive_rate_ndcg(filter_label_val,prediction)
-
-    truth = np.argsort(-np.array(filter_label_val))
-    prediction_argsort = np.argsort(-prediction)
-    i = int(truth.shape[0] * 0.1)
-    print(i)
-    for j in [0.1,0.2, 0.3, 0.4, 0.5]:
-        truth_top = truth[:int(truth.shape[0] * j)]
-
-        if i > truth_top.shape[0]:
-            continue
-        print('前' + str(j*100)+'%的准确率:',end='')
-        prediction_top = prediction_argsort[:i]
-        # truth_top = truth[:i]
-        sum = 0
-        for k in prediction_top:
-            if k in truth_top:
-                sum += 1
-        print(sum / i)
-        sum=0
-
-    for i in range(13):
-        stat_sample=stat_train[np.where(np.array(filter_layer_train)==i)[0]]
-        sample_label=np.array(filter_label_train)[np.where(np.array(filter_layer_train)==i)[0]]
-
-        prediction = model.predict(stat_sample)
-        loss = mean_absolute_error(sample_label, prediction)
-        print('{},loss:{}'.format(i,loss))
+    performance_evaluation(filter_label_val,prediction,ratio)
 
 
-    prediction = model.predict(stat_val)
-    loss = mean_absolute_error(filter_label_val, prediction)
-    print('loss:{}'.format(loss))
-    # print(model.best_estimator_)
-
-
-
-
-    # 7.GBRT回归
+    # 7.GBRT回归###############################################################################################
     from sklearn import ensemble
     print('GBRT',end='')
-
-    # model = ensemble.GradientBoostingRegressor(n_estimators=1000,learning_rate=0.1)  # 这里使用100个决策树
-    # mt=predictor(name='gradient_boosting')
-    # mt.fit(stat_train,filter_label_train)
-    # prediction=mt.predict(stat_val)
-    # c = mean_absolute_error(filter_label_val, prediction)
-    # print(c)
-
-
-    # model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
-    #                       learning_rate=0.1, loss='ls', max_depth=13,
-    #                       max_features='sqrt', max_leaf_nodes=None,
-    #                       min_impurity_decrease=0.0, min_impurity_split=None,
-    #                       min_samples_leaf=1, min_samples_split=0.005,
-    #                       min_weight_fraction_leaf=0.0, n_estimators=1000,
-    #                       n_iter_no_change=None, presort='auto',
-    #                       random_state=None, subsample=1.0, tol=0.0001,
-    #                       validation_fraction=0.1, verbose=0, warm_start=False)
 
     model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
                           learning_rate=0.1, loss='ls', max_depth=17,
@@ -725,92 +664,18 @@ if __name__ == "__main__":
         'max_depth':[11,13,15,17,19],
         'min_samples_leaf':[10,12,14,16,18],
     }
-
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
     model.fit(stat_train, filter_label_train)
-
     prediction = model.predict(stat_val)
-    loss = mean_absolute_error(filter_label_val, prediction)
-    print('loss:{}'.format(loss))
+    performance_evaluation(filter_label_val,prediction,ratio)
 
 
-
-    n_estimators= [50,100,500,1000,1200]#[100* i for i in range(1, 10, 2)],
-    learning_rate= [0.05, 0.1, 0.2]
-    min_samples_split=[0.007,0.005,0.004,0.003,0.002]
-    max_features=['sqrt','log2',None]
-    subsample=[0.8,0.9,1]
-    max_depth=[11,13,15,17,19]
-    min_samples_leaf=[10,12,14,16,18]
-
-    min_comb=list()
-    small_comb=list()
-    min_loss=100
-    for n_e in n_estimators:
-        for lr in learning_rate:
-            for mss in min_samples_split:
-                for mf in max_features:
-                    for subsam in subsample:
-                        for md in max_depth:
-                            for msl in min_samples_leaf:
-                                model = ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse',
-                                                                           init=None,
-                                                                           learning_rate=lr, loss='ls', max_depth=md,
-                                                                           max_features=mf, max_leaf_nodes=None,
-                                                                           min_impurity_decrease=0.0,
-                                                                           min_impurity_split=None,
-                                                                           min_samples_leaf=msl, min_samples_split=mss,
-                                                                           min_weight_fraction_leaf=0.0,
-                                                                           n_estimators=n_e,
-                                                                           n_iter_no_change=None, presort='auto',
-                                                                           random_state=None, subsample=subsam, tol=0.0001,
-                                                                           validation_fraction=0.1, verbose=0,
-                                                                           warm_start=False)
-
-                                print(n_e,lr,mss,mf,subsam,md,msl)
-
-                                # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
-                                model.fit(stat_train,filter_label_train)
-
-                                prediction=model.predict(stat_val)
-                                loss=mean_absolute_error(filter_label_val,prediction)
-                                print('loss:{}'.format(loss))
-                                if loss<0.2:
-                                    small_comb.append([n_e,lr,mss,mf,subsam,md,msl])
-                                if loss<min_loss:
-                                    min_comb=[n_e,lr,mss,mf,subsam,md,msl]
-                                    min_loss=loss
-
-                                truth = np.argsort(-np.array(filter_label_val))
-                                prediction_argsort=np.argsort(-prediction)
-                                i = int(truth.shape[0] * 0.1)
-                                print(i)
-                                for j in [0.2,0.3,0.4,0.5]:
-                                    print('j:'+str(j))
-                                    truth_top = truth[:int(truth.shape[0] *j)]
-
-                                    if i>=truth_top.shape[0]:
-                                        continue
-                                    prediction_top=prediction_argsort[:i]
-                                    # truth_top = truth[:i]
-                                    sum=0
-                                    for k in prediction_top:
-                                        if k in truth_top:
-                                            sum+=1
-                                    print(sum/i)
-                                print('-----------------------------------------------------')
+    print('瞎jb猜')
+    prediction=np.random.random(size=stat_val.shape[0])
+    performance_evaluation(filter_label_val,prediction,ratio)
 
 
-    print('min_comb:{},loss:{}'.format(min_comb,min_loss))
-    print('small_comb:{}'.format(small_comb))
-
-
-
-    # print('瞎jb猜',end='')
-    # prediction=np.random.random(size=stat_val.shape[0])
-    # c=mean_absolute_error(filter_label_val,prediction)
-    # print(c)
-
-
+    print()
 
 
     # from sklearn.feature_selection import RFE
