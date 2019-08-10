@@ -38,10 +38,12 @@ class AutoEncoder(nn.Module):
             nn.Tanh(),
             nn.Dropout(),
             nn.Linear(2304, 576),
-            nn.BatchNorm1d(576),
-            nn.Tanh(),
-            nn.Dropout(),
-            nn.Linear(576, 144),
+
+            # nn.BatchNorm1d(576),
+            # nn.Tanh(),
+            # nn.Dropout(),
+            # nn.Linear(576, 144),
+
             # nn.BatchNorm1d(144),
             # nn.Tanh(),
             # nn.Dropout(),
@@ -53,10 +55,12 @@ class AutoEncoder(nn.Module):
             # nn.BatchNorm1d(144),
             # nn.Tanh(),
             # nn.Dropout(),
-            nn.Linear(144, 576),
-            nn.BatchNorm1d(576),
-            nn.Tanh(),
-            nn.Dropout(),
+
+            # nn.Linear(144, 576),
+            # nn.BatchNorm1d(576),
+            # nn.Tanh(),
+            # nn.Dropout(),
+
             nn.Linear(576, 2304),
             nn.BatchNorm1d(2304),
             nn.Tanh(),
@@ -163,7 +167,7 @@ def train_encoder(train_dir='',val_dir='',pad_mode='-1'):
     #torch.optim.Adam(auto_encoder.parameters(), lr=1e-3)
     loss_func = nn.MSELoss()
     batch_size=1000
-    num_epoch=1000
+    num_epoch=1500
     sample_num=0
     #loss_func=nn.L1Loss()
     for epoch in range(num_epoch):
@@ -176,7 +180,7 @@ def train_encoder(train_dir='',val_dir='',pad_mode='-1'):
                                             sample_num=sample_num,
                                             learning_rate_decay_factor=0.1,
                                             train_set_size=filter_train.shape[0],
-                                            learning_rate_decay_epoch=[],
+                                            learning_rate_decay_epoch=[1000],
                                             batch_size=batch_size)
 
 
@@ -225,10 +229,12 @@ root='/home/victorfang/PycharmProjects/model_pytorch/data/model_params/'
 #                 np.save(root+'bias/'+net_name+','+str(i),bias)
 
 if __name__ == "__main__":
-    name='./auto_encoder_pad-1_144d.tar'
-    checkpoint=torch.load(name)
-    checkpoint_new={'state_dict':checkpoint['state_dict'],'sample_num':checkpoint['sample_num']}
-    torch.save(checkpoint_new,name)
+    # name='./auto_encoder_pad-1_144d.tar'
+    # checkpoint=torch.load(name)
+    # checkpoint_new={'state_dict':checkpoint['state_dict'],'sample_num':checkpoint['sample_num']}
+    # torch.save(checkpoint_new,name)
+
+
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # auto_encoder=AutoEncoder().to(device)
     # checkpoint=torch.load('./auto_encoder.tar')
@@ -242,5 +248,5 @@ if __name__ == "__main__":
 
     print()
 
-    train_encoder(train_dir='./auto_encoder/train',val_dir='./auto_encoder/val',pad_mode='repeat')
+    train_encoder(train_dir='./auto_encoder/train',val_dir='./auto_encoder/val',pad_mode='-1')
 

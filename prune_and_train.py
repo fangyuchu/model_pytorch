@@ -886,6 +886,7 @@ def prune_inactive_neural_with_regressor(net,
                                          weight_decay=conf.weight_decay,
                                          learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                                          top_acc=1,
+                                         max_training_iteration=99999,
                                          **kwargs
                                      ):
     '''
@@ -951,11 +952,11 @@ def prune_inactive_neural_with_regressor(net,
         'weight_decay:{}\n' 
         'learning_rate_decay_epoch:{}\n'
         'top_acc:{}\n'
-
+        'max_training_iteration:{}\n'
           .format(net, net_name, target_accuracy, prune_rate,predictor_name,load_regressor,round_for_train,tar_acc_gradual_decent,
                   flop_expected,dataset_name,use_random_data,validation_loader,batch_size,num_workers,optimizer,learning_rate,
                   checkpoint_step,num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
-                  weight_decay,learning_rate_decay_epoch,top_acc))
+                  weight_decay,learning_rate_decay_epoch,top_acc,max_training_iteration))
     print(kwargs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -1104,32 +1105,37 @@ def prune_inactive_neural_with_regressor(net,
                                   )
             if not success:
                 net = old_net
+                max_training_iteration -= 1
+                if max_training_iteration == 0:
+                    print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
+                    return
 
 
 def prune_inactive_neural_with_regressor_resnet(net,
-                                 net_name,
-                                 target_accuracy,
-                                 prune_rate,
-                                 load_regressor=False,
-                                 predictor_name='random_forest',
-                                 round_for_train=2,
-                                 tar_acc_gradual_decent=False,
-                                 flop_expected=None,
-                                 dataset_name='imagenet',
-                                 use_random_data=False,
-                                 validation_loader=None,
-                                 batch_size=conf.batch_size,
-                                 num_workers=conf.num_workers,
-                                 optimizer=optim.Adam,
-                                 learning_rate=0.01,
-                                 checkpoint_step=1000,
-                                 num_epoch=450,
-                                 filter_preserve_ratio=0.3,
-                                 max_filters_pruned_for_one_time=0.5,
-                                 learning_rate_decay=False,
-                                 learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                                 weight_decay=conf.weight_decay,
-                                 learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                                                net_name,
+                                                target_accuracy,
+                                                prune_rate,
+                                                load_regressor=False,
+                                                predictor_name='random_forest',
+                                                round_for_train=2,
+                                                tar_acc_gradual_decent=False,
+                                                flop_expected=None,
+                                                dataset_name='imagenet',
+                                                use_random_data=False,
+                                                validation_loader=None,
+                                                batch_size=conf.batch_size,
+                                                num_workers=conf.num_workers,
+                                                optimizer=optim.Adam,
+                                                learning_rate=0.01,
+                                                checkpoint_step=1000,
+                                                num_epoch=450,
+                                                filter_preserve_ratio=0.3,
+                                                max_filters_pruned_for_one_time=0.5,
+                                                learning_rate_decay=False,
+                                                learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                                                weight_decay=conf.weight_decay,
+                                                learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                                                max_training_iteration=9999,
                                  **kwargs
                                  ):
     '''
@@ -1158,6 +1164,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     :param learning_rate_decay_factor:
     :param weight_decay:
     :param learning_rate_decay_epoch:
+    :param max_training_iteration:if the net can't reach target accuracy in max_training_iteration , the program stop.
     :param kwargs:
     :return:
     '''
@@ -1193,6 +1200,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     print('learning_rate_decay_factor:',learning_rate_decay_factor)
     print('weight_decay:',weight_decay)
     print('learning_rate_decay_epoch:',learning_rate_decay_epoch)
+    print('max_training_iteration:',max_training_iteration)
 
     print(kwargs)
 
@@ -1357,6 +1365,10 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                   )
             if not success:
                 net = old_net
+                max_training_iteration-=1
+                if max_training_iteration==0:
+                    print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
+                    return
 
 
 
@@ -1642,35 +1654,36 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-    net=vgg.vgg16_bn(pretrained=True).to(device)
-    prune_inactive_neural_with_regressor(net=net,
-                                         net_name='vgg16bn_imagenet_regressor',
-                                         top_acc=5,
-                                         target_accuracy=0.9,
-                                         prune_rate=0.2,
-                                         load_regressor=False,
-                                         round_for_train=2,
-                                         tar_acc_gradual_decent=True,
-                                         flop_expected=3e9,
-                                         dataset_name='imagenet',
-                                         use_random_data=False,
-                                         validation_loader=None,
-                                         batch_size=64,
-                                         num_workers=7,
-
-                                         optimizer=optim.SGD,
-                                         learning_rate=0.01,
-                                         learning_rate_decay=True,
-                                         learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-                                         learning_rate_decay_factor=0.5,
-
-
-                                         checkpoint_step=2500,
-                                         num_epoch=90,
-                                         filter_preserve_ratio=0.3,
-                                         max_filters_pruned_for_one_time=[0.11,0.11,0.11,0.11,0.11,0.11,0.11,0.11,0.11,0.11,0.2,0.2,0.2],
-                                         weight_decay=conf.weight_decay,
-                                         )
+    # net=vgg.vgg16_bn(pretrained=True).to(device)
+    # a=[0.2 for i in range(13)]
+    # prune_inactive_neural_with_regressor(net=net,
+    #                                      net_name='vgg16bn_imagenet_regressor',
+    #                                      top_acc=5,
+    #                                      target_accuracy=0.9,
+    #                                      prune_rate=0.15,
+    #                                      load_regressor=False,
+    #                                      round_for_train=2,
+    #                                      tar_acc_gradual_decent=True,
+    #                                      flop_expected=3e9,
+    #                                      dataset_name='imagenet',
+    #                                      use_random_data=False,
+    #                                      validation_loader=None,
+    #                                      batch_size=32,
+    #                                      num_workers=7,
+    #
+    #                                      optimizer=optim.SGD,
+    #                                      learning_rate=0.005,
+    #                                      learning_rate_decay=True,
+    #                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+    #                                      learning_rate_decay_factor=0.5,
+    #
+    #
+    #                                      checkpoint_step=2500,
+    #                                      num_epoch=90,
+    #                                      filter_preserve_ratio=0.3,
+    #                                      max_filters_pruned_for_one_time=a,#[0.11,0.11,0.11,0.11,0.11,0.11,0.11,0.11,0.11,0.11,0.2,0.2,0.2],
+    #                                      weight_decay=conf.weight_decay,
+    #                                      )
 
 
     #
@@ -1678,14 +1691,14 @@ if __name__ == "__main__":
     # net=checkpoint['net']
     #
     # # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
-    # # checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
-    # # net = resnet_copied.resnet56().to(device)
-    #
+    checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+    net = resnet_copied.resnet56().to(device)
+
     # # checkpoint=torch.load('/home/disk_new/model_saved/resnet56_cifar10_DeadNeural_realdata_good_baseline_过得去/代表/sample_num=13300000,accuracy=0.93610，flop=65931914.tar')
     # # net=checkpoint['net']
     #
-    # net.load_state_dict(checkpoint['state_dict'])
-    # print(checkpoint['highest_accuracy'])
+    net.load_state_dict(checkpoint['state_dict'])
+    print(checkpoint['highest_accuracy'])
     #
     # prune_inactive_neural_with_regressor(net=net,
     #                                      net_name='tmp',
@@ -1712,34 +1725,39 @@ if __name__ == "__main__":
     #                                      learning_rate_decay_factor=0.5,
     #                                      )
 
-    # a=[0 for i in range(55)]
+
+    #prune rate的实验
+    a=[1 for i in range(55)]
     # a[53]=0.2
     # a[37]=0.2
-    # #for pruned baseline
-    # prune_inactive_neural_with_regressor_resnet(net=net,
-    #                                             net_name='resnet56_cifar10_regressor_prunedBaseline',
-    #                                             prune_rate=0.1,
-    #                                             load_regressor=True,
-    #                                             dataset_name='cifar10',
-    #                                             filter_preserve_ratio=0.15,
-    #                                             max_filters_pruned_for_one_time=a,
-    #                                             target_accuracy=0.93,
-    #                                             tar_acc_gradual_decent=True,
-    #                                             flop_expected=4e7,
-    #                                             batch_size=1600,
-    #                                             num_epoch=450,
-    #                                             checkpoint_step=3000,
-    #                                             use_random_data=False,
-    #                                             round_for_train=2,
-    #                                             # optimizer=optim.Adam,
-    #                                             # learning_rate=1e-3,
-    #                                             # weight_decay=0
-    #                                             optimizer=optim.SGD,
-    #                                             learning_rate=0.01,
-    #                                             learning_rate_decay=True,
-    #                                             learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-    #                                             learning_rate_decay_factor=0.5,
-    #                                             )
+    #for pruned baseline
+    prune_rate=[0.05,0.1,0.2,0.3,0.4]
+    for i in prune_rate:
+        prune_inactive_neural_with_regressor_resnet(net=net,
+                                                    net_name='resnet56_cifar10_regressor_prune_rate'+str(i),
+                                                    prune_rate=i,
+                                                    load_regressor=False,
+                                                    dataset_name='cifar10',
+                                                    filter_preserve_ratio=0.15,
+                                                    max_filters_pruned_for_one_time=a,
+                                                    target_accuracy=0.93,
+                                                    tar_acc_gradual_decent=True,
+                                                    flop_expected=4e7,
+                                                    batch_size=1600,
+                                                    num_epoch=450,
+                                                    checkpoint_step=3000,
+                                                    use_random_data=False,
+                                                    round_for_train=2,
+                                                    # optimizer=optim.Adam,
+                                                    # learning_rate=1e-3,
+                                                    # weight_decay=0
+                                                    optimizer=optim.SGD,
+                                                    learning_rate=0.01,
+                                                    learning_rate_decay=True,
+                                                    learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                                                    learning_rate_decay_factor=0.5,
+                                                    max_training_iteration=2
+                                                    )
 
     # for original baseline
     # prune_inactive_neural_with_regressor_resnet(net=net,

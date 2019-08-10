@@ -22,7 +22,7 @@ from sklearn import ensemble
 import matplotlib.pyplot as plt
 from sklearn.externals import joblib
 import encoder
-
+import math
 
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               balance=False,
@@ -368,42 +368,26 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
     :param scaler:
     :return:
     '''
-    feature_num=24
+    feature_num=15
     stat=np.zeros(shape=[len(filters),feature_num],dtype=np.float)
     for i in range(len(filters)):
-        # stat[i][0]=np.mean(filters[i])                                  #均值
-        # stat[i][1]=trimmed_mean(filters[i],0.2)                         #截断均值（p=0.2）
-        # stat[i][2]=np.median(filters[i])                                #中位数
-        # stat[i][3]=filters[i].max()-filters[i].min()                    #极差
-        # stat[i][4]=(filters[i].max()+filters[i].min())/2                #中列数(max+min)/2
-        # stat[i][5]=np.percentile(filters[i],25)                         #第一四分位数
-        # stat[i][6]=np.percentile(filters[i],75)                         #第三四分位数
-        # stat[i][7]=stat[i][6]-stat[i][5]                                #四分位数极差
-        # stat[i][8]=np.std(filters[i])                                   #标准差
-        # stat[i][9]=filters[i].max()                                     #最大值
-        # stat[i][10]=filters[i].min()                                    #最小值
-        # stat[i][11]=filters[i].shape[0]                                 #通道数
-        # stat[i][12]=layer[i]                                            #哪一层
-        # stat[i][13:22]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
-        # stat[i][22]=np.sum(filters[i])                                  #求和
-        # stat[i][23]=np.sum(np.abs(filters[i]))                          #绝对值求和
 
-        stat[i][0]=filters[i].shape[0]                                 #通道数
-        stat[i][1]=layer[i]                                            #哪一层
-        stat[i][2]=np.sum(np.abs(filters[i]))                          #绝对值求和
-        stat[i][3]=np.sum(filters[i])                                  #求和
-        stat[i][4]=filters[i].max()-filters[i].min()                    #极差
-        stat[i][5]=filters[i].max()                                     #最大值
-        stat[i][6]=stat[i][6]-stat[i][5]                                #四分位数极差
-        stat[i][7]=np.std(filters[i])                                   #标准差
-        stat[i][8]=np.percentile(filters[i],25)                         #第一四分位数
-        stat[i][9]=filters[i].min()                                    #最小值
-        stat[i][10]=np.percentile(filters[i],75)                         #第三四分位数
-        stat[i][11]=np.mean(filters[i])                                  #均值
-        stat[i][12]=np.median(filters[i])                                #中位数
-        stat[i][13]=(filters[i].max()+filters[i].min())/2                #中列数(max+min)/2
-        stat[i][14:23]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
-        stat[i][23]=trimmed_mean(filters[i],0.2)                         #截断均值（p=0.2）
+        stat[i][0]=filters[i].shape[0]                                 #通道数1
+        stat[i][1]=layer[i]                                            #哪一层1
+        stat[i][2]=np.sum(np.abs(filters[i]))                          #绝对值求和1
+        stat[i][3]=np.sum(filters[i])                                  #求和1
+        stat[i][4]=filters[i].max()-filters[i].min()                    #极差1
+        stat[i][5]=filters[i].max()                                     #最大值1
+        stat[i][6]=stat[i][10]-stat[i][8]                                #四分位数极差1
+        stat[i][7]=np.std(filters[i])                                   #标准差1
+        stat[i][8]=np.percentile(filters[i],25)                         #第一四分位数1
+        stat[i][9]=filters[i].min()                                    #最小值1
+        stat[i][10]=np.percentile(filters[i],75)                         #第三四分位数1
+        stat[i][11]=np.mean(filters[i])                                  #均值1
+        stat[i][12]=np.median(filters[i])                                #中位数1
+        stat[i][13]=(filters[i].max()+filters[i].min())/2                #中列数(max+min)/21
+        stat[i][14]=trimmed_mean(filters[i],0.2)                         #截断均值（p=0.2）
+        #stat[i][15:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
 
 
 
@@ -457,9 +441,45 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
 
     return stat,min_max_scaler,scaler,pca
 
+
+
+
+def cal_ndcg(rel,top_p):
+    #考虑dk元素为卷积核的真是死亡度，顺序为预测的死亡度进行排序
+    dcg_value = 0.
+    idcg_value = 0.
+    topk=int(top_p*rel.shape[0])
+    log_ki = []
+
+    idcg_rel = rel[np.argsort(-rel)]
+
+    for ki in range(0,topk):
+        log_ki.append(math.log(ki+1,2) if math.log(ki+1,2) != 0. else 1.)
+        dcg_value += rel[ki] / log_ki[ki]
+        idcg_value += idcg_rel[ki] / log_ki[ki]
+
+
+    # print( "DCG value is " + str(dcg_value))
+    # print ("iDCG value is " + str(idcg_value))
+    nDCG=dcg_value/idcg_value
+    # print('nDCG value is '+str(nDCG))
+    return nDCG
+
+def filter_inactive_rate_ndcg(filter_label_val,prediction):
+    # rel=np.array(filter_label_val)[np.argsort(-prediction)]   #以死亡程度为相关度
+    arg=np.argsort(-np.array(filter_label_val)) #按死亡度从大到小排序
+    rank=np.zeros(shape=len(filter_label_val),dtype=int)
+    for i in range(len(filter_label_val)):
+        rank[arg[i]]=i              #真实label越大排名越小（靠前）
+    dk=rank[np.argsort(-prediction)]#根据预测从大到小排序，dk按序保存了真实的排名，ex[2,1,3],即预测最大，实际排第二
+    rel=len(filter_label_val)-dk    #以排名为相关度，排名越小，相关性越大
+    ndcg=cal_ndcg(rel,0.5)
+    print('ndcg is {}'.format(ndcg))
+    return ndcg
+
 if __name__ == "__main__":
-    # import sklearn
-    # print(sorted(sklearn.metrics.SCORERS.keys()))
+
+
 
     #回归#################################################################################################################################################
     filter_train,filter_label_train,filter_layer_train=read_data(batch_size=10000,regression_or_classification='regression',path='./最少样本测试/训练集')
@@ -492,19 +512,19 @@ if __name__ == "__main__":
     ##use auto_encoder to extract features################################################################################################
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     auto_encoder = encoder.AutoEncoder().to(device)
-    checkpoint = torch.load('./auto_encoder_pad-1_144d.tar')
+    checkpoint = torch.load('./auto_encoder_padrepeat_576d.tar')
     auto_encoder.load_state_dict(checkpoint['state_dict'])
     # stat_train,_=auto_encoder.extract_feature(filters=filter_train)
     # stat_val,_=auto_encoder.extract_feature(filters=filter_val)
-    stat_train_ae,_=auto_encoder.extract_feature(filters=filter_train,pad_mode='-1')
-    stat_val_ae,_=auto_encoder.extract_feature(filters=filter_val,pad_mode='-1')
+    stat_train_ae,_=auto_encoder.extract_feature(filters=filter_train,pad_mode='repeat')
+    stat_val_ae,_=auto_encoder.extract_feature(filters=filter_val,pad_mode='repeat')
 
     # stat_train=stat_train_ae
     # stat_val=stat_val_ae
 
     # stat_train=np.hstack((stat_train,stat_train_ae))                                            #把ae提取的特征和人工的合并
     # stat_val=np.hstack((stat_val,stat_val_ae))
-    #
+    # #
 
 
 
@@ -518,6 +538,62 @@ if __name__ == "__main__":
     #
     # var=np.std(stat_train,axis=0)
     # np.argsort(-var)
+
+    # stat_train=np.random.rand(7838,24)
+
+    from sklearn.svm import SVR
+    print('svm:')
+    model=SVR(C=1.0, cache_size=200, coef0=0.0, degree=3, epsilon=0.1, gamma='scale',
+    kernel='rbf', max_iter=-1, shrinking=True, tol=0.001, verbose=False)
+
+
+    param_grid = {
+        # 'degree':range(1,9,2),
+        'kernel':['linear',  'rbf', 'sigmoid'],
+        'gamma':['scale','auto',0.1,0.2,0.3,0.4,0.01],
+        # 'coef0':[0,0.01,0.001],
+        # 'C':[40,50,60,70,15,20,25,30],
+        # 'epsilon':[0.1,0.2,0.5,0.001]
+
+    }
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
+
+    model.fit(stat_train, filter_label_train)
+
+    # print(model.best_estimator_)
+
+    prediction = model.predict(stat_val)
+    loss = mean_absolute_error(filter_label_val, prediction)
+    print('loss:{}'.format(loss))
+
+    filter_inactive_rate_ndcg(filter_label_val,prediction)
+
+    truth = np.argsort(-np.array(filter_label_val))
+    prediction_argsort = np.argsort(-prediction)
+    i = int(truth.shape[0] * 0.1)
+    print(i)
+    for j in [0.1, 0.2, 0.3, 0.4, 0.5]:
+        truth_top = truth[:int(truth.shape[0] * j)]
+
+        if i > truth_top.shape[0]:
+            continue
+        print('前' + str(j * 100) + '%的准确率:', end='')
+        prediction_top = prediction_argsort[:i]
+        # truth_top = truth[:i]
+        sum = 0
+        for k in prediction_top:
+            if k in truth_top:
+                sum += 1
+        print(sum / i)
+        sum = 0
+
+    for i in range(13):
+        stat_sample = stat_train[np.where(np.array(filter_layer_train) == i)[0]]
+        sample_label = np.array(filter_label_train)[np.where(np.array(filter_layer_train) == i)[0]]
+
+        prediction = model.predict(stat_sample)
+        loss = mean_absolute_error(sample_label, prediction)
+        print('{},loss:{}'.format(i, loss))
 
 
 
@@ -539,6 +615,7 @@ if __name__ == "__main__":
                       min_weight_fraction_leaf=0.0, n_estimators=1000,
                       n_jobs=-1, oob_score=False, random_state=None,
                       verbose=0, warm_start=False)
+
 
     # model = ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
     #                   max_features='sqrt', max_leaf_nodes=None,
@@ -567,10 +644,10 @@ if __name__ == "__main__":
 
     prediction = model.predict(stat_val)
     loss = mean_absolute_error(filter_label_val, prediction)
+    print('loss:{}'.format(loss))
 
+    filter_inactive_rate_ndcg(filter_label_val,prediction)
 
-
-    # print('loss:{}'.format(loss))
     truth = np.argsort(-np.array(filter_label_val))
     prediction_argsort = np.argsort(-prediction)
     i = int(truth.shape[0] * 0.1)
