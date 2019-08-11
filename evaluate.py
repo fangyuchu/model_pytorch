@@ -344,6 +344,12 @@ def find_useless_filters_data_version(net,
                 train_set_path = conf.cifar10['train_set_path']
                 default_image_size = conf.cifar10['default_image_size']
                 train_set_size=conf.cifar10['train_set_size']
+            elif dataset_name is 'tiny_imagenet':
+                mean = conf.tiny_imagenet['mean']
+                std = conf.tiny_imagenet['std']
+                train_set_path = conf.tiny_imagenet['train_set_path']
+                default_image_size = conf.tiny_imagenet['default_image_size']
+                train_set_size=conf.tiny_imagenet['train_set_size']
             train_loader = data_loader.create_validation_loader(dataset_path=train_set_path,
                                                                 default_image_size=default_image_size,
                                                                 mean=mean,
@@ -358,10 +364,11 @@ def find_useless_filters_data_version(net,
             if neural_dead_times is None and dead_or_inactive is 'inactive':
                 neural_dead_times=dataset_size
 
-            module_list,neural_list=check_ReLU_alive(net=net,data_loader=train_loader,
+            net_test=copy.deepcopy(net)
+            module_list,neural_list=check_ReLU_alive(net=net_test,data_loader=train_loader,
                                                      neural_dead_times=neural_dead_times,max_data_to_test=max_data_to_test)
-
-
+            del net_test
+            del train_loader
     num_conv = 0  # num of conv layers in the net
     filter_num = list()
     for mod in net.modules():
@@ -523,7 +530,7 @@ def cal_dead_times(module, input, output):
         if module not in relu_list:
             relu_list.append(module)
     if module not in neural_list.keys():
-        neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
+        neural_list[module]=np.zeros(int(output.shape[1:]),dtype=np.int)
 
     output=output.detach()                                              #set requires_grad to False
     zero_matrix=np.zeros(output.shape,dtype=np.int)

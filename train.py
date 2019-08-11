@@ -19,6 +19,7 @@ import logger
 import sys
 import measure_flops
 import resnet_copied
+import copy
 
 
 
@@ -128,6 +129,13 @@ def train(
         train_set_path=conf.cifar10['train_set_path']
         validation_set_path=conf.cifar10['validation_set_path']
         default_image_size=conf.cifar10['default_image_size']
+    elif dataset_name is 'tiny_imagenet':
+        train_set_size = conf.tiny_imagenet['train_set_size']
+        mean = conf.tiny_imagenet['mean']
+        std = conf.tiny_imagenet['std']
+        train_set_path = conf.tiny_imagenet['train_set_path']
+        validation_set_path = conf.tiny_imagenet['validation_set_path']
+        default_image_size = conf.tiny_imagenet['default_image_size']
     if train_loader is None:
         train_loader=data_loader.create_train_loader(dataset_path=train_set_path,
                                                      default_image_size=default_image_size,
@@ -169,13 +177,16 @@ def train(
 
     if test_net:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
-        accuracy=evaluate.evaluate_net(net,validation_loader,
+        net_test=copy.deepcopy(net)
+        accuracy=evaluate.evaluate_net(net_test,validation_loader,
                                        save_net=True,
                                        checkpoint_path=checkpoint_path,
                                        sample_num=sample_num,
                                        target_accuracy=target_accuracy,
                                        dataset_name=dataset_name,
                                        top_acc=top_acc)
+        del net_test
+
         if accuracy >= target_accuracy:
             print('{} net reached target accuracy.'.format(datetime.now()))
             return success
@@ -191,13 +202,15 @@ def train(
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
             if sample_num / train_set_size==epoch+1:               #one epoch of training finished
-                accuracy=evaluate.evaluate_net(net,validation_loader,
+                net_test = copy.deepcopy(net)
+                accuracy=evaluate.evaluate_net(net_test,validation_loader,
                                                save_net=True,
                                                checkpoint_path=checkpoint_path,
                                                sample_num=sample_num,
                                                target_accuracy=target_accuracy,
                                                dataset_name=dataset_name,
                                                top_acc=top_acc)
+                del net_test
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
@@ -229,16 +242,19 @@ def train(
 
 
             if step % checkpoint_step == 0 and step != 0:
-                accuracy=evaluate.evaluate_net(net,validation_loader,
+                net_test = copy.deepcopy(net)
+                accuracy=evaluate.evaluate_net(net_test,validation_loader,
                                                 save_net=True,
                                                 checkpoint_path=checkpoint_path,
                                                 sample_num=sample_num,
                                                target_accuracy=target_accuracy,
                                                dataset_name=dataset_name,
                                                top_acc=top_acc)
+                del net_test
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
+                del accuracy
                 print('{} continue training'.format(datetime.now()))
 
     print("{} Training finished. Saving net...".format(datetime.now()))
@@ -343,37 +359,38 @@ if __name__ == "__main__":
     sys.stderr = logger.Logger( './log.txt', sys.stderr)  # redirect std err, if necessary
 
     #net = resnet.resnet34(num_classes=10)
-    net=resnet_copied.resnet56()
+    net=vgg.vgg16_bn(num_classes=200)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
     # measure_flops.measure_model(net, dataset_name='cifar10')
-    batch_size=1024
-    num_worker=4
+    batch_size=64
+    num_worker=8
     train_loader=data_loader.create_train_loader(batch_size=batch_size,
                                                  num_workers=num_worker,
-                                                 dataset_name='cifar10',
-                                                 dataset_path='./dataset')
+                                                 dataset_name='tiny_imagenet',
+                                                 )
     validation_loader=data_loader.create_validation_loader(batch_size=batch_size,
                                                            num_workers=num_worker,
-                                                           dataset_name='cifar10',
-                                                            dataset_path='./dataset')
-    for i in range(10):
+                                                           dataset_name='tiny_imagenet',
+                                                        )
+    for i in range(1):
         print(i)
         train(net=net,
-              net_name='resnet56_baseline'+str(i),
-              dataset_name='cifar10',
-              optimizer=optim.SGD,
-              learning_rate=0.1,
-              learning_rate_decay=True,
+              net_name='vgg16bn_tiny_imagenet',
+              dataset_name='tiny_imagenet',
+              optimizer=optim.Adam,
+              learning_rate=1e-3,
+              learning_rate_decay=False,
               learning_rate_decay_epoch=[ 100, 200, 300],
               learning_rate_decay_factor=0.1,
               test_net=False,
               load_net=True,
-              batch_size=1024,
+              batch_size=batch_size,
               num_epochs=450,
               weight_decay=0.0006,
               train_loader=train_loader,
               validation_loader=validation_loader,
+              checkpoint_step=2000
               )
 
 

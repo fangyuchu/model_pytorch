@@ -34,6 +34,10 @@ def create_train_loader(
             dataset_path=conf.imagenet['train_set_path']
             mean=conf.imagenet['mean']
             std=conf.imagenet['std']
+        if dataset_name == 'tiny_imagenet' and dataset_path is None:
+            dataset_path=conf.tiny_imagenet['train_set_path']
+            mean=conf.tiny_imagenet['mean']
+            std=conf.tiny_imagenet['std']
         transform = transforms.Compose([
             transforms.RandomResizedCrop(default_image_size),
             transforms.RandomHorizontalFlip(),
@@ -85,8 +89,10 @@ def create_validation_loader(
             std=conf.imagenet['std']
             if dataset_name =='imagenet_trainset':
                 dataset_path=conf.imagenet['train_set_path']
-            if dataset_path is None:
+            if dataset_name is 'imagenet' and dataset_path is None:
                 dataset_path=conf.imagenet['validation_set_path']
+            if dataset_name == 'tiny_imagenet' and dataset_path is None:
+                dataset_path = conf.tiny_imagenet['train_set_path']
 
         transform = transforms.Compose([
             transforms.Resize(int(math.floor(default_image_size / scale))),

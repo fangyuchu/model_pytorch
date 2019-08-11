@@ -92,7 +92,7 @@ def measure_model_mine(net,dataset_name='imagenet'):
 def measure_model(net, dataset_name='imagenet',print_flop=True):
     model=copy.deepcopy(net)                    #防止把原模型做了改变
 
-    if dataset_name is 'imagenet':
+    if 'imagenet' in dataset_name:
         shape=(1,3,224,224)
     elif dataset_name is 'cifar10':
         shape=(1,3,32,32)

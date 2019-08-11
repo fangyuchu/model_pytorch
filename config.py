@@ -38,6 +38,16 @@ cifar10['validation_set_path']='./dataset/cifar10'
 cifar10['validation_set_size']=10000
 cifar10['default_image_size']=32
 
+#tiny_imagenet
+tiny_imagenet=dict()
+tiny_imagenet['num_class']=200
+tiny_imagenet['train_set_size']=100000
+tiny_imagenet['mean']=[0.485, 0.456, 0.406]
+tiny_imagenet['std']=[0.229, 0.224, 0.225]
+tiny_imagenet['train_set_path']='./dataset/tiny_imagenet/train'
+tiny_imagenet['validation_set_path']='./dataset/tiny_imagenet/val'
+tiny_imagenet['validation_set_size']=10000
+tiny_imagenet['default_image_size']=224
 
 #model saving params
 #how often to write summary and checkpoint
