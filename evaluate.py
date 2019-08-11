@@ -530,7 +530,7 @@ def cal_dead_times(module, input, output):
         if module not in relu_list:
             relu_list.append(module)
     if module not in neural_list.keys():
-        neural_list[module]=np.zeros(int(output.shape[1:]),dtype=np.int)
+        neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
 
     output=output.detach()                                              #set requires_grad to False
     zero_matrix=np.zeros(output.shape,dtype=np.int)

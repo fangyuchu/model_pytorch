@@ -363,7 +363,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
     # measure_flops.measure_model(net, dataset_name='cifar10')
-    batch_size=64
+    batch_size=32
     num_worker=8
     train_loader=data_loader.create_train_loader(batch_size=batch_size,
                                                  num_workers=num_worker,
@@ -378,12 +378,12 @@ if __name__ == "__main__":
         train(net=net,
               net_name='vgg16bn_tiny_imagenet',
               dataset_name='tiny_imagenet',
+              test_net=False,
               optimizer=optim.Adam,
               learning_rate=1e-3,
               learning_rate_decay=False,
               learning_rate_decay_epoch=[ 100, 200, 300],
               learning_rate_decay_factor=0.1,
-              test_net=False,
               load_net=True,
               batch_size=batch_size,
               num_epochs=450,
