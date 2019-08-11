@@ -1733,8 +1733,12 @@ if __name__ == "__main__":
     #for pruned baseline
     prune_rate=[0.05,0.1,0.2,0.3,0.4]
     for i in prune_rate:
+        checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+        net = resnet_copied.resnet56().to(device)
+        net.load_state_dict(checkpoint['state_dict'])
+        print(checkpoint['highest_accuracy'])
         prune_inactive_neural_with_regressor_resnet(net=net,
-                                                    net_name='resnet56_cifar10_regressor_prune_rate'+str(i),
+                                                    net_name='resnet56_cifar10_regressor_prune_rate' + str(i),
                                                     prune_rate=i,
                                                     load_regressor=False,
                                                     dataset_name='cifar10',
@@ -1758,6 +1762,7 @@ if __name__ == "__main__":
                                                     learning_rate_decay_factor=0.5,
                                                     max_training_iteration=2
                                                     )
+        del net
 
     # for original baseline
     # prune_inactive_neural_with_regressor_resnet(net=net,
