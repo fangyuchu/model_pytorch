@@ -26,7 +26,7 @@ import math
 
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               balance=False,
-              regression_or_classification='classification',
+              regression_or_classification='regression',
               batch_size=None,
               sample_num=None):
     #note that classification function is abandoned, the code involved might be wrong
@@ -50,7 +50,10 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
             net=checkpoint['net']
             net.load_state_dict(checkpoint['state_dict'])
             neural_list=checkpoint['neural_list']
-            module_list=checkpoint['relu_list']
+            try:
+                module_list=checkpoint['module_list']
+            except KeyError:
+                module_list=checkpoint['relu_list']
             if regression_or_classification is 'classification':
                 # neural_dead_times=checkpoint['neural_dead_times']
                 neural_dead_times=8000
@@ -61,7 +64,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
             num_conv = 0  # num of conv layers in the net
             filter_num=list()
             filters=list()
-            for mod in net.features:
+            for mod in net.modules():
                 if isinstance(mod, torch.nn.modules.conv.Conv2d):
                     num_conv += 1
                     filter_num.append(mod.out_channels)
@@ -300,49 +303,13 @@ class predictor:
         joblib.dump(self.regressor,os.path.join(path,self.name+'.m'))
 
     def load(self,path):
-        print('load regressor from'+os.path.join(path,self.name+'.m'))
-        self.regressor=joblib.load(os.path.join(path,self.name+'.m'))
+        if os.path.exists(os.path.join(path,self.name+'.m')):
+            print('load regressor from'+os.path.join(path,self.name+'.m'))
+            self.regressor=joblib.load(os.path.join(path,self.name+'.m'))
+            return True
+        else:
+            return False
 
-# class predictor:
-#     def __init__(self, name,**kargs):
-#         self.name=name
-#         self.min_max_scaler=None
-#         if name is 'svm':
-#             self.classifier = svm.SVC(kernel=kargs['kernel'], class_weight='balanced')
-#         elif name is 'logistic_regression':
-#             self.classifier = LogisticRegressionCV(class_weight='balanced', max_iter=1000, cv=3, Cs=[1, 10, 100, 1000])
-#         elif name is 'fc':
-#             self.classifier = fc()
-#
-#     def fit(self, dead_filter, lived_filter):
-#         _, self.min_max_scaler =statistics(dead_filter + lived_filter)
-#
-#         stat_df, _ = statistics(dead_filter, balance_channel=True, min_max_scaler=self.min_max_scaler)
-#         stat_lf, _ = statistics(lived_filter, balance_channel=True, min_max_scaler=self.min_max_scaler)
-#         train_x = np.vstack((stat_df, stat_lf))  # dead filters are in the front
-#         train_y = np.zeros(train_x.shape[0])
-#         train_y[:stat_df.shape[0]] = 1  # dead filters are labeled 1
-#         if self.name is 'svm':
-#             param_grid = {
-#                 'C': [2 ** i for i in range(-5, 15, 2)],
-#                 'gamma': [2 ** i for i in range(3, -15, -2)],
-#             }
-#             self.classifier = GridSearchCV(self.classifier, param_grid, scoring='f1', n_jobs=-1, cv=5)
-#             self.classifier = self.classifier.fit(train_x, train_y)
-#             print(self.classifier.best_estimator_)
-#         elif self.name is 'logistic_regression':
-#             self.classifier = self.classifier.fit(train_x, train_y)
-#         elif self.name is 'fc':
-#             self.classifier=self.classifier.fit(train_x,train_y)
-#
-#     def predict_proba(self,filter):
-#         x,_=statistics(filter,min_max_scaler=self.min_max_scaler)
-#         return self.classifier.predict_proba(x)
-#
-#     def predict(self,filter):
-#         print(self.classifier.best_estimator_)
-#         x, _ = statistics(filter, min_max_scaler=self.min_max_scaler)
-#         return self.classifier.predict(x)
 
 
 def dead_filter_metric(label,prediction):
@@ -481,26 +448,36 @@ def filter_inactive_rate_ndcg(filter_label_val,prediction,ratio):
     dk=rank[np.argsort(-prediction)]#根据预测从大到小排序，dk按序保存了真实的排名，ex[2,1,3],即预测最大，实际排第二
     rel=len(filter_label_val)-dk    #以排名为相关度，排名越小，相关性越大
     ndcg=cal_ndcg(rel,ratio)
-    print('ndcg is {}'.format(ndcg))
+    print('ndcg:{}'.format(ndcg))
     return ndcg
 
 def performance_evaluation(label,prediction,ratio):
+    #mean absolute error
     loss = mean_absolute_error(label, prediction)
     print('loss:{}'.format(loss))
-
+    #ndcg
     filter_inactive_rate_ndcg(label, prediction,ratio)
+    #f-score,percision and recall
+    # true_rank = np.argsort(-np.array(label))[:int(ratio*len(label))]
+    # predicted_rank = np.argsort(-prediction)[:int(ratio*len(label))]
+    # true_positive=false_positive=0
+    # # for i in predicted_rank:
+    # #     if i in truth:
+    # #         true_positive+=1
+    # true_prediction=np.intersect1d(true_rank,predicted_rank)
 
-    truth = np.argsort(-np.array(label))
-    prediction_argsort = np.argsort(-prediction)
-    i = int(truth.shape[0] * ratio)
+    #percision in p%
+    true_rank = np.argsort(-np.array(label))
+    predicted_rank = np.argsort(-prediction)
+    i = int(true_rank.shape[0] * ratio)
     for j in [0.1, 0.2, 0.3, 0.4, 0.5]:
-        truth_top = truth[:int(truth.shape[0] * j)]
+        truth_top = true_rank[:int(true_rank.shape[0] * j)]
 
         if i > truth_top.shape[0]:
             continue
         print('前' + str(j * 100) + '%的准确率:', end='')
-        prediction_top = prediction_argsort[:i]
-        # truth_top = truth[:i]
+        prediction_top = predicted_rank[:i]
+        # truth_top = true_rank[:i]
         sum = 0
         for k in prediction_top:
             if k in truth_top:
@@ -514,7 +491,7 @@ if __name__ == "__main__":
 
     #回归#################################################################################################################################################
     filter_train,filter_label_train,filter_layer_train=read_data(batch_size=10000,regression_or_classification='regression',path='./最少样本测试/训练集')
-    filter_val,filter_label_val,filter_layer_val=read_data(sample_num=5000,batch_size=10000,regression_or_classification='regression',path='./最少样本测试/测试集')
+    filter_val,filter_label_val,filter_layer_val=read_data(sample_num=1000,batch_size=10000,regression_or_classification='regression',path='./最少样本测试/测试集')
 
     stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
     stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)

@@ -20,6 +20,7 @@ import sys
 import measure_flops
 import resnet_copied
 import copy
+import create_net
 
 
 
@@ -236,8 +237,8 @@ def train(
             loss.backward()
             optimizer.step()
 
-            if step%10==0:
-                print('{} loss is {}'.format(datetime.now(),loss.data))
+            if step%20==0:
+                print('{} loss is {}'.format(datetime.now(),float(loss.data)))
 
 
 
@@ -359,28 +360,54 @@ if __name__ == "__main__":
     sys.stderr = logger.Logger( './log.txt', sys.stderr)  # redirect std err, if necessary
 
     #net = resnet.resnet34(num_classes=10)
-    net=vgg.vgg16_bn(num_classes=200)
+    net=vgg.vgg16_bn(pretrained=True)
+    m1=nn.Linear(2048,4096)
+    nn.init.normal_(m1.weight, 0, 0.01)
+    nn.init.constant_(m1.bias, 0)
+    net.classifier[0]=m1
+
+    m3=nn.Linear(4096,200)
+    nn.init.normal_(m3.weight, 0, 0.01)
+    nn.init.constant_(m3.bias, 0)
+    net.classifier[6]=m3
+    # net.classifier = nn.Sequential(
+    #     nn.Linear(512 * 7 * 7, 4096),
+    #     nn.ReLU(True),
+    #     nn.Dropout(),
+    #     nn.Linear(4096, 4096),
+    #     nn.ReLU(True),
+    #     nn.Dropout(),
+    #     nn.Linear(4096, 200),
+    # )
+    # for m in net.modules():
+    #     if isinstance(m, nn.Linear):
+    #         nn.init.normal_(m.weight, 0, 0.01)
+    #         nn.init.constant_(m.bias, 0)
+    net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    # net=create_net.vgg_tiny_imagenet(net_name='vgg16_bn')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
     # measure_flops.measure_model(net, dataset_name='cifar10')
-    batch_size=32
+    batch_size=600
     num_worker=8
     train_loader=data_loader.create_train_loader(batch_size=batch_size,
                                                  num_workers=num_worker,
                                                  dataset_name='tiny_imagenet',
+                                                 default_image_size=64,
                                                  )
     validation_loader=data_loader.create_validation_loader(batch_size=batch_size,
                                                            num_workers=num_worker,
                                                            dataset_name='tiny_imagenet',
+                                                           default_image_size=64
                                                         )
     for i in range(1):
         print(i)
         train(net=net,
-              net_name='vgg16bn_tiny_imagenet',
+              net_name='vgg16bn_tiny_imagenet2',
               dataset_name='tiny_imagenet',
               test_net=False,
-              optimizer=optim.Adam,
-              learning_rate=1e-3,
+              optimizer=optim.SGD,
+              learning_rate=0.1,
               learning_rate_decay=False,
               learning_rate_decay_epoch=[ 100, 200, 300],
               learning_rate_decay_factor=0.1,
@@ -390,7 +417,7 @@ if __name__ == "__main__":
               weight_decay=0.0006,
               train_loader=train_loader,
               validation_loader=validation_loader,
-              checkpoint_step=2000
+              checkpoint_step=1000,
               )
 
 

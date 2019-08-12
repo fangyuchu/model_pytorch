@@ -998,8 +998,20 @@ def prune_inactive_neural_with_regressor(net,
     dead_ratio=list()
     predictor = predict_dead_filter.predictor(name=predictor_name, **kwargs)
     if load_regressor is True:
-        round_for_train=-1
-        predictor.load(path=conf.root_path + net_name)
+        regressor_exists=predictor.load(path=conf.root_path + net_name)
+        if regressor_exists is True:
+            round_for_train = -1
+        else:                                                   #load data from previous rounds of pruning
+            print('Can\' find saved regressor. Load data from previous round.')
+            filter_tmp, dead_ratio_tmp, filter_layer_tmp=predict_dead_filter.read_data(path=conf.root_path + net_name + '/dead_neural/',
+                                                                             balance=False,
+                                                                             regression_or_classification='regression',
+                                                                             batch_size=batch_size,
+                                                                             )
+            dead_ratio+=dead_ratio_tmp
+            filter+=filter_tmp
+            filter_layer+=filter_layer_tmp
+
     #using data to prune the network for (round_for_train)rounds
     round = 0
     while True:
@@ -1259,8 +1271,19 @@ def prune_inactive_neural_with_regressor_resnet(net,
     dead_ratio=list()
     predictor = predict_dead_filter.predictor(name=predictor_name, **kwargs)
     if load_regressor is True:
-        round_for_train=-1
-        predictor.load(path=conf.root_path + net_name)
+        regressor_exists=predictor.load(path=conf.root_path + net_name)
+        if regressor_exists is True:
+            round_for_train = -1
+        else:                                                   #load data from previous rounds of pruning
+            print('Can\' find saved regressor. Load data from previous round.')
+            filter_tmp, dead_ratio_tmp, filter_layer_tmp=predict_dead_filter.read_data(path=conf.root_path + net_name + '/dead_neural/',
+                                                                             balance=False,
+                                                                             regression_or_classification='regression',
+                                                                             batch_size=batch_size,
+                                                                             )
+            dead_ratio+=dead_ratio_tmp
+            filter+=filter_tmp
+            filter_layer+=filter_layer_tmp
     # using data to prune the network for (round_for_train)rounds
     round = 0
     while True:

@@ -19,37 +19,44 @@ import generate_random_data
 import resnet
 import create_net
 import matplotlib.pyplot as plt
+import resnet_copied
+from torch import optim
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-d=data_loader.create_validation_loader(batch_size=1000,num_workers=8,dataset_name='cifar10')
-
-net=create_net.vgg_cifar10()
-
-evaluate.find_useless_filters_data_version(net=net,batch_size=1600,dataset_name='cifar10',
-                                           use_random_data=False,percent_of_inactive_filter=0.1,
-                                           max_data_to_test=10000)
-
-checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
-neural_list=checkpoint['neural_list']
-relu_list=checkpoint['relu_list']
-
-
-# net=create_net.vgg_cifar10()
-# val_loader=data_loader.create_validation_loader(batch_size=1000,num_workers=6,dataset_name='cifar10')
-# train_loader=data_loader.create_train_loader(batch_size=1600,num_workers=6,dataset_name='cifar10')
+checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+net=checkpoint['net']
 #
-# relu_list,neural_list=evaluate.check_ReLU_alive(net=net,neural_dead_times=50000,data_loader=train_loader)
-ndt_list=[i for i in range(35000,51000,1000)]
-dead_rate=list()
-for ndt in ndt_list:
-    print(ndt)
-    dead_rate.append(evaluate.cal_dead_neural_rate(neural_dead_times=ndt,neural_list_temp=neural_list))
+# # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
+# checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+# net = resnet_copied.resnet56().to(device)
 
-plt.figure()
-plt.title('df')
-plt.plot(ndt_list,dead_rate)
-plt.xlabel('filter activation ratio')
-plt.ylabel('number of filters')
-plt.legend()
-plt.show()
-
-
+# # checkpoint=torch.load('/home/disk_new/model_saved/resnet56_cifar10_DeadNeural_realdata_good_baseline_过得去/代表/sample_num=13300000,accuracy=0.93610，flop=65931914.tar')
+# # net=checkpoint['net']
+#
+net.load_state_dict(checkpoint['state_dict'])
+print(checkpoint['highest_accuracy'])
+#
+prune_and_train.prune_inactive_neural_with_regressor(net=net,
+                                     net_name='tmp',
+                                     prune_rate=0.2,
+                                     load_regressor=True,
+                                     dataset_name='cifar10',
+                                     filter_preserve_ratio=0.15,
+                                     max_filters_pruned_for_one_time=[0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
+                                     target_accuracy=0.933,
+                                     tar_acc_gradual_decent=True,
+                                     flop_expected=4e7,
+                                     batch_size=1600,
+                                     num_epoch=450,
+                                     checkpoint_step=3000,
+                                     use_random_data=False,
+                                     round_for_train=2,
+                                     # optimizer=optim.Adam,
+                                     # learning_rate=1e-3,
+                                     # weight_decay=0
+                                     optimizer=optim.SGD,
+                                     learning_rate=0.01,
+                                     learning_rate_decay=True,
+                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                                     learning_rate_decay_factor=0.5,
+                                     )
