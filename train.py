@@ -255,7 +255,7 @@ def train(
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
-                del accuracy
+                accuracy =float(accuracy)
                 print('{} continue training'.format(datetime.now()))
 
     print("{} Training finished. Saving net...".format(datetime.now()))
@@ -407,9 +407,9 @@ if __name__ == "__main__":
               dataset_name='tiny_imagenet',
               test_net=False,
               optimizer=optim.SGD,
-              learning_rate=0.1,
+              learning_rate=0.01,
               learning_rate_decay=False,
-              learning_rate_decay_epoch=[ 100, 200, 300],
+              learning_rate_decay_epoch=[ 200, 200, 300],
               learning_rate_decay_factor=0.1,
               load_net=True,
               batch_size=batch_size,
