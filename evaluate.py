@@ -38,7 +38,7 @@ class AverageMeter(object):
 # def validate(val_loader, model, criterion):
 def validate(val_loader, model,max_data_to_test=99999999,device=None):
     if device is None:
-        device = torch.device('cpu')#device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device(device)#device("cuda" if torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         batch_time = AverageMeter()
         top1 = AverageMeter()
