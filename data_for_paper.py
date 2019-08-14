@@ -308,11 +308,12 @@ def speed_up():
     plt.xticks(x_tick,batch_size+batch_size)
     for x,y in enumerate(list(acceleration)):
         plt.text(x,y+0.1,'x %.2f'%y,ha='center')
-    plt.ylim([0,5+0.3])
+    plt.ylim([0,np.max(acceleration)+0.3])
     plt.xlabel('Batch Size')
     plt.ylabel('Speed Up')
     plt.legend(loc='upper left')
     plt.savefig('speed_up.jpg')
+    plt.savefig('speed_up.eps')
     plt.show()
     print()
 
