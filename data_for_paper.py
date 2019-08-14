@@ -282,30 +282,37 @@ def speed_up():
             net_original.to(d)
             net_pruned.to(d)
 
-            dl=data_loader.create_validation_loader(batch_size=bs,num_workers=4,dataset_name='cifar10')
+            dl=data_loader.create_validation_loader(batch_size=bs,num_workers=8,dataset_name='cifar10')
             start_time=time.time()
             evaluate.evaluate_net(net=net_original,data_loader=dl,save_net=False,device=d)
             end_time=time.time()
             time_original.append(end_time-start_time)
+            del dl
 
-            dl=data_loader.create_validation_loader(batch_size=bs,num_workers=4,dataset_name='cifar10')
+            dl=data_loader.create_validation_loader(batch_size=bs,num_workers=8,dataset_name='cifar10')
             start_time=time.time()
             evaluate.evaluate_net(net=net_pruned,data_loader=dl,save_net=False,device=d)
             end_time=time.time()
             time_pruned.append(end_time-start_time)
+            del dl
+
     print('time before pruned:',time_original)
     print('time after pruned:',time_pruned)
     acceleration=np.array(time_original)/np.array(time_pruned)
     baseline=np.ones(shape=6)
-    x=batch_size+batch_size
+    x_tick=range(len(baseline))
 
     plt.figure()
-    plt.bar(x,acceleration,hatch='/',color='blue')
-    plt.bar(x,baseline,color='red',hatch='\\')
+    plt.bar(x_tick,acceleration,color='blue',hatch='//',label='GPU')
+    plt.bar(x_tick,baseline,color='red',hatch='*',label='CPU')
+    plt.xticks(x_tick,batch_size+batch_size)
+    for x,y in enumerate(list(acceleration)):
+        plt.text(x,y+0.1,'x %.2f'%y,ha='center')
+    plt.ylim([0,5+0.3])
     plt.xlabel('Batch Size')
     plt.ylabel('Speed Up')
-    # plt.legend(['VGG-16 on CIFAR-10','ResNet-56 on CIFAR-10','VGG-16 on ImageNet'],loc='upper left')
-    plt.savefig('speed_up.jpg',format='jpg')
+    plt.legend(loc='upper left')
+    plt.savefig('speed_up.jpg')
     plt.show()
     print()
 
