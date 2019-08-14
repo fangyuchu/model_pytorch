@@ -99,7 +99,7 @@ def measure_model(net, dataset_name='imagenet',print_flop=True):
     elif dataset_name is 'cifar10':
         shape=(1,3,32,32)
     elif dataset_name is 'tiny_imagenet':
-        shape=(1,3,64,64)
+        shape=(1,3,224,224)
     global count_ops
     data = torch.zeros(shape)
     if torch.cuda.is_available():

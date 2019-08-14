@@ -237,7 +237,7 @@ def train(
             loss.backward()
             optimizer.step()
 
-            if step%20==0:
+            if step%200==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
 
 
@@ -356,28 +356,29 @@ if __name__ == "__main__":
     # save the output to log
     print('save log in:./log.txt')
 
-    sys.stdout = logger.Logger( './log.txt', sys.stdout)
-    sys.stderr = logger.Logger( './log.txt', sys.stderr)  # redirect std err, if necessary
+    sys.stdout = logger.Logger( './log2.txt', sys.stdout)
+    sys.stderr = logger.Logger( './log2.txt', sys.stderr)  # redirect std err, if necessary
 
-    #net = resnet.resnet34(num_classes=10)
     net=vgg.vgg16_bn(pretrained=True)
-    m1=nn.Linear(2048,4096)
-    nn.init.normal_(m1.weight, 0, 0.01)
-    nn.init.constant_(m1.bias, 0)
-    net.classifier[0]=m1
 
-    m3=nn.Linear(4096,200)
-    nn.init.normal_(m3.weight, 0, 0.01)
-    nn.init.constant_(m3.bias, 0)
-    net.classifier[6]=m3
+    # m1=nn.Linear(2048,4096)
+    # nn.init.normal_(m1.weight, 0, 0.01)
+    # nn.init.constant_(m1.bias, 0)
+    # net.classifier[0]=m1
+    #
+    # m3=nn.Linear(4096,200)
+    # nn.init.normal_(m3.weight, 0, 0.01)
+    # nn.init.constant_(m3.bias, 0)
+    # net.classifier[6]=m3
+
     # net.classifier = nn.Sequential(
-    #     nn.Linear(512 * 7 * 7, 4096),
+    #     nn.Dropout(),
+    #     nn.Linear(2048, 512),
     #     nn.ReLU(True),
     #     nn.Dropout(),
-    #     nn.Linear(4096, 4096),
+    #     nn.Linear(512, 512),
     #     nn.ReLU(True),
-    #     nn.Dropout(),
-    #     nn.Linear(4096, 200),
+    #     nn.Linear(512, 200),
     # )
     # for m in net.modules():
     #     if isinstance(m, nn.Linear):
@@ -388,32 +389,32 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
     # measure_flops.measure_model(net, dataset_name='cifar10')
-    batch_size=600
+    batch_size=32
     num_worker=8
     train_loader=data_loader.create_train_loader(batch_size=batch_size,
                                                  num_workers=num_worker,
                                                  dataset_name='tiny_imagenet',
-                                                 default_image_size=64,
+                                                 default_image_size=224,
                                                  )
     validation_loader=data_loader.create_validation_loader(batch_size=batch_size,
                                                            num_workers=num_worker,
                                                            dataset_name='tiny_imagenet',
-                                                           default_image_size=64
+                                                           default_image_size=224
                                                         )
     for i in range(1):
         print(i)
         train(net=net,
-              net_name='vgg16bn_tiny_imagenet2',
+              net_name='vgg16bn_tiny_imagenet5',
               dataset_name='tiny_imagenet',
               test_net=False,
               optimizer=optim.SGD,
-              learning_rate=0.01,
-              learning_rate_decay=False,
-              learning_rate_decay_epoch=[ 200, 200, 300],
+              learning_rate=0.1,
+              learning_rate_decay=True,
+              learning_rate_decay_epoch=[ 30, 60, 600],
               learning_rate_decay_factor=0.1,
               load_net=True,
               batch_size=batch_size,
-              num_epochs=450,
+              num_epochs=1000,
               weight_decay=0.0006,
               train_loader=train_loader,
               validation_loader=validation_loader,

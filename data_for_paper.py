@@ -21,7 +21,7 @@ import create_net
 import matplotlib.pyplot as plt
 import copy
 import resnet_copied
-
+import time
 def dead_neural_rate():
     # checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
     # checkpoint=torch.load('/home/victorfang/Desktop/resnet34_imagenet_DeadReLU.tar')
@@ -258,23 +258,77 @@ def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_de
     # plt.legend()
     # plt.show()
     # print()
-if __name__ == "__main__":
+
+def speed_up():
+    device=torch.device('cpu')#device("cuda" if torch.cuda.is_available() else "cpu")
+    checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    net_original=checkpoint['net']
+    net_original.load_state_dict(checkpoint['state_dict'])
+
+    checkpoint=torch.load('./model_saved/vgg16bn_cifar10_realdata_regressor6_大幅度/checkpoint/flop=39915982,accuracy=0.93200.tar')
+    net_pruned=checkpoint['net']
+    net_pruned.load_state_dict(checkpoint['state_dict'])
+
+
+
+    time_original=list()
+    time_pruned=list()
+    # batch_size=[256,512,1024]
+    batch_size=[1024,512,256]
+
+    device_list=[torch.device('cuda'),torch.device('cpu')]
+    for d in device_list:
+        for bs in batch_size:
+            net_original.to(d)
+            net_pruned.to(d)
+
+            dl=data_loader.create_validation_loader(batch_size=bs,num_workers=4,dataset_name='cifar10')
+            start_time=time.time()
+            evaluate.evaluate_net(net=net_original,data_loader=dl,save_net=False,device=d)
+            end_time=time.time()
+            time_original.append(end_time-start_time)
+
+            dl=data_loader.create_validation_loader(batch_size=bs,num_workers=4,dataset_name='cifar10')
+            start_time=time.time()
+            evaluate.evaluate_net(net=net_pruned,data_loader=dl,save_net=False,device=d)
+            end_time=time.time()
+            time_pruned.append(end_time-start_time)
+    print('time before pruned:',time_original)
+    print('time after pruned:',time_pruned)
+    acceleration=np.array(time_original)/np.array(time_pruned)
+    baseline=np.ones(shape=6)
+    x=batch_size+batch_size
+
+    plt.figure()
+    plt.bar(x,acceleration,hatch='/',color='blue')
+    plt.bar(x,baseline,color='red',hatch='\\')
+    plt.xlabel('Batch Size')
+    plt.ylabel('Speed Up')
+    # plt.legend(['VGG-16 on CIFAR-10','ResNet-56 on CIFAR-10','VGG-16 on ImageNet'],loc='upper left')
+    plt.savefig('speed_up.jpg',format='jpg')
+    plt.show()
     print()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    net=checkpoint['net']
-
-    # checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
-    # net = resnet_copied.resnet56().to(device)
 
 
 
-    net.load_state_dict(checkpoint['state_dict'])
-    print(checkpoint['highest_accuracy'])
-    plot_dead_neuron_filter_number(net=net,neural_dead_times=8000,filter_dead_ratio=0.8,)
-
-    dead_neural_rate()
+if __name__ == "__main__":
+    speed_up()
+    # print()
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #
+    # checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    # net=checkpoint['net']
+    #
+    # # checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+    # # net = resnet_copied.resnet56().to(device)
+    #
+    #
+    #
+    # net.load_state_dict(checkpoint['state_dict'])
+    # print(checkpoint['highest_accuracy'])
+    # plot_dead_neuron_filter_number(net=net,neural_dead_times=8000,filter_dead_ratio=0.8,)
+    #
+    # dead_neural_rate()
     # plot_dead_filter_num_with_different_dft()
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # net=resnet.resnet34(pretrained=True).to(device)

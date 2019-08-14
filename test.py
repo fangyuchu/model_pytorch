@@ -21,6 +21,8 @@ import create_net
 import matplotlib.pyplot as plt
 import resnet_copied
 from torch import optim
+net=resnet_copied.resnet56()
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
