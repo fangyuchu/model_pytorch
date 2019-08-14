@@ -271,51 +271,55 @@ def speed_up():
 
 
 
-    time_original=list()
-    time_pruned=list()
+
     # batch_size=[256,512,1024]
-    batch_size=[1024,512,256]
+    num_workers=[i for i in range(4,5)]
+    batch_size=[300,600,1000,1600]
 
     device_list=[torch.device('cuda'),torch.device('cpu')]
-    for d in device_list:
-        for bs in batch_size:
-            net_original.to(d)
-            net_pruned.to(d)
+    for num_worker in num_workers:
+        time_original = list()
+        time_pruned = list()
+        for d in device_list:
+            for bs in batch_size:
+                net_original.to(d)
+                net_pruned.to(d)
 
-            dl=data_loader.create_validation_loader(batch_size=bs,num_workers=8,dataset_name='cifar10')
-            start_time=time.time()
-            evaluate.evaluate_net(net=net_original,data_loader=dl,save_net=False,device=d)
-            end_time=time.time()
-            time_original.append(end_time-start_time)
-            del dl
+                dl=data_loader.create_validation_loader(batch_size=bs,num_workers=num_worker,dataset_name='cifar10')
+                start_time=time.time()
+                evaluate.evaluate_net(net=net_original,data_loader=dl,save_net=False,device=d)
+                end_time=time.time()
+                time_original.append(end_time-start_time)
+                del dl
 
-            dl=data_loader.create_validation_loader(batch_size=bs,num_workers=8,dataset_name='cifar10')
-            start_time=time.time()
-            evaluate.evaluate_net(net=net_pruned,data_loader=dl,save_net=False,device=d)
-            end_time=time.time()
-            time_pruned.append(end_time-start_time)
-            del dl
+                dl=data_loader.create_validation_loader(batch_size=bs,num_workers=num_worker,dataset_name='cifar10')
+                start_time=time.time()
+                evaluate.evaluate_net(net=net_pruned,data_loader=dl,save_net=False,device=d)
+                end_time=time.time()
+                time_pruned.append(end_time-start_time)
+                del dl
 
-    print('time before pruned:',time_original)
-    print('time after pruned:',time_pruned)
-    acceleration=np.array(time_original)/np.array(time_pruned)
-    baseline=np.ones(shape=6)
-    x_tick=range(len(baseline))
+        print('time before pruned:',time_original)
+        print('time after pruned:',time_pruned)
+        acceleration=np.array(time_original)/np.array(time_pruned)
+        baseline=np.ones(shape=2*len(batch_size))
+        x_tick=range(len(baseline))
 
-    plt.figure()
-    plt.bar(x_tick,acceleration,color='blue',hatch='//',label='GPU')
-    plt.bar(x_tick,baseline,color='red',hatch='*',label='CPU')
-    plt.xticks(x_tick,batch_size+batch_size)
-    for x,y in enumerate(list(acceleration)):
-        plt.text(x,y+0.1,'x %.2f'%y,ha='center')
-    plt.ylim([0,np.max(acceleration)+0.3])
-    plt.xlabel('Batch Size')
-    plt.ylabel('Speed Up')
-    plt.legend(loc='upper left')
-    plt.savefig('speed_up.jpg')
-    plt.savefig('speed_up.eps')
-    plt.show()
-    print()
+        plt.figure()
+        plt.bar(x_tick[:len(batch_size)],acceleration[:len(batch_size)],color='blue',hatch='//',label='GPU')
+        plt.bar(x_tick[len(batch_size):], acceleration[len(batch_size):], color='grey', hatch='\\', label='CPU')
+        plt.bar(x_tick,baseline,color='red',hatch='*',label='Baseline')
+        plt.xticks(x_tick,batch_size+batch_size)
+        for x,y in enumerate(list(acceleration)):
+            plt.text(x,y+0.1,'%.2f x'%y,ha='center')
+        plt.ylim([0,np.max(acceleration)+0.3])
+        plt.xlabel('Batch-Size')
+        plt.ylabel('Speed-Up')
+        plt.legend(loc='upper left')
+        plt.savefig(str(num_worker)+'speed_up.eps',format='eps')
+        plt.savefig(str(num_worker)+'speed_up.jpg')
+        plt.show()
+        print()
 
 
 
