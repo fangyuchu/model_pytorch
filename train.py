@@ -266,7 +266,16 @@ def train(
                 print('{} continue training'.format(datetime.now()))
 
     print("{} Training finished. Saving net...".format(datetime.now()))
-    flop_num=measure_flops.measure_model(net=net,dataset_name=dataset_name,print_flop=False)
+    net_test = copy.deepcopy(net)
+    flop_num=measure_flops.measure_model(net=net_test,dataset_name=dataset_name,print_flop=False)
+    accuracy = evaluate.evaluate_net(net_test, validation_loader,
+                                     save_net=True,
+                                     checkpoint_path=checkpoint_path,
+                                     sample_num=sample_num,
+                                     target_accuracy=target_accuracy,
+                                     dataset_name=dataset_name,
+                                     top_acc=top_acc)
+    accuracy=float(accuracy)
     checkpoint = {'net': net,
                   'highest_accuracy': accuracy,
                   'state_dict': net.state_dict(),
