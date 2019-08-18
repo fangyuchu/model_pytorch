@@ -17,11 +17,25 @@ def create_train_loader(
 ):
     if dataset_name == 'cifar10':
         if dataset_path is None:
-            dataset_path=conf.cifar10['train_set_path']
+            dataset_path=conf.cifar10['dataset_path']
         mean=conf.cifar10['mean']
         std=conf.cifar10['std']
         data_loader = torch.utils.data.DataLoader(
             datasets.CIFAR10(root=dataset_path, train=True, transform=transforms.Compose([
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomCrop(32, 4),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]), download=True),
+            batch_size=batch_size, shuffle=True,
+            num_workers=num_workers, pin_memory=True)
+    elif dataset_name == 'cifar100':
+        if dataset_path is None:
+            dataset_path=conf.cifar100['dataset_path']
+        mean=conf.cifar100['mean']
+        std=conf.cifar100['std']
+        data_loader = torch.utils.data.DataLoader(
+            datasets.CIFAR100(root=dataset_path, train=True, transform=transforms.Compose([
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomCrop(32, 4),
                 transforms.ToTensor(),
@@ -59,28 +73,42 @@ def create_validation_loader(
                     default_image_size=224,
                     shuffle=False
 ):
-    if dataset_name == 'cifar10':
+    if 'cifar10' in dataset_name and 'cifar100' not in dataset_name:
         if dataset_path is None:
-            dataset_path=conf.cifar10['validation_set_path']
+            dataset_path=conf.cifar10['dataset_path']
         mean=conf.cifar10['mean']
         std=conf.cifar10['std']
-        data_loader = torch.utils.data.DataLoader(
-            datasets.CIFAR10(root=dataset_path, train=False, transform=transforms.Compose([
+        if 'trainset' in dataset_name:
+            dataset= datasets.CIFAR10(root=dataset_path, train=True, transform=transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize(mean=mean, std=std),
-            ]),download=True),
+            ]),download=True)
+        else:
+            dataset=datasets.CIFAR10(root=dataset_path, train=False, transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]), download=True)
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
             batch_size=batch_size, shuffle=shuffle,
             num_workers=num_workers, pin_memory=True)
-    elif dataset_name == 'cifar10_trainset':                                                    #use train set as validation set
+    elif 'cifar100' in dataset_name:
         if dataset_path is None:
-            dataset_path=conf.cifar10['train_set_path']
-        mean=conf.cifar10['mean']
-        std=conf.cifar10['std']
-        data_loader = torch.utils.data.DataLoader(
-            datasets.CIFAR10(root=dataset_path, train=True, transform=transforms.Compose([
+            dataset_path=conf.cifar100['dataset_path']
+        mean=conf.cifar100['mean']
+        std=conf.cifar100['std']
+        if 'trainset' in dataset_name:
+            dataset= datasets.CIFAR100(root=dataset_path, train=True, transform=transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize(mean=mean, std=std),
-            ]),download=True),
+            ]),download=True)
+        else:
+            dataset=datasets.CIFAR100(root=dataset_path, train=False, transform=transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+            ]), download=True)
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
             batch_size=batch_size, shuffle=shuffle,
             num_workers=num_workers, pin_memory=True)
     else:

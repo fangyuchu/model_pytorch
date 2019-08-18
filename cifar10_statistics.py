@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     batch_size=500
-    dataset_path = conf.cifar10['train_set_path']
+    dataset_path = conf.cifar10['dataset_path']
     data_loader = torch.utils.data.DataLoader(
         datasets.CIFAR10(root=dataset_path, train=True, transform=transforms.Compose([
                 transforms.ToTensor(),

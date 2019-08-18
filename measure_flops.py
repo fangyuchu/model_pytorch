@@ -94,12 +94,12 @@ def measure_model_mine(net,dataset_name='imagenet'):
 def measure_model(net, dataset_name='imagenet',print_flop=True):
     model=copy.deepcopy(net)                    #防止把原模型做了改变
 
-    if dataset_name is 'imagenet':
+    if dataset_name is 'imagenet'or dataset_name is 'tiny_imagenet':
         shape=(1,3,224,224)
-    elif dataset_name is 'cifar10':
+    elif dataset_name is 'cifar10' or dataset_name is 'cifar100':
         shape=(1,3,32,32)
-    elif dataset_name is 'tiny_imagenet':
-        shape=(1,3,64,64)
+
+
     global count_ops
     data = torch.zeros(shape)
     if torch.cuda.is_available():

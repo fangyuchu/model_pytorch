@@ -36,8 +36,9 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 # def validate(val_loader, model, criterion):
-def validate(val_loader, model,max_data_to_test=99999999):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def validate(val_loader, model,max_data_to_test=99999999,device=None):
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with torch.no_grad():
         batch_time = AverageMeter()
         top1 = AverageMeter()
@@ -119,7 +120,8 @@ def evaluate_net(  net,
                    target_accuracy=1,
                    dataset_name='cifar10',
                    max_data_to_test=99999999,
-                   top_acc=1
+                   top_acc=1,
+                   device=None,
                    ):
     '''
     :param net: net of NN
@@ -156,7 +158,7 @@ def evaluate_net(  net,
     print("{} Start Evaluation".format(datetime.now()))
     print("{} sample num = {}".format(datetime.now(), sample_num))
 
-    top1_accuracy,top5_accuracy=validate(data_loader,net,max_data_to_test)
+    top1_accuracy,top5_accuracy=validate(data_loader,net,max_data_to_test,device)
     if top_acc==1:
         accuracy=top1_accuracy
     elif top_acc==5:
@@ -341,7 +343,7 @@ def find_useless_filters_data_version(net,
             elif dataset_name is 'cifar10':
                 mean = conf.cifar10['mean']
                 std = conf.cifar10['std']
-                train_set_path = conf.cifar10['train_set_path']
+                train_set_path = conf.cifar10['dataset_path']
                 default_image_size = conf.cifar10['default_image_size']
                 train_set_size=conf.cifar10['train_set_size']
             elif dataset_name is 'tiny_imagenet':

@@ -33,10 +33,19 @@ cifar10['num_class']=10
 cifar10['train_set_size']=50000
 cifar10['mean']=[0.485, 0.456, 0.406]
 cifar10['std']=[0.229, 0.224, 0.225]
-cifar10['train_set_path']='./dataset/cifar10'
-cifar10['validation_set_path']='./dataset/cifar10'
+cifar10['dataset_path']='./dataset/cifar10'
 cifar10['validation_set_size']=10000
 cifar10['default_image_size']=32
+
+#cifar100
+cifar100=dict()
+cifar100['num_class']=100
+cifar100['train_set_size']=50000
+cifar100['mean']=[0.485, 0.456, 0.406]
+cifar100['std']=[0.229, 0.224, 0.225]
+cifar100['dataset_path']='./dataset/cifar100'
+cifar100['validation_set_size']=10000
+cifar100['default_image_size']=32
 
 #tiny_imagenet
 tiny_imagenet=dict()
