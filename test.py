@@ -21,16 +21,6 @@ import create_net
 import matplotlib.pyplot as plt
 import resnet_copied
 from torch import optim
-
-datasets.CIFAR100(root=conf.cifar100['dataset_path'], train=False, transform=transforms.Compose([
-                transforms.ToTensor(),
-                # transforms.Normalize(mean=mean, std=std),
-            ]),download=True),
-datasets.CIFAR100(root=conf.cifar100['dataset_path'], train=True, transform=transforms.Compose([
-                transforms.ToTensor(),
-                # transforms.Normalize(mean=mean, std=std),
-            ]),download=True),
-
 net=resnet_copied.resnet56()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
