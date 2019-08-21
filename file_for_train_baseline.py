@@ -111,6 +111,11 @@ import data_loader
 net=vgg.vgg16_bn(pretrained=False)
 
 net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+m1=nn.Linear(4096,200)
+nn.init.normal_(m1.weight,0,0.01)
+nn.init.constant_(m1.bias,0)
+net.classifier[6]=m1
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net.to(device)
 batch_size=32
