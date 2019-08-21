@@ -179,7 +179,7 @@ def train(
         if load_net:
             checkpoint = torch.load(file_new)
             print('{} load net from previous checkpoint'.format(datetime.now()))
-            net=checkpoint['net']
+            # net=checkpoint['net']                             #net won't be updated if using this frame. I don't know why.
             net.load_state_dict(checkpoint['state_dict'])
             sample_num = checkpoint['sample_num']
 
