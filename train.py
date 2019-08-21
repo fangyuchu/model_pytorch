@@ -375,7 +375,7 @@ if __name__ == "__main__":
     sys.stdout = logger.Logger( './log2.txt', sys.stdout)
     sys.stderr = logger.Logger( './log2.txt', sys.stderr)  # redirect std err, if necessary
 
-    net=vgg.vgg16_bn(pretrained=True)
+    net=vgg.vgg16_bn(pretrained=False)
 
     # m1=nn.Linear(2048,4096)
     # nn.init.normal_(m1.weight, 0, 0.01)
@@ -417,21 +417,27 @@ if __name__ == "__main__":
                                                            dataset_name='tiny_imagenet',
                                                            default_image_size=224
                                                         )
-    for i in range(1):
+    for i in range(10):
         print(i)
         train(net=net,
-              net_name='vgg16bn_tiny_imagenet5',
+              net_name='vgg16bn_tiny_imagenet'+str(i),
               dataset_name='tiny_imagenet',
               test_net=False,
-              optimizer=optim.SGD,
-              learning_rate=0.1,
-              learning_rate_decay=True,
-              learning_rate_decay_epoch=[ 30, 60, 600],
-              learning_rate_decay_factor=0.1,
+              # optimizer=optim.SGD,
+              # learning_rate=0.1,
+              # learning_rate_decay=True,
+              # learning_rate_decay_epoch=[ 30, 60, 600],
+              # learning_rate_decay_factor=0.1,
+              # weight_decay=0.0006,
+
+              optimizer=optim.Adam,
+              learning_rate=1e-3,
+              weight_decay=1e-8,
+              learning_rate_decay=False,
+
               load_net=True,
               batch_size=batch_size,
               num_epochs=1000,
-              weight_decay=0.0006,
               train_loader=train_loader,
               validation_loader=validation_loader,
               checkpoint_step=1000,
