@@ -335,27 +335,29 @@ def find_useless_filters_data_version(net,
             del random_data
         else:
             if dataset_name is 'imagenet':
-                mean = conf.imagenet['mean']
-                std = conf.imagenet['std']
-                train_set_path = conf.imagenet['train_set_path']
-                default_image_size = conf.imagenet['default_image_size']
+            #     mean = conf.imagenet['mean']
+            #     std = conf.imagenet['std']
+            #     train_set_path = conf.imagenet['train_set_path']
+            #     default_image_size = conf.imagenet['default_image_size']
                 train_set_size = conf.imagenet['train_set_size']
             elif dataset_name is 'cifar10':
-                mean = conf.cifar10['mean']
-                std = conf.cifar10['std']
-                train_set_path = conf.cifar10['dataset_path']
-                default_image_size = conf.cifar10['default_image_size']
+            #     mean = conf.cifar10['mean']
+            #     std = conf.cifar10['std']
+            #     train_set_path = conf.cifar10['dataset_path']
+            #     default_image_size = conf.cifar10['default_image_size']
                 train_set_size=conf.cifar10['train_set_size']
+            elif dataset_name is 'cifar100':
+                train_set_size=conf.cifar100['train_set_size']
             elif dataset_name is 'tiny_imagenet':
-                mean = conf.tiny_imagenet['mean']
-                std = conf.tiny_imagenet['std']
-                train_set_path = conf.tiny_imagenet['train_set_path']
-                default_image_size = conf.tiny_imagenet['default_image_size']
+            #     mean = conf.tiny_imagenet['mean']
+            #     std = conf.tiny_imagenet['std']
+            #     train_set_path = conf.tiny_imagenet['train_set_path']
+            #     default_image_size = conf.tiny_imagenet['default_image_size']
                 train_set_size=conf.tiny_imagenet['train_set_size']
-            train_loader = data_loader.create_validation_loader(dataset_path=train_set_path,
-                                                                default_image_size=default_image_size,
-                                                                mean=mean,
-                                                                std=std,
+            train_loader = data_loader.create_validation_loader(#dataset_path=train_set_path,
+            #                                                     default_image_size=default_image_size,
+            #                                                     mean=mean,
+            #                                                     std=std,
                                                                 batch_size=batch_size,
                                                                 num_workers=6,
                                                                 dataset_name=dataset_name+'_trainset',
