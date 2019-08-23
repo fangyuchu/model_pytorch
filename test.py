@@ -25,7 +25,7 @@ net=resnet_copied.resnet56()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+checkpoint = torch.load('./baseline/vgg16bn_tinyimagenet,0.71868.tar')
 net=checkpoint['net']
 #
 # # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
@@ -37,28 +37,29 @@ net=checkpoint['net']
 #
 net.load_state_dict(checkpoint['state_dict'])
 print(checkpoint['highest_accuracy'])
+evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(32,8,dataset_name='tiny_imagenet'),save_net=False)
 #
-prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                     net_name='tmp',
-                                     prune_rate=0.2,
-                                     load_regressor=True,
-                                     dataset_name='cifar10',
-                                     filter_preserve_ratio=0.15,
-                                     max_filters_pruned_for_one_time=[0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
-                                     target_accuracy=0.933,
-                                     tar_acc_gradual_decent=True,
-                                     flop_expected=4e7,
-                                     batch_size=1600,
-                                     num_epoch=450,
-                                     checkpoint_step=3000,
-                                     use_random_data=False,
-                                     round_for_train=2,
-                                     # optimizer=optim.Adam,
-                                     # learning_rate=1e-3,
-                                     # weight_decay=0
-                                     optimizer=optim.SGD,
-                                     learning_rate=0.01,
-                                     learning_rate_decay=True,
-                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-                                     learning_rate_decay_factor=0.5,
-                                     )
+# prune_and_train.prune_inactive_neural_with_regressor(net=net,
+#                                      net_name='tmp',
+#                                      prune_rate=0.2,
+#                                      load_regressor=True,
+#                                      dataset_name='cifar10',
+#                                      filter_preserve_ratio=0.15,
+#                                      max_filters_pruned_for_one_time=[0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
+#                                      target_accuracy=0.933,
+#                                      tar_acc_gradual_decent=True,
+#                                      flop_expected=4e7,
+#                                      batch_size=1600,
+#                                      num_epoch=450,
+#                                      checkpoint_step=3000,
+#                                      use_random_data=False,
+#                                      round_for_train=2,
+#                                      # optimizer=optim.Adam,
+#                                      # learning_rate=1e-3,
+#                                      # weight_decay=0
+#                                      optimizer=optim.SGD,
+#                                      learning_rate=0.01,
+#                                      learning_rate_decay=True,
+#                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+#                                      learning_rate_decay_factor=0.5,
+#                                      )
