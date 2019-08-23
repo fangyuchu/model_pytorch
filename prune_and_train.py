@@ -1246,7 +1246,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     filter_num_lower_bound = list()  # 最低filter数量
     filter_num = list()
     for mod in net.modules():
-        if isinstance(mod, resnet_copied.BasicBlock):
+        if isinstance(mod, resnet_copied.BasicBlock) or isinstance(mod, resnet.BasicBlock):
             index_in_block = 1
         elif isinstance(mod, torch.nn.modules.conv.Conv2d):
             if index_in_block == 1:  # 在block里面
@@ -1303,7 +1303,8 @@ def prune_inactive_neural_with_regressor_resnet(net,
                 batch_size=batch_size,
                 use_random_data=use_random_data,
                 percent_of_inactive_filter=prune_rate,
-                dead_or_inactive='inactive'
+                dead_or_inactive='inactive',
+                dataset_name=dataset_name
                 )
             if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
                 os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)

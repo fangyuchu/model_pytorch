@@ -128,11 +128,11 @@ def create_validation_loader(
             std=conf.imagenet['std']
             if dataset_name =='imagenet_trainset':
                 dataset_path=conf.imagenet['train_set_path']
-            if dataset_name is 'imagenet' and dataset_path is None:
+            if dataset_name == 'imagenet' and dataset_path is None:
                 dataset_path=conf.imagenet['validation_set_path']
             if dataset_name == 'tiny_imagenet' and dataset_path is None:
                 dataset_path = conf.tiny_imagenet['validation_set_path']
-            if dataset_name is 'tiny_imagenet_trainset':
+            if dataset_name == 'tiny_imagenet_trainset':
                 dataset_path = conf.tiny_imagenet['train_set_path']
 
         transform = transforms.Compose([
