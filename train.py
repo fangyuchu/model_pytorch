@@ -105,15 +105,6 @@ def train(
     else:
         print(device)
 
-    #define loss function and optimizer
-    criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
-    # optimizer = optim.SGD(net.parameters(), lr=learning_rate,momentum=momentum,#weight_decay=weight_decay
-    #                       )  # 优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
-
-    if optimizer is optim.Adam:
-        optimizer = optimizer(net.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    elif optimizer is optim.SGD:
-        optimizer=optimizer(net.parameters(),lr=learning_rate,weight_decay=weight_decay,momentum=momentum)
 
     #prepare the data
     if dataset_name is 'imagenet':
@@ -202,6 +193,14 @@ def train(
     #ensure the net will be evaluated despite the inappropriate checkpoint_step
     if checkpoint_step>math.ceil(train_set_size/batch_size)-1:
         checkpoint_step=math.ceil(train_set_size/batch_size)-1
+
+
+    #define loss function and optimizer
+    criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
+    if optimizer is optim.Adam:
+        optimizer = optimizer(net.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    elif optimizer is optim.SGD:
+        optimizer=optimizer(net.parameters(),lr=learning_rate,weight_decay=weight_decay,momentum=momentum)
 
     print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
