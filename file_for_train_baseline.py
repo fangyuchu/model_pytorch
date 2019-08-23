@@ -118,7 +118,7 @@ net.classifier[6]=m1
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net.to(device)
-batch_size=32
+batch_size=24
 num_worker=8
 train_loader=data_loader.create_train_loader(batch_size=batch_size,
                                              num_workers=num_worker,
@@ -130,7 +130,10 @@ validation_loader=data_loader.create_validation_loader(batch_size=batch_size,
                                                        dataset_name='tiny_imagenet',
                                                        default_image_size=224
                                                     )
-for i in range(10):
+
+checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_tiny_imagenet0/checkpoint/flop=15466995912,accuracy=0.44526.tar')
+net.load_state_dict(checkpoint['state_dict'])
+for i in range(1,10):
     print(i)
     train.train(net=net,
                 net_name='vgg16bn_tiny_imagenet' + str(i),
