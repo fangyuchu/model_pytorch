@@ -64,13 +64,18 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
             num_conv = 0  # num of conv layers in the net
             filter_num=list()
             filters=list()
+            layers=list()
             for mod in net.modules():
                 if isinstance(mod, torch.nn.modules.conv.Conv2d):
                     num_conv += 1
-                    filter_num.append(mod.out_channels)
-                    filters.append(mod)
+                    conv=mod
+                elif isinstance(mod,torch.nn.ReLU):                             #ensure the conv are followed by relu
+                    filter_num.append(conv.out_channels)
+                    filters.append(conv)
+                    layers.append(num_conv-1)
 
-            for i in range(num_conv):
+
+            for i in range(len(filters)):
                 for module_key in list(neural_list.keys()):
                     if module_list[i] is module_key:                                    #find the neural_list_statistics in layer i+1
                         dead_times=neural_list[module_key]
@@ -98,7 +103,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                             for f in filter_weight:
                                 filter.append(f)
                             filter_label+=prediction.tolist()
-                            filter_layer+=[i for j in range(filter_weight.shape[0])]
+                            filter_layer+=[layers[i] for j in range(filter_weight.shape[0])]
 
     if regression_or_classification is 'classification' and balance is True:
         living_filter=living_filter[:len(dead_filter)]

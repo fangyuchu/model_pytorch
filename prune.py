@@ -26,14 +26,14 @@ def prune_conv_layer_resnet(net, layer_index, filter_index, modules_list):
     bn_module = ""
     for string in modules_list:
         if module_to_prune != "":
-            if "conv" in string:
+            if "conv" in string or 'downsample.0' in string:
                 next_module += string
                 break
             elif "bn" in string:
                 bn_module += string
             else:
                 continue
-        if "conv" in string:
+        if "conv" in string or 'downsample.0' in string:
             i += 1
             if i == layer_index:
                 module_to_prune += string

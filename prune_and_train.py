@@ -1270,7 +1270,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                 filter_num.append(mod.out_channels)
             i += 1
 
-    modules_list=create_modulesList(net)  # 创建一个list保存每一个module的名字
+    modules_list=create_module_list(net)  # 创建一个list保存每一个module的名字
 
     filter_layer = list()
     filter=list()
@@ -1281,7 +1281,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
         if regressor_exists is True:
             round_for_train = -1
         else:                                                   #load data from previous rounds of pruning
-            print('Can\' find saved regressor. Load data from previous round.')
+            print('Can\'t find saved regressor. Load data from previous round.')
             filter_tmp, dead_ratio_tmp, filter_layer_tmp=predict_dead_filter.read_data(path=conf.root_path + net_name + '/dead_neural/',
                                                                              balance=False,
                                                                              regression_or_classification='regression',
@@ -1621,60 +1621,80 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #         #         net = old_net
 #         # filter_dead_ratio *= filter_dead_ratio_decay
 #         # neural_dead_times *= neural_dead_times_decay
-def create_modulesList(net):
-    """
-    创建一个list保存每一个module的名字
-    :param net:
-    :return: modules_list
-    """
-    modules_list = []
-    num_conv = 0  # 统计Conv总数
-    block_i = -1  # block从0开始
-    index_in_block = -1
-    layer = 1  # layer从1开始
-    tag=0
-    for mod in net.modules():
-        if isinstance(mod, torch.nn.modules.container.Sequential):  # layer
-            if tag==0:# 上一层不是Sequential
-                temp_string = "layer" + str(layer) + "."
-                tag=1
-            elif tag==1:#上一层是Sequential
-                layer+=1
-                temp_string = "layer" + str(layer) + "."
-                block_i=-1
-                tag=1
-        elif isinstance(mod,resnet_copied.LambdaLayer):
-            temp_string = "layer" + str(layer) + "."
-        elif isinstance(mod, resnet_copied.BasicBlock):
-            block_i += 1  # block索引
-            index_in_block = 1
-            temp_string += "block" + str(block_i) + "."
-            tag=0
-        elif isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv += 1
-            if index_in_block != -1:  # 在block里面
-                tmp = temp_string + "conv" + str(index_in_block)
-                modules_list.append(tmp)  # layer_i.block_j.conv_k
-            elif index_in_block == -1:  # 在block外面
-                modules_list.append("conv" + str(num_conv))
-
-            tag=0
-        elif isinstance(mod, torch.nn.modules.batchnorm.BatchNorm2d):
-            if index_in_block != -1:  # 在block里面
-                tmp = temp_string + "bn" + str(index_in_block)
-                modules_list.append(tmp)  # layer_i.block_j.bn_k
-            elif index_in_block == -1:  # 在block外面
-                modules_list.append("bn" + str(num_conv))
-            tag=0
-        elif isinstance(mod, torch.nn.modules.activation.ReLU):
-            if index_in_block != -1:  # 在block里面
-                tmp = temp_string + "relu" + str(index_in_block)
-                modules_list.append(tmp)  # layer_i.block_j.relu_k
-                index_in_block+=1
-            elif index_in_block == -1:  # 在block外面
-                modules_list.append("relu" + str(num_conv))
-            tag=0
+def create_module_list(module,key='',prefix=''):
+    module_dict=getattr(module,'_modules')
+    if not module_dict:                                 #module_dict is empty, which means this module is the last node.
+        if prefix =='':
+            return [key]
+        else:
+            return [prefix+'.'+key]
+    modules_list=list()
+    if key != '':                                               #module is not net
+        if prefix =='':
+            prefix=key
+        else:
+            prefix=prefix+'.'+key
+    for k in module_dict:
+        modules_list+=create_module_list(module_dict[k],k,prefix)
     return modules_list
+
+
+
+
+# def create_modulesList(net):
+#     """
+#     创建一个list保存每一个module的名字
+#     :param net:
+#     :return: modules_list
+#     """
+#     modules_list = []
+#     num_conv = 0  # 统计Conv总数
+#     block_i = -1  # block从0开始
+#     index_in_block = -1
+#     layer = 1  # layer从1开始
+#     tag=0
+#     for mod in net.modules():
+#         if isinstance(mod, torch.nn.modules.container.Sequential):  # layer
+#             if tag==0:# 上一层不是Sequential
+#                 temp_string = "layer" + str(layer) + "."
+#                 tag=1
+#             elif tag==1:#上一层是Sequential
+#                 layer+=1
+#                 temp_string = "layer" + str(layer) + "."
+#                 block_i=-1
+#                 tag=1
+#         elif isinstance(mod,resnet_copied.LambdaLayer):
+#             temp_string = "layer" + str(layer) + "."
+#         elif isinstance(mod, resnet_copied.BasicBlock):
+#             block_i += 1  # block索引
+#             index_in_block = 1
+#             temp_string += "block" + str(block_i) + "."
+#             tag=0
+#         elif isinstance(mod, torch.nn.modules.conv.Conv2d):
+#             num_conv += 1
+#             if index_in_block != -1:  # 在block里面
+#                 tmp = temp_string + "conv" + str(index_in_block)
+#                 modules_list.append(tmp)  # layer_i.block_j.conv_k
+#             elif index_in_block == -1:  # 在block外面
+#                 modules_list.append("conv" + str(num_conv))
+#
+#             tag=0
+#         elif isinstance(mod, torch.nn.modules.batchnorm.BatchNorm2d):
+#             if index_in_block != -1:  # 在block里面
+#                 tmp = temp_string + "bn" + str(index_in_block)
+#                 modules_list.append(tmp)  # layer_i.block_j.bn_k
+#             elif index_in_block == -1:  # 在block外面
+#                 modules_list.append("bn" + str(num_conv))
+#             tag=0
+#         elif isinstance(mod, torch.nn.modules.activation.ReLU):
+#             if index_in_block != -1:  # 在block里面
+#                 tmp = temp_string + "relu" + str(index_in_block)
+#                 modules_list.append(tmp)  # layer_i.block_j.relu_k
+#                 index_in_block+=1
+#             elif index_in_block == -1:  # 在block外面
+#                 modules_list.append("relu" + str(num_conv))
+#             tag=0
+#     return modules_list
 
 
 if __name__ == "__main__":

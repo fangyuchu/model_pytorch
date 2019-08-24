@@ -242,23 +242,28 @@ def find_useless_filters_regressor_version(net,
                                            percent_of_inactive_filter,
                                            max_filters_pruned_for_one_time
                                            ):
+    num_conv = 0
+    for mod in net.modules():
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+    max_num_filters_pruned_layerwise=[0 for i in range(num_conv)]                                             #upperbound of number of filters to prune
     filter_layer=list()                                                                 #list containing layer of the filters corresponding to filter_index
     filter = list()
     filter_index=list()                                                                 #index of filters in their own conv
-    max_num_filters_pruned_layerwise=list()                                             #upperbound of number of filters to prune
     num_conv = 0
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             conv_weight = mod.weight.cpu().detach().numpy()
+            num_conv+=1
+        if isinstance(mod,torch.nn.ReLU):                                               #ensure the conv are followed by relu
             for weight in conv_weight:
                 filter.append(weight)
-            filter_layer += [num_conv for j in range(conv_weight.shape[0])]
+            filter_layer += [num_conv-1 for j in range(conv_weight.shape[0])]
             filter_index += [j for j in range(conv_weight.shape[0])]
             if type(max_filters_pruned_for_one_time) is list:
-                max_num_filters_pruned_layerwise.append(int(conv_weight.shape[0]*max_filters_pruned_for_one_time[num_conv]))
+                max_num_filters_pruned_layerwise[num_conv-1]=int(conv_weight.shape[0]*max_filters_pruned_for_one_time[num_conv-1])
             else:
-                max_num_filters_pruned_layerwise.append(int(conv_weight.shape[0]*max_filters_pruned_for_one_time))
-            num_conv+=1
+                max_num_filters_pruned_layerwise[num_conv-1]=int(conv_weight.shape[0]*max_filters_pruned_for_one_time)
 
     dead_ratio=predictor.predict(filter=filter,filter_layer=filter_layer)
 
@@ -296,6 +301,7 @@ def find_useless_filters_data_version(net,
                                       neural_dead_times=None,
                                       filter_dead_ratio=None,
                                       percent_of_inactive_filter=None,
+                                      # max_data_to_test=10000,
                                       max_data_to_test=10000,
                       ):
     '''
@@ -335,29 +341,14 @@ def find_useless_filters_data_version(net,
             del random_data
         else:
             if dataset_name is 'imagenet':
-            #     mean = conf.imagenet['mean']
-            #     std = conf.imagenet['std']
-            #     train_set_path = conf.imagenet['train_set_path']
-            #     default_image_size = conf.imagenet['default_image_size']
                 train_set_size = conf.imagenet['train_set_size']
             elif dataset_name is 'cifar10':
-            #     mean = conf.cifar10['mean']
-            #     std = conf.cifar10['std']
-            #     train_set_path = conf.cifar10['dataset_path']
-            #     default_image_size = conf.cifar10['default_image_size']
                 train_set_size=conf.cifar10['train_set_size']
             elif dataset_name is 'cifar100':
                 train_set_size=conf.cifar100['train_set_size']
             elif dataset_name is 'tiny_imagenet':
-            #     mean = conf.tiny_imagenet['mean']
-            #     std = conf.tiny_imagenet['std']
-            #     train_set_path = conf.tiny_imagenet['train_set_path']
-            #     default_image_size = conf.tiny_imagenet['default_image_size']
                 train_set_size=conf.tiny_imagenet['train_set_size']
-            train_loader = data_loader.create_validation_loader(#dataset_path=train_set_path,
-            #                                                     default_image_size=default_image_size,
-            #                                                     mean=mean,
-            #                                                     std=std,
+            train_loader = data_loader.create_validation_loader(
                                                                 batch_size=batch_size,
                                                                 num_workers=6,
                                                                 dataset_name=dataset_name+'_trainset',
@@ -375,17 +366,21 @@ def find_useless_filters_data_version(net,
             del train_loader
     num_conv = 0  # num of conv layers in the net
     filter_num = list()
+    relu_layer=list()   #denote the layer for ReLU
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
             filter_num.append(mod.out_channels)
-            
+        if isinstance(mod,nn.ReLU):
+            relu_layer.append(num_conv-1)                       #the last few may be relu in fc
+    relu_layer = list(set(relu_layer))                          #delete relu in fc
+
     useless_filter_index=list()
     if dead_or_inactive is 'inactive':
         filter_index=list()                                 #index of the filter in its layer
         filter_layer=list()                                 #which layer the filter is in
         dead_ratio=list()
-    for i in range(num_conv):
+    for i in range(len(relu_layer)):#the number of relu after conv  range(len(module_list)):
         for module_key in list(neural_list.keys()):
             if module_list[i] is module_key:  # find the neural_list_statistics in layer i+1
                 dead_times = copy.deepcopy(neural_list[module_key])
@@ -407,7 +402,7 @@ def find_useless_filters_data_version(net,
                         dead_ratio += (dead_times / (neural_num * batch_size)).tolist()
                     else:
                         dead_ratio += (dead_times / (neural_num * dataset_size)).tolist()
-                    filter_layer += [i for j in range(dead_times.shape[0])]
+                    filter_layer += [relu_layer[i] for j in range(dead_times.shape[0])]
                     filter_index+=[j for j in range(dead_times.shape[0])]
 
     if dead_or_inactive is 'dead':
@@ -417,7 +412,10 @@ def find_useless_filters_data_version(net,
         inactive_filter_index=np.array(filter_index)[inactive_rank]
         inactive_filter_layer=np.array(filter_layer)[inactive_rank]
         for i in range(num_conv):
-            useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer==i)])
+            if i in relu_layer:
+                useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer==i)])
+            else:
+                useless_filter_index.append([])
         return useless_filter_index,module_list,neural_list,dead_ratio
 
 
