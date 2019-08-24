@@ -887,6 +887,7 @@ def prune_inactive_neural_with_regressor(net,
                                          learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                                          top_acc=1,
                                          max_training_iteration=99999,
+                                         round=1,
                                          **kwargs
                                      ):
     '''
@@ -916,6 +917,7 @@ def prune_inactive_neural_with_regressor(net,
     :param learning_rate_decay_factor:
     :param weight_decay:
     :param learning_rate_decay_epoch:
+    :param round: the start number of round
     :param kwargs:
     :return:
     '''
@@ -953,10 +955,11 @@ def prune_inactive_neural_with_regressor(net,
         'learning_rate_decay_epoch:{}\n'
         'top_acc:{}\n'
         'max_training_iteration:{}\n'
+        'round:{}\n'
           .format(net, net_name, target_accuracy, prune_rate,predictor_name,load_regressor,round_for_train,tar_acc_gradual_decent,
                   flop_expected,dataset_name,use_random_data,validation_loader,batch_size,num_workers,optimizer,learning_rate,
                   checkpoint_step,num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
-                  weight_decay,learning_rate_decay_epoch,top_acc,max_training_iteration))
+                  weight_decay,learning_rate_decay_epoch,top_acc,max_training_iteration,round))
     print(kwargs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -1013,7 +1016,8 @@ def prune_inactive_neural_with_regressor(net,
             filter_layer+=filter_layer_tmp
 
     #using data to prune the network for (round_for_train)rounds
-    round = 0
+
+    round-=1           # 懒得改了，先这样吧
     while True:
         round += 1
         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
@@ -1148,6 +1152,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                                 weight_decay=conf.weight_decay,
                                                 learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                                                 max_training_iteration=9999,
+                                                round=1,
                                  **kwargs
                                  ):
     '''
@@ -1213,6 +1218,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     print('weight_decay:',weight_decay)
     print('learning_rate_decay_epoch:',learning_rate_decay_epoch)
     print('max_training_iteration:',max_training_iteration)
+    print('round:',round)
 
     print(kwargs)
 
@@ -1285,7 +1291,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
             filter+=filter_tmp
             filter_layer+=filter_layer_tmp
     # using data to prune the network for (round_for_train)rounds
-    round = 0
+    round-=1                        #懒得改了，先这样吧
     while True:
         round += 1
         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
