@@ -73,6 +73,10 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                     filter_num.append(conv.out_channels)
                     filters.append(conv)
                     layers.append(num_conv-1)
+            while layers[-1]==layers[-2]:                                       #remove the duplicated object due to relu in fc
+                filter_num.pop(-1)
+                filters.pop(-1)
+                layers.pop(-1)
 
 
             for i in range(len(filters)):
