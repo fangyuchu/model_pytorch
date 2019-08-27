@@ -70,13 +70,12 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                     num_conv += 1
                     conv=mod
                 elif isinstance(mod,torch.nn.ReLU):                             #ensure the conv are followed by relu
+                    if layers != [] and layers[-1] == num_conv - 1:             # get rid of the influence from relu in fc
+                        continue
                     filter_num.append(conv.out_channels)
                     filters.append(conv)
                     layers.append(num_conv-1)
-            while layers[-1]==layers[-2]:                                       #remove the duplicated object due to relu in fc
-                filter_num.pop(-1)
-                filters.pop(-1)
-                layers.pop(-1)
+
 
 
             for i in range(len(filters)):

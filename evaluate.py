@@ -256,6 +256,8 @@ def find_useless_filters_regressor_version(net,
             conv_weight = mod.weight.cpu().detach().numpy()
             num_conv+=1
         if isinstance(mod,torch.nn.ReLU):                                               #ensure the conv are followed by relu
+            if filter_layer !=[] and filter_layer[-1]==num_conv-1:                                            #get rid of the influence from relu in fc
+                continue
             for weight in conv_weight:
                 filter.append(weight)
             filter_layer += [num_conv-1 for j in range(conv_weight.shape[0])]
