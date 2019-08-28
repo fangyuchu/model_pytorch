@@ -54,6 +54,7 @@ tiny_imagenet['train_set_size']=100000
 tiny_imagenet['mean']=[0.485, 0.456, 0.406]
 tiny_imagenet['std']=[0.229, 0.224, 0.225]
 tiny_imagenet['train_set_path']='./dataset/tiny_imagenet/train'
+tiny_imagenet['train+val_set_path']='./dataset/tiny_imagenet/train+val'
 tiny_imagenet['validation_set_path']='./dataset/tiny_imagenet/val'
 tiny_imagenet['validation_set_size']=10000
 tiny_imagenet['default_image_size']=224

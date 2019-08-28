@@ -61,6 +61,7 @@ def create_train_loader(
             std=conf.imagenet['std']
         if dataset_name == 'tiny_imagenet' and dataset_path is None:
             dataset_path=conf.tiny_imagenet['train_set_path']
+            # dataset_path=conf.tiny_imagenet['train+val_set_path']
             mean=conf.tiny_imagenet['mean']
             std=conf.tiny_imagenet['std']
         transform = transforms.Compose([
