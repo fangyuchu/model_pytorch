@@ -27,6 +27,7 @@ import predict_dead_filter
 from sklearn.linear_model import LogisticRegressionCV
 import resnet_copied
 from sklearn.externals import joblib
+import resnet_tinyimagenet
 
 
 
@@ -1252,7 +1253,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     filter_num_lower_bound = list()  # 最低filter数量
     filter_num = list()
     for mod in net.modules():
-        if isinstance(mod, resnet_copied.BasicBlock) or isinstance(mod, resnet.BasicBlock):
+        if isinstance(mod, resnet_copied.BasicBlock) or isinstance(mod, resnet_tinyimagenet.BasicBlock):
             index_in_block = 1
         elif isinstance(mod, torch.nn.modules.conv.Conv2d):
             if index_in_block == 1:  # 在block里面
