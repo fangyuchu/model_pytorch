@@ -259,12 +259,20 @@ def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_de
     # print()
 
 def speed_up():
+    fontsize=20
+
     device=torch.device('cpu')#device("cuda" if torch.cuda.is_available() else "cpu")
     checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
     net_original=checkpoint['net']
+
+
+    # checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
+    # net_original=resnet_copied.resnet56()
     net_original.load_state_dict(checkpoint['state_dict'])
 
     checkpoint=torch.load('./model_saved/vgg16bn_cifar10_realdata_regressor6_大幅度/checkpoint/flop=39915982,accuracy=0.93200.tar')
+
+    # checkpoint=torch.load('./model_saved/resnet56_cifar10_regressor_prunedBaseline2/checkpoint/flop=36145802,accuracy=0.92110.tar')
     net_pruned=checkpoint['net']
     net_pruned.load_state_dict(checkpoint['state_dict'])
 
@@ -275,7 +283,8 @@ def speed_up():
     num_workers=[i for i in range(4,5)]
     batch_size=[300,600,1000,1600]
 
-    device_list=[torch.device('cuda'),torch.device('cpu')]
+    device_list=[torch.device('cuda')]#
+    device_list=[torch.device('cpu')]
     for num_worker in num_workers:
         time_original = list()
         time_pruned = list()
@@ -301,27 +310,28 @@ def speed_up():
         print('time before pruned:',time_original)
         print('time after pruned:',time_pruned)
         acceleration=np.array(time_original)/np.array(time_pruned)
-        baseline=np.ones(shape=2*len(batch_size))
+        baseline=np.ones(shape=len(batch_size))
         x_tick=range(len(baseline))
 
         plt.figure()
-        plt.bar(x_tick[:len(batch_size)],acceleration[:len(batch_size)],color='blue',hatch='//',label='GPU')
-        plt.bar(x_tick[len(batch_size):], acceleration[len(batch_size):], color='grey', hatch='\\', label='CPU')
-        plt.bar(x_tick,baseline,color='red',hatch='*',label='Baseline')
-        plt.xticks(x_tick,batch_size+batch_size)
+        plt.bar(x_tick,acceleration,color='blue',hatch='//')#,label='GPU')
+        # plt.bar(x_tick[len(batch_size):], acceleration[len(batch_size):], color='grey', hatch='\\', label='CPU')
+        # plt.bar(x_tick,baseline,color='red',hatch='*',label='Baseline')
+        plt.xticks(x_tick,batch_size,fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
         for x,y in enumerate(list(acceleration)):
-            plt.text(x,y+0.1,'%.2f x'%y,ha='center')
-        plt.ylim([0,np.max(acceleration)+0.3])
-        plt.xlabel('Batch-Size')
-        plt.ylabel('Speed-Up')
-        plt.legend(loc='upper left')
-        plt.savefig(str(num_worker)+'speed_up.eps',format='eps')
-        plt.savefig(str(num_worker)+'speed_up.jpg')
+            plt.text(x,y+0.1,'%.2f x'%y,ha='center',fontsize=fontsize)
+        plt.ylim([0,np.max(acceleration)+0.5])
+        plt.xlabel('Batch-Size',fontsize=fontsize)
+        plt.ylabel('Speed-Up',fontsize=fontsize)
+        # plt.legend(loc='upper left')
+        plt.savefig('vgg_cpu_speed_up.eps',format='eps')
+        # plt.savefig(str(num_worker)+'speed_up.jpg')
         plt.show()
         print()
 
 
 
 if __name__ == "__main__":
-    plot_dead_neuron_filter_number()
-    # speed_up()
+    # plot_dead_neuron_filter_number()
+    speed_up()
