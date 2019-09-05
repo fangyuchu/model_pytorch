@@ -318,7 +318,34 @@ class predictor:
         else:
             return False
 
+def read_from_checkpoint(path):
+    if '.tar' in path:
+        file_list=[path]                                #single net
+    else:
+        file_list=os.listdir(path)
+    filters = list()
+    layers=list()
+    for file_name in file_list:
+        if '.tar' in file_name:
+            checkpoint=torch.load(os.path.join(path,file_name))
+            net=checkpoint['net']
+            net.load_state_dict(checkpoint['state_dict'])
+            filters_tmp,layers_tmp=get_filters(net=net)
+            filters+=filters_tmp
+            layers+=layers_tmp
+    return filters,layers
 
+def get_filters(net):
+    filters=list()
+    layers=list()
+    num_conv=0
+    for mod in net.modules():
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            for f in mod.weight.data.cpu().numpy():
+                filters.append(f)
+            layers+=[num_conv for i in range(mod.out_channels)]
+            num_conv+=1
+    return filters,layers
 
 def dead_filter_metric(label,prediction):
     true_positive=np.bitwise_and(prediction>0, prediction==label)

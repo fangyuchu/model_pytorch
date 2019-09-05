@@ -22,6 +22,9 @@ import matplotlib.pyplot as plt
 import copy
 import resnet_copied
 import time
+import os
+
+
 def dead_neural_rate():
     # checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
     # checkpoint=torch.load('/home/victorfang/Desktop/resnet34_imagenet_DeadReLU.tar')
@@ -258,21 +261,19 @@ def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_de
     # plt.show()
     # print()
 
-def speed_up():
-    fontsize=20
+def speed_up_pruned_net():
+    fontsize=15
 
-    device=torch.device('cpu')#device("cuda" if torch.cuda.is_available() else "cpu")
     checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
     net_original=checkpoint['net']
 
-
-    # checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
-    # net_original=resnet_copied.resnet56()
+    checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
+    net_original=resnet_copied.resnet56()
     net_original.load_state_dict(checkpoint['state_dict'])
 
     checkpoint=torch.load('./model_saved/vgg16bn_cifar10_realdata_regressor6_大幅度/checkpoint/flop=39915982,accuracy=0.93200.tar')
 
-    # checkpoint=torch.load('./model_saved/resnet56_cifar10_regressor_prunedBaseline2/checkpoint/flop=36145802,accuracy=0.92110.tar')
+    checkpoint=torch.load('./model_saved/resnet56_cifar10_regressor_prunedBaseline2/checkpoint/flop=36145802,accuracy=0.92110.tar')
     net_pruned=checkpoint['net']
     net_pruned.load_state_dict(checkpoint['state_dict'])
 
@@ -284,7 +285,7 @@ def speed_up():
     batch_size=[300,600,1000,1600]
 
     device_list=[torch.device('cuda')]#
-    device_list=[torch.device('cpu')]
+    # device_list=[torch.device('cpu')]
     for num_worker in num_workers:
         time_original = list()
         time_pruned = list()
@@ -325,13 +326,71 @@ def speed_up():
         plt.xlabel('Batch-Size',fontsize=fontsize)
         plt.ylabel('Speed-Up',fontsize=fontsize)
         # plt.legend(loc='upper left')
-        plt.savefig('vgg_cpu_speed_up.eps',format='eps')
+        plt.savefig('resnet_gpu_speed_up.eps',format='eps')
         # plt.savefig(str(num_worker)+'speed_up.jpg')
         plt.show()
         print()
 
 
+def speed_up_regressor():
+    path='/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_tinyimagenet_prune/checkpoint'
+    predictor = predict_dead_filter.predictor(name='random_forest')
+    predictor.load(path='/home/disk_new/model_saved/vgg16bn_tinyimagenet_prune/')
+
+    file_list=os.listdir(path)
+    file_list.sort()
+    regressor_time=list()
+    real_data_time=list()
+    for file in file_list:
+        print(file)
+        checkpoint_path=os.path.join(path,file)
+        chekpoint=torch.load(checkpoint_path)
+        net=chekpoint['net']
+        net.load_state_dict(chekpoint['state_dict'])
+        #time for regressor
+        start_time = time.time()
+        evaluate.find_useless_filters_regressor_version(net=net,
+                                                        predictor=predictor,
+                                                        percent_of_inactive_filter=0.1,
+                                                        max_filters_pruned_for_one_time=0.2,)
+        end_time=time.time()
+        regressor_time.append(end_time-start_time)
+        #time for sampled data
+        start_time = time.time()
+        evaluate.find_useless_filters_data_version(net=net,
+                                                   batch_size=24,
+                                                   dataset_name='tiny_imagenet',
+                                                   percent_of_inactive_filter=0.1,
+                                                   max_data_to_test=50000,
+                                                   )
+        end_time=time.time()
+        real_data_time.append(end_time - start_time)
+
+    print(regressor_time)
+    print(real_data_time)
+
+def tolerance():
+    fontsize=14
+
+    flop=[125491556,90655076,83650916,64924004,54178148,42989924,41515364,39082340]
+    pruned_rate=100*(125491556-np.array(flop))/125491556
+    acc_drop=[0,0.0058,0.0095,0.0128,0.0203,0.0263,0.0318,0.0359]
+    acc_drop=100*np.array(acc_drop)
+
+
+    plt.figure()
+    plt.plot(acc_drop,pruned_rate,'bo--')
+    plt.yticks(fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+
+    plt.xlabel('Tolerance Accuracy Drop%', fontsize=fontsize)
+    plt.ylabel('Pruned Rate%', fontsize=fontsize)
+    plt.savefig('resnet56_cifar100_tolerance.eps', format='eps')
+    plt.show()
 
 if __name__ == "__main__":
     # plot_dead_neuron_filter_number()
-    speed_up()
+    # speed_up_pruned_net()
+
+    # speed_up_regressor()
+    tolerance()
