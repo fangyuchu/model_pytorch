@@ -21,12 +21,13 @@ import create_net
 import matplotlib.pyplot as plt
 import resnet_copied
 from torch import optim
-net=resnet_copied.resnet56()
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-checkpoint = torch.load('./baseline/vgg16bn_tinyimagenet,0.71868.tar')
+checkpoint = torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_imagenet_prune/checkpoint/flop=12804890484,accuracy=0.86786.tar')
+# checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_tinyimagenet_prune_train/checkpoint/flop=11394264872,accuracy=0.71270.tar')
 net=checkpoint['net']
+# net=resnet_copied.resnet56()
+
 #
 # # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
 # checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
@@ -37,29 +38,22 @@ net=checkpoint['net']
 #
 net.load_state_dict(checkpoint['state_dict'])
 print(checkpoint['highest_accuracy'])
-evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(32,8,dataset_name='tiny_imagenet'),save_net=False)
-#
-# prune_and_train.prune_inactive_neural_with_regressor(net=net,
-#                                      net_name='tmp',
-#                                      prune_rate=0.2,
-#                                      load_regressor=True,
-#                                      dataset_name='cifar10',
-#                                      filter_preserve_ratio=0.15,
-#                                      max_filters_pruned_for_one_time=[0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
-#                                      target_accuracy=0.933,
-#                                      tar_acc_gradual_decent=True,
-#                                      flop_expected=4e7,
-#                                      batch_size=1600,
-#                                      num_epoch=450,
-#                                      checkpoint_step=3000,
-#                                      use_random_data=False,
-#                                      round_for_train=2,
-#                                      # optimizer=optim.Adam,
-#                                      # learning_rate=1e-3,
-#                                      # weight_decay=0
-#                                      optimizer=optim.SGD,
-#                                      learning_rate=0.01,
-#                                      learning_rate_decay=True,
-#                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-#                                      learning_rate_decay_factor=0.5,
-#                                      )
+train.train(net=net,
+            net_name='vgg16bn_imagenet_prune_train',
+            dataset_name='imagenet',
+            test_net=True,
+            num_epochs=20,
+            checkpoint_step=4000,
+            target_accuracy=0.9140571220008835,
+            batch_size=24,
+            top_acc=5,
+
+
+            optimizer=optim.SGD,
+            learning_rate=0.0001,
+            # weight_decay=0.0006,
+            momentum=0.9,
+            learning_rate_decay=True,
+            learning_rate_decay_epoch=[5, 10, 15],
+            learning_rate_decay_factor=0.1,
+            )

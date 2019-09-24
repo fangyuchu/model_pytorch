@@ -243,7 +243,7 @@ def train(
             loss.backward()
             optimizer.step()
 
-            if step%40==0:
+            if step%800==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
 
 

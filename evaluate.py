@@ -133,6 +133,7 @@ def evaluate_net(  net,
     :param sample_num: sample num of the current trained net
     :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
     :param max_data_to_test: use at most max_data_to_test images to evaluate the net
+    :param top_acc: top 1 or top 5 accuracy
     '''
     if save_net:
         flop_num = measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
