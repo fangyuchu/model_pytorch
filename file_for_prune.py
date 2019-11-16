@@ -16,45 +16,45 @@ import prune_and_train
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-
-net = checkpoint['net'].to(device)
-
-net.load_state_dict(checkpoint['state_dict'])
-print(checkpoint['highest_accuracy'])
-
-measure_flops.measure_model(net, 'cifar10', print_flop=True)
-
-
-prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                                     net_name='test',
-                                                     dataset_name='cifar10',
-                                                     prune_rate=0.02,
-                                                     load_regressor=False,
-                                                     round_for_train=2,
-                                                     round=1,
-
-                                                        max_training_iteration=2,
-
-
-                                                     filter_preserve_ratio=0.1,
-                                                     max_filters_pruned_for_one_time=0.3,
-                                                     target_accuracy=0.931,
-                                                     tar_acc_gradual_decent=True,
-                                                     flop_expected=1e7,
-                                                     batch_size=1600,
-                                                     num_epoch=450,
-                                                     checkpoint_step=1600,
-                                                     use_random_data=True,
-                                                     # optimizer=optim.Adam,
-                                                     # learning_rate=1e-3,
-                                                     # weight_decay=0
-                                                     optimizer=optim.SGD,
-                                                     learning_rate=0.001,
-                                                     learning_rate_decay=True,
-                                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-                                                     learning_rate_decay_factor=0.5,
-)
+# checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+#
+# net = checkpoint['net'].to(device)
+#
+# net.load_state_dict(checkpoint['state_dict'])
+# print(checkpoint['highest_accuracy'])
+#
+# measure_flops.measure_model(net, 'cifar10', print_flop=True)
+#
+#
+# prune_and_train.prune_inactive_neural_with_regressor(net=net,
+#                                                      net_name='test',
+#                                                      dataset_name='cifar10',
+#                                                      prune_rate=0.02,
+#                                                      load_regressor=False,
+#                                                      round_for_train=2,
+#                                                      round=1,
+#
+#                                                         max_training_iteration=2,
+#
+#
+#                                                      filter_preserve_ratio=0.1,
+#                                                      max_filters_pruned_for_one_time=0.3,
+#                                                      target_accuracy=0.931,
+#                                                      tar_acc_gradual_decent=True,
+#                                                      flop_expected=1e7,
+#                                                      batch_size=1600,
+#                                                      num_epoch=450,
+#                                                      checkpoint_step=1600,
+#                                                      use_random_data=True,
+#                                                      # optimizer=optim.Adam,
+#                                                      # learning_rate=1e-3,
+#                                                      # weight_decay=0
+#                                                      optimizer=optim.SGD,
+#                                                      learning_rate=0.001,
+#                                                      learning_rate_decay=True,
+#                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+#                                                      learning_rate_decay_factor=0.5,
+# )
 
 
 
@@ -243,7 +243,7 @@ prune_and_train.prune_inactive_neural_with_regressor(net=net,
                                                      flop_expected=3e9,
                                                      top_acc=5,
 
-                                                     batch_size=24,
+                                                     batch_size=256,
 
                                                      num_epoch=20,
                                                      checkpoint_step=4000,

@@ -23,7 +23,7 @@ import resnet_copied
 from torch import optim
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-checkpoint = torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_imagenet_prune/checkpoint/flop=12804890484,accuracy=0.86786.tar')
+checkpoint = torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_imagenet_prune_train/checkpoint/flop=12804890484,accuracy=0.90876.tar')
 # checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_tinyimagenet_prune_train/checkpoint/flop=11394264872,accuracy=0.71270.tar')
 net=checkpoint['net']
 # net=resnet_copied.resnet56()
@@ -39,7 +39,7 @@ net=checkpoint['net']
 net.load_state_dict(checkpoint['state_dict'])
 print(checkpoint['highest_accuracy'])
 train.train(net=net,
-            net_name='vgg16bn_imagenet_prune_train',
+            net_name='vgg16bn_imagenet_prune_train2',
             dataset_name='imagenet',
             test_net=True,
             num_epochs=20,
