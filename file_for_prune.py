@@ -14,7 +14,9 @@ import data_loader
 import measure_flops
 import prune_and_train
 
+# print(torch.cuda.device(0))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 # checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 #
@@ -221,6 +223,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 net=vgg.vgg16_bn(pretrained=True).to(device)
+net=torch.nn.DataParallel(net)              #多gpu训练
 
 # import evaluate
 # evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=24,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')

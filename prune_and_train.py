@@ -140,6 +140,7 @@ def prune_dead_neural_with_classifier(net,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
     if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
@@ -350,6 +351,7 @@ def prune_inactive_neural(net,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
     if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
@@ -548,6 +550,7 @@ def prune_dead_neural(net,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
     if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
@@ -738,6 +741,7 @@ def prune_filters_randomly(net,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
     if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
@@ -966,6 +970,7 @@ def prune_inactive_neural_with_regressor(net,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
     if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
@@ -1226,6 +1231,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
     if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
