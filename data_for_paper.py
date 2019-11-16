@@ -58,6 +58,9 @@ def dead_neural_rate():
 
 
 def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10',):
+    fontsize = 17
+    label_fontsize=24
+    tick_fontsize=20
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -75,7 +78,7 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
     neural_list_imagenet=checkpoint['neural_list']
 
 
-    loader=data_loader.create_validation_loader(batch_size=1000,num_workers=6,dataset_name=dataset_name)
+    loader=data_loader.create_validation_loader(batch_size=100,num_workers=1,dataset_name=dataset_name)
     # loader=data_loader.create_validation_loader(batch_size=1000,num_workers=8,dataset_name='cifar10_trainset')
 
     relu_list_vgg,neural_list_vgg=evaluate.check_ReLU_alive(net=vgg16,neural_dead_times=neural_dead_times,data_loader=loader, max_data_to_test=10000)
@@ -122,46 +125,47 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
     nal_resnet, afl_resnet = get_statistics(resnet56,relu_list_resnet, neural_list_resnet,neural_dead_times=neural_dead_times)
     nal_imagenet,afl_imagenet=get_statistics(vgg16_imagenet,relu_list_imagenet,neural_list_imagenet,sample_num=50000,neural_dead_times=40000)
 
-    #cdf_of_dead_neurons
-    plt.figure()
-    plt.hist([nal_vgg,nal_resnet,nal_imagenet],cumulative=True,histtype='step',bins=1000,density=True,)#linewidth=5.0) #cumulative=False为pdf，true为cdf
-    # plt.hist(neural_activated_list,cumulative=True,histtype='bar',bins=20,density=True,rwidth=0.6) #cumulative=False为pdf，true为cdf
-    plt.xlabel('Activation Ratio')
-    plt.ylabel('Ratio of Neurons')
-    plt.legend(['VGG-16 on CIFAR-10','ResNet-56 on CIFAR-10','VGG-16 on ImageNet'],loc='upper left')
-    plt.savefig('0cdf_of_dead_neurons.jpg')
-    plt.savefig('cdf_of_dead_neurons.eps',format='eps')
-    plt.show()
-
-    #cdf_of_inactive_filter
-    plt.figure()
-    plt.hist([afl_vgg,afl_resnet,afl_imagenet],cumulative=True,histtype='step',bins=1000,density=True,)#linewidth=5.0) #cumulative=False为pdf，true为cdf
-    # plt.hist(neural_activated_list,cumulative=True,histtype='bar',bins=20,density=True,rwidth=0.6) #cumulative=False为pdf，true为cdf
-    plt.xlabel('Activation Ratio')
-    plt.ylabel('Ratio of Filters')
-    plt.legend(['VGG-16 on CIFAR-10','ResNet-56 on CIFAR-10','VGG-16 on ImageNet'],loc='upper left')
-    plt.savefig('0cdf_of_inactive_filter.jpg')
-    plt.savefig('cdf_of_inactive_filter.eps',format='eps')
-    plt.show()
+    # #cdf_of_dead_neurons
+    # plt.figure()
+    # plt.hist([nal_vgg,nal_resnet,nal_imagenet],cumulative=True,histtype='step',bins=1000,density=True,)#linewidth=5.0) #cumulative=False为pdf，true为cdf
+    # # plt.hist(neural_activated_list,cumulative=True,histtype='bar',bins=20,density=True,rwidth=0.6) #cumulative=False为pdf，true为cdf
+    # plt.xlabel('Activation Ratio',fontsize = fontsize)
+    # plt.ylabel('Ratio of Neurons',fontsize = fontsize)
+    # plt.legend(['VGG-16 on CIFAR-10','ResNet-56 on CIFAR-10','VGG-16 on ImageNet'],loc='upper left',fontsize = fontsize)
+    # # plt.savefig('0cdf_of_dead_neurons.jpg')
+    # plt.savefig('cdf_of_dead_neurons.eps',format='eps')
+    # plt.show()
+    #
+    # #cdf_of_inactive_filter
+    # plt.figure()
+    # plt.hist([afl_vgg,afl_resnet,afl_imagenet],cumulative=True,histtype='step',bins=1000,density=True,)#linewidth=5.0) #cumulative=False为pdf，true为cdf
+    # # plt.hist(neural_activated_list,cumulative=True,histtype='bar',bins=20,density=True,rwidth=0.6) #cumulative=False为pdf，true为cdf
+    # plt.xlabel('Activation Ratio',fontsize = fontsize)
+    # plt.ylabel('Ratio of Filters',fontsize = fontsize)
+    # plt.legend(['VGG-16 on CIFAR-10','ResNet-56 on CIFAR-10','VGG-16 on ImageNet'],loc='upper left',fontsize = fontsize)
+    # # plt.savefig('0cdf_of_inactive_filter.jpg')
+    # plt.savefig('cdf_of_inactive_filter.eps',format='eps')
+    # plt.show()
 
     #pdf_of_dead_neurons
     plt.figure()
     hist_list = list()
     for nal in [nal_vgg,nal_resnet,nal_imagenet]:
         hist, bins = np.histogram(nal, bins=[0.1 * i for i in range(11)])
-        hist_list.append(hist / np.sum(hist))
-    x_tick = np.array([0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95])
+        hist_list.append(100*hist / np.sum(hist))
+    x_tick = np.array([5, 15, 25, 35, 45, 55, 65, 75, 85, 95])
     plt.figure()
-    plt.bar(x_tick - 0.02, hist_list[0], color='blue', hatch='//', label='VGG-16 on CIFAR-10', align='center',
-            width=0.02)
-    plt.bar(x_tick, hist_list[1], color='grey', hatch='\\', label='ResNet-56 on CIFAR-10', align='center', width=0.02)
-    plt.bar(x_tick + 0.02, hist_list[2], color='red', hatch='/', label='VGG-16 on ImageNet', align='center', width=0.02)
-    plt.xticks(x_tick, x_tick)
-    plt.xlabel('Activation Ratio')
-    plt.ylabel('Ratio of Neurons')
-    plt.legend(loc='upper right')
-    plt.savefig('0pdf_of_dead_neurons.jpg')
-    plt.savefig('pdf_of_dead_neurons.eps',format='eps')
+    plt.bar(x_tick - 2, hist_list[0], color='coral', edgecolor='black', label='VGG-16 on CIFAR-10', align='center',
+            width=2)
+    plt.bar(x_tick, hist_list[1], color='cyan', edgecolor='black', label='ResNet-56 on CIFAR-10', align='center', width=2)
+    plt.bar(x_tick + 2, hist_list[2], color='mediumslateblue', edgecolor='black', label='VGG-16 on ImageNet', align='center', width=2)
+    plt.xticks(x_tick, x_tick,size=tick_fontsize)
+    plt.yticks(size=tick_fontsize)
+    plt.xlabel('Activation Ratio (%)',fontsize = label_fontsize)
+    plt.ylabel('% of Neurons',fontsize = label_fontsize)
+    plt.legend(loc='upper right',fontsize = fontsize)
+    # plt.savefig('0pdf_of_dead_neurons.jpg')
+    plt.savefig('pdf_of_dead_neurons.eps',format='eps',bbox_inches='tight')
     plt.show()
 
 
@@ -170,18 +174,19 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
     hist_list=list()
     for active_ratio in [afl_vgg,afl_resnet,afl_imagenet]:
         hist, bins = np.histogram(active_ratio, bins=[0.1 * i for i in range(11)])
-        hist_list.append( hist / np.sum(hist))
-    x_tick=np.array([0.05,0.15,0.25,0.35,0.45,0.55,0.65,0.75,0.85,0.95])
+        hist_list.append( 100*hist / np.sum(hist))
+    x_tick = np.array([5, 15, 25, 35, 45, 55, 65, 75, 85, 95])
     plt.figure()
-    plt.bar(x_tick-0.02, hist_list[0], color='blue', hatch='//', label='VGG-16 on CIFAR-10',align='center',width=0.02)
-    plt.bar(x_tick, hist_list[1], color='grey', hatch='\\',  label='ResNet-56 on CIFAR-10',align='center',width=0.02)
-    plt.bar(x_tick+0.02, hist_list[2], color='red', hatch='/',  label='VGG-16 on ImageNet',align='center',width=0.02)
-    plt.xticks(x_tick, x_tick)
-    plt.xlabel('Activation Ratio')
-    plt.ylabel('Ratio of Filters')
-    plt.legend(loc='upper right')
-    plt.savefig('0pdf_of_inactive_filter.jpg')
-    plt.savefig('pdf_of_inactive_filter.eps',format='eps')
+    plt.bar(x_tick-2, hist_list[0], color='coral', edgecolor='black', label='VGG-16 on CIFAR-10',align='center',width=2)
+    plt.bar(x_tick, hist_list[1], color='cyan', edgecolor='black',  label='ResNet-56 on CIFAR-10',align='center',width=2)
+    plt.bar(x_tick+2, hist_list[2], color='mediumslateblue', edgecolor='black',  label='VGG-16 on ImageNet',align='center',width=2)
+    plt.xticks(x_tick, x_tick,size=tick_fontsize)
+    plt.yticks(size=tick_fontsize)
+    plt.xlabel('Activation Ratio (%)',fontsize = label_fontsize)
+    plt.ylabel('% of Filters',fontsize = label_fontsize)
+    plt.legend(loc='upper right',fontsize = fontsize)
+    # plt.savefig('0pdf_of_inactive_filter.jpg')
+    plt.savefig('pdf_of_inactive_filter.eps',format='eps',bbox_inches='tight')
     plt.show()
 
     print()
@@ -389,8 +394,8 @@ def tolerance():
     plt.show()
 
 if __name__ == "__main__":
-    # plot_dead_neuron_filter_number()
+    plot_dead_neuron_filter_number()
     # speed_up_pruned_net()
 
     # speed_up_regressor()
-    tolerance()
+    # tolerance()

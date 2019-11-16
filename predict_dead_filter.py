@@ -401,7 +401,6 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
 
 
 
-
     # #标准化
     # if scaler is None:
     #     scaler=preprocessing.StandardScaler().fit(stat)
@@ -522,7 +521,7 @@ def performance_evaluation(label,prediction,ratio):
 
 if __name__ == "__main__":
 
-    ratio=0.2
+    ratio=0.1
 
     #回归#################################################################################################################################################
     filter_train,filter_label_train,filter_layer_train=read_data(batch_size=10000,regression_or_classification='regression',path='./最少样本测试/训练集')
@@ -566,7 +565,7 @@ if __name__ == "__main__":
              n_iter_no_change=10, nesterovs_momentum=True, power_t=0.5,
              random_state=None, shuffle=True, solver='adam', tol=0.0001,
              validation_fraction=0.1, verbose=False, warm_start=False)
-    model.fit(stat_train, filter_label_train)
+    # model.fit(stat_train, filter_label_train)
     param_grid = {
         # 'hidden_layer_sizes':[100,120,170,150],
         # 'activation':['identity', 'logistic', 'tanh', 'relu'],
@@ -580,6 +579,7 @@ if __name__ == "__main__":
     # print(model.best_estimator_)
     prediction = model.predict(stat_val)
     performance_evaluation(filter_label_val,prediction,ratio)
+    print()
 
 
 

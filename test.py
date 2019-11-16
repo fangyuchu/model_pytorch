@@ -21,12 +21,116 @@ import create_net
 import matplotlib.pyplot as plt
 import resnet_copied
 from torch import optim
-net=resnet_copied.resnet56()
+
+import torch
+import gensim
+
+net=vgg.vgg16_bn(pretrained=True)
+m = nn.BatchNorm2d(100)
+
+torch.manual_seed(2)
+
+datas = [('你 叫 什么 名字 ?', 'n v n n f'), ('今天 天气 怎么样 ?', 'n n adj f'), ]
+words = [data[0].split() for data in datas]
+tags = [data[1].split() for data in datas]
+
+id2word = gensim.corpora.Dictionary(words)
+word2id = id2word.token2id
+
+id2tag = gensim.corpora.Dictionary(tags)
+tag2id = id2tag.token2id
+
+
+def sen2id(inputs):
+    return [word2id[word] for word in inputs]
+
+
+def tags2id(inputs):
+    return [tag2id[word] for word in inputs]
+
+
+# print(sen2id('你 叫 什么 名字'.split()))
+def formart_input(inputs):
+    return torch.autograd.Variable(torch.LongTensor(sen2id(inputs)))
+
+
+def formart_tag(inputs):
+    return torch.autograd.Variable(torch.LongTensor(tags2id(inputs)), )
+
+
+class LSTMTagger(torch.nn.Module):
+    def __init__(self, embedding_dim, hidden_dim, voacb_size, target_size):
+        super(LSTMTagger, self).__init__()
+        self.embedding_dim = embedding_dim
+        self.hidden_dim = hidden_dim
+        self.voacb_size = voacb_size
+        self.target_size = target_size
+        self.lstm = torch.nn.LSTM(self.embedding_dim, self.hidden_dim)
+        self.log_softmax = torch.nn.LogSoftmax()
+        self.embedding = torch.nn.Embedding(self.voacb_size, self.embedding_dim)
+        self.hidden = (torch.autograd.Variable(torch.zeros(1, 1, self.hidden_dim)),
+                       torch.autograd.Variable(torch.zeros(1, 1, self.hidden_dim)))
+        self.out2tag = torch.nn.Linear(self.hidden_dim, self.target_size)
+
+    def forward(self, inputs):
+        input = self.embedding((inputs))
+        out, self.hidden = self.lstm(input.view(-1, 1, self.embedding_dim), self.hidden)
+        tags = self.log_softmax(self.out2tag(out.view(-1, self.hidden_dim)))
+        return tags
+
+
+model = LSTMTagger(3, 3, len(word2id), len(tag2id))
+loss_function = torch.nn.NLLLoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+for _ in range(100):
+    model.zero_grad()
+    input = formart_input('你 叫 什么 名字'.split())
+    tags = formart_tag('n n adj f'.split())
+    out = model(input)
+    loss = loss_function(out, tags)
+    loss.backward(retain_variables=True)
+    optimizer.step()
+    print(loss.data[0])
+input = formart_input('你 叫 什么'.split())
+out = model(input)
+out = torch.max(out, 1)[1]
+print([id2tag[out.data[i]] for i in range(0, out.size()[0])])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-checkpoint = torch.load('./baseline/vgg16bn_tinyimagenet,0.71868.tar')
+checkpoint = torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_imagenet_prune_train/checkpoint/flop=12804890484,accuracy=0.90876.tar')
+# checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_tinyimagenet_prune_train/checkpoint/flop=11394264872,accuracy=0.71270.tar')
 net=checkpoint['net']
+# net=resnet_copied.resnet56()
+
 #
 # # checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
 # checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
@@ -37,29 +141,22 @@ net=checkpoint['net']
 #
 net.load_state_dict(checkpoint['state_dict'])
 print(checkpoint['highest_accuracy'])
-evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(32,8,dataset_name='tiny_imagenet'),save_net=False)
-#
-# prune_and_train.prune_inactive_neural_with_regressor(net=net,
-#                                      net_name='tmp',
-#                                      prune_rate=0.2,
-#                                      load_regressor=True,
-#                                      dataset_name='cifar10',
-#                                      filter_preserve_ratio=0.15,
-#                                      max_filters_pruned_for_one_time=[0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
-#                                      target_accuracy=0.933,
-#                                      tar_acc_gradual_decent=True,
-#                                      flop_expected=4e7,
-#                                      batch_size=1600,
-#                                      num_epoch=450,
-#                                      checkpoint_step=3000,
-#                                      use_random_data=False,
-#                                      round_for_train=2,
-#                                      # optimizer=optim.Adam,
-#                                      # learning_rate=1e-3,
-#                                      # weight_decay=0
-#                                      optimizer=optim.SGD,
-#                                      learning_rate=0.01,
-#                                      learning_rate_decay=True,
-#                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-#                                      learning_rate_decay_factor=0.5,
-#                                      )
+train.train(net=net,
+            net_name='vgg16bn_imagenet_prune_train2',
+            dataset_name='imagenet',
+            test_net=True,
+            num_epochs=20,
+            checkpoint_step=4000,
+            target_accuracy=0.9140571220008835,
+            batch_size=24,
+            top_acc=5,
+
+
+            optimizer=optim.SGD,
+            learning_rate=0.0000001,
+            # weight_decay=0.0006,
+            momentum=0.9,
+            learning_rate_decay=True,
+            learning_rate_decay_epoch=[5, 10, 15],
+            learning_rate_decay_factor=0.1,
+            )

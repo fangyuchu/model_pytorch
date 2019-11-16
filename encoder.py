@@ -25,6 +25,66 @@ EPOCH = 10
 
 
 
+
+class Generator(nn.Module):
+    def __init__(self):
+        super(Generator, self).__init__()
+        input_size=3*3*512
+        hidden_size=4096
+        output_size=20
+        self.map1 = nn.Linear(input_size, hidden_size)
+        self.map2 = nn.Linear(hidden_size, hidden_size)
+        self.map3 = nn.Linear(hidden_size, output_size)
+        self.f = nn.ReLU
+
+    def forward(self, x):
+        x = self.map1(x)
+        x = self.f(x)
+        x = self.map2(x)
+        x = self.f(x)
+        x = self.map3(x)
+        return x
+
+class Discriminator(nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        input_size, hidden_size, output_size=20,10,1
+        self.map1 = nn.Linear(input_size, hidden_size)
+        self.map2 = nn.Linear(hidden_size, hidden_size)
+        self.map3 = nn.Linear(hidden_size, output_size)
+        self.f = torch.sigmoid
+        
+
+    def forward(self, x):
+        x = self.f(self.map1(x))
+        x = self.f(self.map2(x))
+        return self.f(self.map3(x))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class AutoEncoder(nn.Module):
     def __init__(self):
         super(AutoEncoder, self).__init__()
@@ -150,7 +210,7 @@ def pad_filter(filters,array_length=3*3*512,pad_mode='-1'):
     return padded_filter
 
 
-def train_encoder(train_dir='',val_dir='',pad_mode='-1'):
+def train_auto_encoder(train_dir='',val_dir='',pad_mode='-1'):
     filter_train=read_from_checkpoint(train_dir)
     filter_val=read_from_checkpoint(val_dir)
 
@@ -248,5 +308,5 @@ if __name__ == "__main__":
 
     print()
 
-    train_encoder(train_dir='./auto_encoder/train',val_dir='./auto_encoder/val',pad_mode='-1')
+    train_auto_encoder(train_dir='./auto_encoder/train',val_dir='./auto_encoder/val',pad_mode='-1')
 

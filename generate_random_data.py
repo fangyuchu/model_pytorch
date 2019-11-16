@@ -32,17 +32,23 @@ def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406
 
     def one_tensor(is_image):
         simulated_tensor = np.random.normal(loc=mean, scale=std, size=(size[1],size[2],size[0]))   #generate data
-        if is_image is True:
-            while simulated_tensor.max() >= 1 or simulated_tensor.min() < 0:            #ensure all data are in range[0,1]
-                for i in range(3):
-                    simulated_tensor[:, :, i][simulated_tensor[:, :, i] >= 1] = np.random.normal(loc=mean[i], scale=std[i])
-                    simulated_tensor[:, :, i][simulated_tensor[:, :, i] <0] = np.random.normal(loc=mean[i], scale=std[i])
+
+
+
+        #this might change the distribution of the output image
+        # if is_image is True:
+        #     while simulated_tensor.max() >= 1 or simulated_tensor.min() < 0:            #ensure all data are in range[0,1]
+        #         for i in range(3):
+        #             simulated_tensor[:, :, i][simulated_tensor[:, :, i] >= 1] = np.random.normal(loc=mean[i], scale=std[i])
+        #             simulated_tensor[:, :, i][simulated_tensor[:, :, i] <0] = np.random.normal(loc=mean[i], scale=std[i])
+
+
         simulated_tensor=simulated_tensor.swapaxes(0,2)
         for i in range(3):                                      #normalize the data
             simulated_tensor[i,:,:]=(simulated_tensor[i,:,:]-mean[i])/std[i]
         if is_image is False:
             simulated_tensor[simulated_tensor<0]=0
-        return simulated_tensor
+        return simulated_te
 
     out=np.zeros(shape=[num,size[0],size[1],size[2]],dtype=np.float)
     for i in range(num):
@@ -51,6 +57,9 @@ def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406
     return out
 
 if __name__ == "__main__":
+
+    random_normal(num=1000,dataset_name='cifar10',is_image=True)
+
 
     a=random_normal(100)
     net=create_net.vgg_cifar10(net_name='vgg16_bn')

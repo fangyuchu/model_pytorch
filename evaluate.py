@@ -133,6 +133,7 @@ def evaluate_net(  net,
     :param sample_num: sample num of the current trained net
     :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
     :param max_data_to_test: use at most max_data_to_test images to evaluate the net
+    :param top_acc: top 1 or top 5 accuracy
     '''
     if save_net:
         flop_num = measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
@@ -338,8 +339,10 @@ def find_useless_filters_data_version(net,
         #calculate dead neural
         if use_random_data is True:
             random_data=generate_random_data.random_normal(num=batch_size,dataset_name=dataset_name)
+            num_test_images=batch_size
             print('{} generate random data.'.format(datetime.now()))
-            module_list, neural_list = check_conv_alive_layerwise(net=net,neural_dead_times=batch_size,batch_size=batch_size)#check_ReLU_alive(net=net, neural_dead_times=neural_dead_times, data=random_data)
+            # module_list, neural_list = check_conv_alive_layerwise(net=net,neural_dead_times=batch_size,batch_size=batch_size)
+            module_list, neural_list = check_ReLU_alive(net=net, neural_dead_times=batch_size, data=random_data)
             del random_data
         else:
             if dataset_name is 'imagenet':
@@ -357,9 +360,9 @@ def find_useless_filters_data_version(net,
                                                                 shuffle=True,
                                                                      )
 
-            dataset_size = min(train_set_size, math.ceil(max_data_to_test / batch_size) * batch_size)
+            num_test_images = min(train_set_size, math.ceil(max_data_to_test / batch_size) * batch_size)
             if neural_dead_times is None and dead_or_inactive is 'inactive':
-                neural_dead_times=dataset_size
+                neural_dead_times=num_test_images
 
             net_test=copy.deepcopy(net)
             module_list,neural_list=check_ReLU_alive(net=net_test,data_loader=train_loader,
@@ -400,10 +403,10 @@ def find_useless_filters_data_version(net,
                 elif dead_or_inactive is 'inactive':
                     # compute sum(dead_times)/(batch_size*neural_num) as label for each filter
                     dead_times = np.sum(dead_times, axis=(1, 2))
-                    if use_random_data is True:
-                        dead_ratio += (dead_times / (neural_num * batch_size)).tolist()
-                    else:
-                        dead_ratio += (dead_times / (neural_num * dataset_size)).tolist()
+                    # if use_random_data is True:
+                    #     dead_ratio += (dead_times / (neural_num * batch_size)).tolist()
+                    # else:
+                    dead_ratio += (dead_times / (neural_num * num_test_images)).tolist()
                     filter_layer += [relu_layer[i] for j in range(dead_times.shape[0])]
                     filter_index+=[j for j in range(dead_times.shape[0])]
 
