@@ -67,7 +67,7 @@ def train(
                     learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                     weight_decay=conf.weight_decay,
                     target_accuracy=1.0,
-                    optimizer=optim.Adam,
+                    optimizer=optim.SGD,
                     top_acc=1
                   ):
     '''
@@ -101,6 +101,7 @@ def train(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ',end='')
     if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
