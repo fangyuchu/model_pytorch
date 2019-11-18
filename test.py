@@ -36,11 +36,17 @@ import vgg_channel_weight
 # d=torch.sum(out)
 # d.backward()
 
-
-c=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel/checkpoint/flop=18923530,accuracy=0.70950.tar')
-
+#
+# c=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel/checkpoint/flop=18923530,accuracy=0.93600.tar')
+#
+# net=c['net']
+# net.load_state_dict(c['state_dict'])
+# for mod in net.features:
+#     if isinstance(mod,nn.Conv2d):
+#         print()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 # mod=vgg_channel_weight.conv2d_weighted_channel(in_channels=3,out_channels=64,kernel_size=3,padding=1).to(device)
 # print(isinstance(mod, nn.Conv2d))
@@ -93,7 +99,7 @@ for m in net.modules():
 net.to(device)
 
 train.train(net=net,
-            net_name='vgg16_bn_weighted_channel',
+            net_name='vgg16_bn_weighted_channel_l1penalty',
             dataset_name='cifar10',
             learning_rate=0.1,
             num_epochs=250,
@@ -104,7 +110,8 @@ train.train(net=net,
             num_workers=4,
             learning_rate_decay=True,
             learning_rate_decay_factor=0.1,
-            learning_rate_decay_epoch=[50,100,150,200])
+            learning_rate_decay_epoch=[50,100,150,200],
+            criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net,penalty=1e-5))
 
 
 

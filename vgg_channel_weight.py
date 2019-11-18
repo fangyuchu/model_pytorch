@@ -19,26 +19,7 @@ model_urls = {
     'vgg19_bn': 'https://download.pytorch.org/models/vgg19_bn-c79401a0.pth',
 }
 
-# class add_channel_weight(nn.Module):
-#     def __init__(self,in_channels):
-#         super(add_channel_weight, self).__init__()
-#         self.weight = nn.Parameter(torch.ones((in_channels,1,1)))                           #weight of each channel initialized to 1
-#
-#     def forward(self,input):
-#         x=input*self.weight
-#         return x
 
-# from torch._six import container_abcs
-# from itertools import repeat
-# def _ntuple(n):
-#     def parse(x):
-#         if isinstance(x, container_abcs.Iterable):
-#             return x
-#         return tuple(repeat(x, n))
-#     return parse
-#
-# _single = _ntuple(1)
-# _pair = _ntuple(2)
 
 import torch.nn.functional as F
 
@@ -51,44 +32,32 @@ class conv2d_weighted_channel(nn.modules.Conv2d):
         self.channel_weight=nn.Parameter(torch.ones((out_channels,in_channels,1,1)),requires_grad=True)
 
 
-    def forward(self, input): 
-        weighted_weight=self.weight*self.channel_weight
-
-
+    def forward(self, input):
+        weighted_weight=self.weight*self.channel_weight                 #add weight for each channel of the filter
         out=F.conv2d(input, weighted_weight, self.bias, self.stride,
                         self.padding, self.dilation, self.groups)
 
-        # try:
-        #     out_width=int((input.shape[2]+2*self.padding[0]-self.kernel_size[0])/self.stride[0])+1
-        #     out_height=int((input.shape[3]+2*self.padding[1]-self.kernel_size[1])/self.stride[1])+1
-        #     #起始203252224
-        #     # out=torch.Tensor(input.shape[0],self.out_channels,out_width,out_height).to(input.device)    #占用67108864，等于没有这些正常卷积时的开销
-        #     out=[]
-        #     # input_expand=torch.Tensor(self.out_channels,input.shape[0],input.shape[1],input.shape[2],input.shape[3]).to(input.device)
-        #     # for i in range(self.out_channels):
-        #     #     input_expand[i]=input*self.channel_weight[i]    #占用3145728
-        #
-        #     for i in range(self.out_channels):
-        #         input_i=input*self.channel_weight[i]    #占用3145728
-        #
-        #         c=self.weight[i].unsqueeze(0)
-        #         d=self.bias[i].unsqueeze(0)     #不占用
-        #
-        #         tmp=F.conv2d(input_i,c, d, self.stride,
-        #                     self.padding, self.dilation, self.groups)       #占用1048576
-        #
-        #
-        #
-        #         # out[:,i:i+1]=tmp    #不占用
-        #         out+=[tmp]
-        #     out=torch.cat(out,dim=1)
-        # except RuntimeError:
-        #     print()
-        #     out=1
         return out
 
 
+class CrossEntropyLoss_weighted_channel(nn.CrossEntropyLoss):
+    def __init__(self, net,penalty=1e-5,weight=None, size_average=None, ignore_index=-100,
+                 reduce=None, reduction='mean'):
+        super(CrossEntropyLoss_weighted_channel,self).__init__(
+            weight,size_average,ignore_index,reduce,reduction
+        )
+        self.net=net
+        self.penalty=penalty
 
+    def forward(self, input, target):
+        regularization_loss=0
+        for mod in self.net.modules():
+            if isinstance(mod,conv2d_weighted_channel):
+                regularization_loss+=torch.sum(torch.abs(mod.channel_weight))
+
+        loss=self.penalty * regularization_loss + F.cross_entropy(input, target, weight=self.weight,
+                               ignore_index=self.ignore_index, reduction=self.reduction)
+        return loss
 
 class VGG(nn.Module):
 

@@ -47,29 +47,30 @@ def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learni
 
 
 def train(
-                    net,
-                    net_name,
-                    dataset_name='imagenet',
-                    train_loader=None,
-                    validation_loader=None,
-                    learning_rate=conf.learning_rate,
-                    num_epochs=conf.num_epochs,
-                    batch_size=conf.batch_size,
-                    checkpoint_step=conf.checkpoint_step,
-                    load_net=True,
-                    test_net=False,
-                    root_path=conf.root_path,
-                    checkpoint_path=None,
-                    momentum=conf.momentum,
-                    num_workers=conf.num_workers,
-                    learning_rate_decay=False,
-                    learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                    learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-                    weight_decay=conf.weight_decay,
-                    target_accuracy=1.0,
-                    optimizer=optim.SGD,
-                    top_acc=1
-                  ):
+        net,
+        net_name,
+        dataset_name='imagenet',
+        train_loader=None,
+        validation_loader=None,
+        learning_rate=conf.learning_rate,
+        num_epochs=conf.num_epochs,
+        batch_size=conf.batch_size,
+        checkpoint_step=conf.checkpoint_step,
+        load_net=True,
+        test_net=False,
+        root_path=conf.root_path,
+        checkpoint_path=None,
+        momentum=conf.momentum,
+        num_workers=conf.num_workers,
+        learning_rate_decay=False,
+        learning_rate_decay_factor=conf.learning_rate_decay_factor,
+        learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+        weight_decay=conf.weight_decay,
+        target_accuracy=1.0,
+        optimizer=optim.SGD,
+        top_acc=1,
+        criterion=nn.CrossEntropyLoss()  # 损失函数默为交叉熵，多用于多分类问题
+):
     '''
 
     :param net: net to be trained
@@ -94,6 +95,7 @@ def train(
     :param target_accuracy:float, the training will stop once the net reached target accuracy
     :param optimizer:
     :param top_acc: can be 1 or 5
+    :param criterion： loss function
     :return:
     '''
     success=True                                                                   #if the trained net reaches target accuracy
@@ -197,7 +199,6 @@ def train(
 
 
     #define loss function and optimizer
-    criterion = nn.CrossEntropyLoss()  # 损失函数为交叉熵，多用于多分类问题
     if optimizer is optim.Adam:
         optimizer = optimizer(net.parameters(), lr=learning_rate, weight_decay=weight_decay)
     elif optimizer is optim.SGD:
