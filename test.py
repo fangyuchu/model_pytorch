@@ -23,7 +23,6 @@ import resnet_copied
 from torch import optim
 from torch.autograd import Variable
 import vgg_channel_weight
-
 # out=torch.Tensor(3,3)
 # a=Variable(torch.Tensor([1,2,4]),requires_grad=True)
 # b=Variable(torch.Tensor([3,4,7]),requires_grad=True)
@@ -58,60 +57,34 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #     d=torch.sum(c)
 #     d.backward()
 #     print()
+checkpoint=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel_l1penalty/checkpoint/flop=18923530,accuracy=0.93390_new_version.tar')
 
+net=vgg_channel_weight.vgg16_bn(pretrained=False,dataset='cifar10').to(device)
+net.load_state_dict(checkpoint['state_dict'])
+evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=8,dataset_name='cifar10'),save_net=False)
 
-net=vgg_channel_weight.vgg16_bn(pretrained=False).to(device)
-net_normal=vgg.vgg16_bn(pretrained=False).to(device)
-
-
-net.classifier=nn.Sequential(
-            nn.Linear(512, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 10),
-        )
-
-
-net_normal.classifier=nn.Sequential(
-            nn.Linear(512, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 10),
-        )
-
-print("net_new have {} paramerters in total".format(sum(x.numel() for x in net.parameters())))
-print("net_normal have {} paramerters in total".format(sum(x.numel() for x in net_normal.parameters())))
-
-
-
-
-for m in net.modules():
-    if isinstance(m, nn.Linear):
-        nn.init.normal_(m.weight, 0, 0.01)
-        nn.init.constant_(m.bias, 0)
-
+net.train_channel_weight(if_train=False)
+net.prune_channel_weight(percent=[0.3 for i in range(13)])
 net.to(device)
 
-train.train(net=net,
-            net_name='vgg16_bn_weighted_channel_l1penalty',
-            dataset_name='cifar10',
-            learning_rate=0.1,
-            num_epochs=250,
-            batch_size=256,
-            checkpoint_step=4000,
-            load_net=True,
-            test_net=True,
-            num_workers=4,
-            learning_rate_decay=True,
-            learning_rate_decay_factor=0.1,
-            learning_rate_decay_epoch=[50,100,150,200],
-            criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net,penalty=1e-5))
+
+
+evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=8,dataset_name='cifar10'),save_net=False)
+print()
+# train.train(net=net,
+#             net_name='vgg16_bn_weighted_channel_l1penalty',
+#             dataset_name='cifar10',
+#             learning_rate=0.1,
+#             num_epochs=250,
+#             batch_size=256,
+#             checkpoint_step=4000,
+#             load_net=True,
+#             test_net=True,
+#             num_workers=4,
+#             learning_rate_decay=True,
+#             learning_rate_decay_factor=0.1,
+#             learning_rate_decay_epoch=[50,100,150,200],
+#             criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net,penalty=1e-5))
 
 
 

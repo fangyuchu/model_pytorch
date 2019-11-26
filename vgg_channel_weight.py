@@ -1,9 +1,10 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 import torch
+import torch.nn.functional as F
 
 __all__ = [
-    'VGG', 'vgg11', 'vgg11_bn', 'vgg13', 'vgg13_bn', 'vgg16', 'vgg16_bn',
+    'VGG_weighted_channel', 'vgg11', 'vgg11_bn', 'vgg13', 'vgg13_bn', 'vgg16', 'vgg16_bn',
     'vgg19_bn', 'vgg19',
 ]
 
@@ -18,10 +19,6 @@ model_urls = {
     'vgg16_bn': 'https://download.pytorch.org/models/vgg16_bn-6c64b313.pth',
     'vgg19_bn': 'https://download.pytorch.org/models/vgg19_bn-c79401a0.pth',
 }
-
-
-
-import torch.nn.functional as F
 
 class conv2d_weighted_channel(nn.modules.Conv2d):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1,
@@ -38,6 +35,12 @@ class conv2d_weighted_channel(nn.modules.Conv2d):
                         self.padding, self.dilation, self.groups)
 
         return out
+
+    def prune_channel_weight(self,percent):
+        #set the least percent% channel weights to zero
+        weight=self.channel_weight.view(-1).abs()
+        split_point=weight.sort(descending=False)[0][int(weight.shape[0]*percent)]
+        self.channel_weight[torch.abs(self.channel_weight)<=split_point]=0
 
 
 class CrossEntropyLoss_weighted_channel(nn.CrossEntropyLoss):
@@ -59,13 +62,22 @@ class CrossEntropyLoss_weighted_channel(nn.CrossEntropyLoss):
                                ignore_index=self.ignore_index, reduction=self.reduction)
         return loss
 
-class VGG(nn.Module):
 
-    def __init__(self, features, num_classes=1000, init_weights=True):
-        super(VGG, self).__init__()
+
+class VGG_weighted_channel(nn.Module):
+
+    def __init__(self, features, init_weights=True,dataset='imagenet'):
+        super(VGG_weighted_channel, self).__init__()
         self.features = features
+        if dataset is 'imagenet':
+            in_features=512*7*7
+            num_classes=1000
+        elif dataset is 'cifar10':
+            in_features=512
+            num_classes=10
+
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 7 * 7, 4096),
+            nn.Linear(in_features, 4096),
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(4096, 4096),
@@ -73,6 +85,7 @@ class VGG(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, num_classes),
         )
+
         if init_weights:
             self._initialize_weights()
 
@@ -94,6 +107,20 @@ class VGG(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
+
+    def train_channel_weight(self,if_train=True):
+        for mod in self.modules():
+            if isinstance(mod, conv2d_weighted_channel):
+                mod.channel_weight.requires_grad=if_train
+
+    def prune_channel_weight(self,percent):
+        i=0
+        for mod in self.modules():
+            if isinstance(mod,conv2d_weighted_channel):
+                mod.prune_channel_weight(percent[i])
+                i+=1
+
+
 
 
 def make_layers(cfg, batch_norm=False):
@@ -121,104 +148,104 @@ cfg = {
 
 
 def vgg11(pretrained=False, **kwargs):
-    """VGG 11-layer model (configuration "A")
+    """VGG_weighted_channel 11-layer model (configuration "A")
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = VGG(make_layers(cfg['A']), **kwargs)
+    model = VGG_weighted_channel(make_layers(cfg['A']), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg11']))
     return model
 
 
 def vgg11_bn(pretrained=False, **kwargs):
-    """VGG 11-layer model (configuration "A") with batch normalization
+    """VGG_weighted_channel 11-layer model (configuration "A") with batch normalization
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = VGG(make_layers(cfg['A'], batch_norm=True), **kwargs)
+    model = VGG_weighted_channel(make_layers(cfg['A'], batch_norm=True), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg11_bn']))
     return model
 
 
 def vgg13(pretrained=False, **kwargs):
-    """VGG 13-layer model (configuration "B")
+    """VGG_weighted_channel 13-layer model (configuration "B")
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = VGG(make_layers(cfg['B']), **kwargs)
+    model = VGG_weighted_channel(make_layers(cfg['B']), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg13']))
     return model
 
 
 def vgg13_bn(pretrained=False, **kwargs):
-    """VGG 13-layer model (configuration "B") with batch normalization
+    """VGG_weighted_channel 13-layer model (configuration "B") with batch normalization
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = VGG(make_layers(cfg['B'], batch_norm=True), **kwargs)
+    model = VGG_weighted_channel(make_layers(cfg['B'], batch_norm=True), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg13_bn']))
     return model
 
 
 def vgg16(pretrained=False, **kwargs):
-    """VGG 16-layer model (configuration "D")
+    """VGG_weighted_channel 16-layer model (configuration "D")
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = VGG(make_layers(cfg['D']), **kwargs)
+    model = VGG_weighted_channel(make_layers(cfg['D']), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg16']))
     return model
 
 
 def vgg16_bn(pretrained=False, **kwargs):
-    """VGG 16-layer model (configuration "D") with batch normalization
+    """VGG_weighted_channel 16-layer model (configuration "D") with batch normalization
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = VGG(make_layers(cfg['D'], batch_norm=True), **kwargs)
+    model = VGG_weighted_channel(make_layers(cfg['D'], batch_norm=True), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg16_bn']))
     return model
 
 
 def vgg19(pretrained=False, **kwargs):
-    """VGG 19-layer model (configuration "E")
+    """VGG_weighted_channel 19-layer model (configuration "E")
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = VGG(make_layers(cfg['E']), **kwargs)
+    model = VGG_weighted_channel(make_layers(cfg['E']), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg19']))
     return model
 
 
 def vgg19_bn(pretrained=False, **kwargs):
-    """VGG 19-layer model (configuration 'E') with batch normalization
+    """VGG_weighted_channel 19-layer model (configuration 'E') with batch normalization
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = VGG(make_layers(cfg['E'], batch_norm=True), **kwargs)
+    model = VGG_weighted_channel(make_layers(cfg['E'], batch_norm=True), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg19_bn']))
     return model

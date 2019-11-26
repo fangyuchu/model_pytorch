@@ -198,11 +198,11 @@ def train(
         checkpoint_step=math.ceil(train_set_size/batch_size)-1
 
 
-    #define loss function and optimizer
+    #define optimizer. only parameters that require grad will be updated
     if optimizer is optim.Adam:
-        optimizer = optimizer(net.parameters(), lr=learning_rate, weight_decay=weight_decay)
+        optimizer = optimizer(filter(lambda p: p.requires_grad, net.parameters()), lr=learning_rate, weight_decay=weight_decay)
     elif optimizer is optim.SGD:
-        optimizer=optimizer(net.parameters(),lr=learning_rate,weight_decay=weight_decay,momentum=momentum)
+        optimizer=optimizer(filter(lambda p: p.requires_grad, net.parameters()),lr=learning_rate,weight_decay=weight_decay,momentum=momentum)
 
     print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
