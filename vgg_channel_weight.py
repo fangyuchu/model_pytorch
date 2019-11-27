@@ -78,7 +78,7 @@ class CrossEntropyLoss_weighted_channel(nn.CrossEntropyLoss):
                 penalty=torch.FloatTensor(mod.channel_weight.shape).detach().to(device)
                 weight=mod.channel_weight.abs().detach().to(device)
                 for i in range(len(piecewise_split)-1):
-                    penalty[(weight>=piecewise_split[i]).mul(weight<=piecewise_split[i+1])]=self.penalty/(100**i)
+                    penalty[(weight>=piecewise_split[i]).mul(weight<piecewise_split[i+1])]=self.penalty/(100**i)
 
                 regularization_loss+=torch.sum(torch.abs(penalty*mod.channel_weight))
 

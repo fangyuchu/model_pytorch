@@ -57,7 +57,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-checkpoint=torch.load('/home/disk_new/model_saved/reform_vgg16_bn/checkpoint/flop=530442,accuracy=0.93420.tar')
+# checkpoint=torch.load('/home/disk_new/model_saved/reform_vgg16_bn/checkpoint/flop=530442,accuracy=0.93420.tar')
 import vgg
 net=checkpoint['net']
 
@@ -83,7 +83,7 @@ train.train(net=net,
             learning_rate_decay_factor=0.1,
             learning_rate_decay_epoch=[50,100,150,200],
             # criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net,penalty=1e-5))
-            criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net, penalty=1e-1,piecewise=4)
+            criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net, penalty=1e-1,piecewise=16)
             # criterion=nn.CrossEntropyLoss()
 
  )
