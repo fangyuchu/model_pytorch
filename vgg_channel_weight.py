@@ -42,21 +42,48 @@ class conv2d_weighted_channel(nn.modules.Conv2d):
         split_point=weight.sort(descending=False)[0][int(weight.shape[0]*percent)]
         self.channel_weight[torch.abs(self.channel_weight)<=split_point]=0
 
+    def copy_conv2d(self,conv2d):
+        if self.in_channels!=conv2d.in_channels or self.out_channels!=conv2d.out_channels \
+                or self.padding!=conv2d.padding or self.stride!=conv2d.stride \
+                or self.dilation!=conv2d.dilation or self.groups!=conv2d.groups:
+            raise ArithmeticError
+        self.weight=conv2d.weight
+        self.bias=conv2d.bias
+
+
 
 class CrossEntropyLoss_weighted_channel(nn.CrossEntropyLoss):
     def __init__(self, net,penalty=1e-5,weight=None, size_average=None, ignore_index=-100,
-                 reduce=None, reduction='mean'):
+                 reduce=None, reduction='mean',piecewise=1):
         super(CrossEntropyLoss_weighted_channel,self).__init__(
             weight,size_average,ignore_index,reduce,reduction
         )
         self.net=net
         self.penalty=penalty
+        self.piecewise=piecewise
 
     def forward(self, input, target):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         regularization_loss=0
         for mod in self.net.modules():
             if isinstance(mod,conv2d_weighted_channel):
-                regularization_loss+=torch.sum(torch.abs(mod.channel_weight))
+                
+                weight = mod.channel_weight.view(-1).abs().detach().to(device)
+                weight = weight.sort(descending=False)[0]                                   #sort the weight array
+                piecewise_split = [0]
+                for i in range(1,self.piecewise):
+                    piecewise_split += [weight[i * int(weight.shape[0] /self.piecewise)]]   #find the split point
+                piecewise_split += [ weight[weight.shape[0]-1] ]
+
+                penalty=torch.FloatTensor(mod.channel_weight.shape).detach().to(device)
+                weight=mod.channel_weight.abs().detach().to(device)
+                for i in range(len(piecewise_split)-1):
+                    penalty[(weight>=piecewise_split[i]).mul(weight<=piecewise_split[i+1])]=self.penalty/(100**i)
+
+                regularization_loss+=torch.sum(torch.abs(penalty*mod.channel_weight))
+
+
+                # regularization_loss+=torch.sum(torch.abs(mod.channel_weight))
 
         loss=self.penalty * regularization_loss + F.cross_entropy(input, target, weight=self.weight,
                                ignore_index=self.ignore_index, reduction=self.reduction)
@@ -70,21 +97,27 @@ class VGG_weighted_channel(nn.Module):
         super(VGG_weighted_channel, self).__init__()
         self.features = features
         if dataset is 'imagenet':
-            in_features=512*7*7
-            num_classes=1000
+            self.classifier = nn.Sequential(
+                nn.Linear(512*7*7, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 1000),
+            )
         elif dataset is 'cifar10':
-            in_features=512
-            num_classes=10
+            self.classifier = nn.Sequential(
+                nn.Linear(512 , 512),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(512, 512),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(512, 10),
+            )
 
-        self.classifier = nn.Sequential(
-            nn.Linear(in_features, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, num_classes),
-        )
+
 
         if init_weights:
             self._initialize_weights()
@@ -120,7 +153,23 @@ class VGG_weighted_channel(nn.Module):
                 mod.prune_channel_weight(percent[i])
                 i+=1
 
-
+def reform_net(mod):
+    #change conv2d in net to conv2d_weighted_channel
+    for k, v in mod._modules.items():
+        reform_net(v)
+        if isinstance(v, nn.Conv2d):
+            in_channels=v.in_channels
+            out_channels=v.out_channels
+            stride=v.stride
+            kernel_size=v.kernel_size
+            padding=v.padding
+            dilation=v.dilation
+            groups=v.groups
+            new_conv=conv2d_weighted_channel(in_channels=in_channels,out_channels=out_channels,kernel_size=kernel_size,
+                                             stride=stride,padding=padding,
+                                             dilation=dilation,groups=groups)
+            new_conv.copy_conv2d(v)
+            mod._modules[k] = new_conv
 
 
 def make_layers(cfg, batch_norm=False):
