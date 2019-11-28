@@ -39,31 +39,26 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 
-# checkpoint=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel_l1penalty/checkpoint/flop=18923530,accuracy=0.93390_new_version.tar')
-#
-#
-# net=vgg_channel_weight.vgg16_bn(pretrained=False,dataset='cifar10').to(device)
-# net.load_state_dict(checkpoint['state_dict'])
-# evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=8,dataset_name='cifar10'),save_net=False)
-#
-# net.train_channel_weight(if_train=False)
-# net.prune_channel_weight(percent=[0.3 for i in range(13)])
-# net.to(device)
-#
-#
-#
-# evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=8,dataset_name='cifar10'),save_net=False)
-# print()
+checkpoint=torch.load('/home/disk_new/model_saved/reform_vgg16_bn/checkpoint/flop=530442,accuracy=0.94000.tar')
+net=vgg_channel_weight.vgg16_bn(pretrained=False,dataset='cifar10').to(device)
+net.load_state_dict(checkpoint['state_dict'])
+
+
+net.train_channel_weight(if_train=False)
+net.prune_channel_weight(percent=[0 for i in range(13)])
+net.to(device)
+
+evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=8,dataset_name='cifar10'),save_net=False)
+print()
 
 
 checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-# checkpoint=torch.load('/home/disk_new/model_saved/reform_vgg16_bn/checkpoint/flop=530442,accuracy=0.93420.tar')
 import vgg
 net=checkpoint['net']
 
 net.load_state_dict(checkpoint['state_dict'])
 
-# vgg_channel_weight.reform_net(net)
+vgg_channel_weight.reform_net(net)
 net.to(device)
 # evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=8,dataset_name='cifar10'),save_net=False)
 
@@ -83,7 +78,7 @@ train.train(net=net,
             learning_rate_decay_factor=0.1,
             learning_rate_decay_epoch=[50,100,150,200],
             # criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net,penalty=1e-5))
-            criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net, penalty=1e-1,piecewise=16)
+            criterion=vgg_channel_weight.CrossEntropyLoss_weighted_channel(net=net, penalty=1e-1,piecewise=4)
             # criterion=nn.CrossEntropyLoss()
 
  )

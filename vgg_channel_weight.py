@@ -75,10 +75,11 @@ class CrossEntropyLoss_weighted_channel(nn.CrossEntropyLoss):
                     piecewise_split += [weight[i * int(weight.shape[0] /self.piecewise)]]   #find the split point
                 piecewise_split += [ weight[weight.shape[0]-1] ]
 
-                penalty=torch.FloatTensor(mod.channel_weight.shape).detach().to(device)
+                penalty=torch.ones(mod.channel_weight.shape).detach().to(device)
+                penalty=penalty*self.penalty                                                #set all penalty to maximum
                 weight=mod.channel_weight.abs().detach().to(device)
-                for i in range(len(piecewise_split)-1):
-                    penalty[(weight>=piecewise_split[i]).mul(weight<piecewise_split[i+1])]=self.penalty/(100**i)
+                for i in range(len(piecewise_split)-1,-1,-1):
+                    penalty[(weight>piecewise_split[i-1]).mul(weight<=piecewise_split[i])]=self.penalty/(100**i)
 
                 regularization_loss+=torch.sum(torch.abs(penalty*mod.channel_weight))
 
@@ -108,12 +109,12 @@ class VGG_weighted_channel(nn.Module):
             )
         elif dataset is 'cifar10':
             self.classifier = nn.Sequential(
+                nn.Dropout(),
                 nn.Linear(512 , 512),
                 nn.ReLU(True),
                 nn.Dropout(),
                 nn.Linear(512, 512),
                 nn.ReLU(True),
-                nn.Dropout(),
                 nn.Linear(512, 10),
             )
 
