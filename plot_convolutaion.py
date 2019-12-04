@@ -15,6 +15,16 @@ lenet=True
 AlexNet=False
 Vgg=False
 
+def filter_transform(conv):
+    '''
+    transform  4-d filters in conv to a matrix
+    :param conv: conv module
+    :return: 2-d numpy array. each row is one filter.
+    '''
+    weight = conv.weight.data
+    matrix = weight.view(weight.size(0), -1).cpu().numpy()
+    return matrix
+
 def plotConvolution(num_conv):
     i = 0
     conv_spatial = None
@@ -24,15 +34,14 @@ def plotConvolution(num_conv):
             if i == num_conv:
                 conv_spatial = mod
                 break
-    spatial_weight = conv_spatial.weight.data.cpu().numpy()  # type=numpy.ndarray
+    filter_transform(conv_spatial)
+    spatial_weight=conv_spatial.weight.data
     c_out, c_in, h, w = spatial_weight.shape
     M = c_in * h * w
     N = c_out
     '''将tensor转化成二维矩阵,不可直接使用reshape'''
-    filters = list(range(len(spatial_weight)))
-    print("Layer of CONV: " + str(num_conv) + ", where Number of filters is: " + str(len(spatial_weight)))
-    spatial_weight_torch=torch.from_numpy(spatial_weight)
-    W_spatial_matrix=spatial_weight_torch.view(spatial_weight_torch.size(0),-1).t().numpy()
+    print("Layer of CONV: " + str(num_conv) + ". Number of filters is: " + str(len(spatial_weight)))
+    W_spatial_matrix=spatial_weight.view(spatial_weight.size(0),-1).t().cpu().numpy()
 
 
     '''2-D DCT 变换到频率域'''
@@ -91,14 +100,9 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("using: "+torch.cuda.get_device_name(torch.cuda.current_device())+" of capacity: "+str(torch.cuda.get_device_capability(torch.cuda.current_device())))
     '''选择网络模型'''
-    if lenet:
-        net = LeNet.lenet5()
-        net.load_state_dict(torch.load("../../Save_Load/stateDict_256.pth"))
-        ModelName="LeNet5"
 
-    elif Vgg:
-        net=vgg.vgg16_bn(pretrained=True).to(device)
-        ModelName = "VGG16"
+    net=vgg.vgg16_bn(pretrained=True).to(device)
+    ModelName = "VGG16"
 
     # highest_accuracy,global_step=get_Accuracy_GlobalStep_fromFile(root=ROOT,modelName=MODELNAME,fileName="accuracy_baseline.txt")
     # net=get_Net_FromFile(net=net,root=ROOT,modelName=MODELNAME,check_point_dir="checkpoints_baseline",globalStep=global_step,sparsity=0)
@@ -107,7 +111,7 @@ if __name__ == "__main__":
     # for layer in range(8,13):
     #     plt = plotConvolution(layer)
         # plt.show()
-    plt = plotConvolution(2)
+    plt = plotConvolution(1)
     plt.show()
 # Process finished with exit code 137 (interrupted by signal 9: SIGKILL)
 

@@ -1,10 +1,8 @@
 import torch
 import numpy as np
-import train
 import vgg
 import torch.nn as nn
 import copy
-import logger
 
 count_ops = 0
 
