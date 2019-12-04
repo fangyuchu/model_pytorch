@@ -39,7 +39,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 
-checkpoint=torch.load('/home/disk_new/model_saved/reform_vgg16_bn/checkpoint/flop=530442,accuracy=0.94000.tar')
+checkpoint=torch.load('./model_saved/reform_vgg16_bn/checkpoint/flop=530442,accuracy=0.94060.tar')
 net=vgg_channel_weight.vgg16_bn(pretrained=False,dataset='cifar10').to(device)
 net.load_state_dict(checkpoint['state_dict'])
 
@@ -49,10 +49,10 @@ net.prune_channel_weight(percent=[0 for i in range(13)])
 net.to(device)
 
 evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=8,dataset_name='cifar10'),save_net=False)
-print()
+# print()
 
 
-checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 import vgg
 net=checkpoint['net']
 
