@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 '''
-author Zeng Yao
+co-author Zeng Yao
 '''
 ROOT = "Save_Load"
 MODELNAME = "lenet5"
@@ -15,7 +15,7 @@ lenet=True
 AlexNet=False
 Vgg=False
 
-def filter_transform(conv):
+def conv_to_matrix(conv):
     '''
     transform  4-d filters in conv to a matrix
     :param conv: conv module
@@ -24,6 +24,20 @@ def filter_transform(conv):
     weight = conv.weight.data
     matrix = weight.view(weight.size(0), -1).cpu().numpy()
     return matrix
+
+def conv_dct(net):
+    '''
+    transform all conv into frequency matrix
+    :param net:
+    :return:a list containing frequency matrix for each conv layer
+    '''
+    frequency_matrix=[]
+    for mod in net.modules():
+        if isinstance(mod,torch.nn.Conv2d):
+            weight_matrix=conv_to_matrix(mod)
+            frequency_matrix+=[cv2.dct(weight_matrix.T)]
+
+    return frequency_matrix
 
 def plotConvolution(num_conv):
     i = 0
@@ -34,7 +48,6 @@ def plotConvolution(num_conv):
             if i == num_conv:
                 conv_spatial = mod
                 break
-    filter_transform(conv_spatial)
     spatial_weight=conv_spatial.weight.data
     c_out, c_in, h, w = spatial_weight.shape
     M = c_in * h * w
@@ -103,7 +116,7 @@ if __name__ == "__main__":
 
     net=vgg.vgg16_bn(pretrained=True).to(device)
     ModelName = "VGG16"
-
+    # conv_dct(net)
     # highest_accuracy,global_step=get_Accuracy_GlobalStep_fromFile(root=ROOT,modelName=MODELNAME,fileName="accuracy_baseline.txt")
     # net=get_Net_FromFile(net=net,root=ROOT,modelName=MODELNAME,check_point_dir="checkpoints_baseline",globalStep=global_step,sparsity=0)
 
@@ -112,7 +125,7 @@ if __name__ == "__main__":
     #     plt = plotConvolution(layer)
         # plt.show()
     plt = plotConvolution(1)
-    plt.show()
+    # plt.show()
 # Process finished with exit code 137 (interrupted by signal 9: SIGKILL)
 
 
