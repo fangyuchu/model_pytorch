@@ -5,7 +5,7 @@ def conv_to_matrix(conv):
     '''
     transform  4-d filters in conv to a matrix
     :param conv: conv module
-    :return: 2-d numpy array. each row is one filter.
+    :return: 2-d numpy array. each column is one filter.
     '''
     weight = conv.weight.data
     matrix = weight.view(weight.size(0), -1).cpu().numpy()
