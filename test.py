@@ -35,6 +35,8 @@ import vgg_channel_weight
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+net=vgg.vgg16_bn(pretrained=True)
+print()
 
 
 

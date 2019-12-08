@@ -39,8 +39,31 @@ def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learni
     #     param_group['lr'] = lr
 
 
+def prepare_optimizer(
+        net,
+        optimizer,
+        no_grad=[],
+        momentum=conf.momentum,
+        learning_rate=conf.learning_rate,
+        weight_decay=conf.weight_decay,
+):
+    #define optimizer. only parameters that require grad will be updated
+    for name, value in net.named_parameters():
+        hit=False
+        for sub_string in no_grad:
+            if sub_string in name:
+                value.requires_grad = False
+                hit=True
+                print('Module: \"'+name+'\" will not be updated')
+                break
+        if hit is False:
+            value.requires_grad=True
 
-
+    if optimizer is optim.Adam:
+        optimizer = optimizer(filter(lambda p: p.requires_grad, net.parameters()), lr=learning_rate, weight_decay=weight_decay)
+    elif optimizer is optim.SGD:
+        optimizer=optimizer(filter(lambda p: p.requires_grad, net.parameters()),lr=learning_rate,weight_decay=weight_decay,momentum=momentum)
+    return optimizer
 
 
     
@@ -69,7 +92,8 @@ def train(
         target_accuracy=1.0,
         optimizer=optim.SGD,
         top_acc=1,
-        criterion=nn.CrossEntropyLoss()  # 损失函数默为交叉熵，多用于多分类问题
+        criterion=nn.CrossEntropyLoss(),  # 损失函数默为交叉熵，多用于多分类问题
+        no_grad=[],
 ):
     '''
 
@@ -96,6 +120,7 @@ def train(
     :param optimizer:
     :param top_acc: can be 1 or 5
     :param criterion： loss function
+    :param no_grad: list containing names of the modules that do not need to be trained
     :return:
     '''
     success=True                                                                   #if the trained net reaches target accuracy
@@ -198,11 +223,7 @@ def train(
         checkpoint_step=math.ceil(train_set_size/batch_size)-1
 
 
-    #define optimizer. only parameters that require grad will be updated
-    if optimizer is optim.Adam:
-        optimizer = optimizer(filter(lambda p: p.requires_grad, net.parameters()), lr=learning_rate, weight_decay=weight_decay)
-    elif optimizer is optim.SGD:
-        optimizer=optimizer(filter(lambda p: p.requires_grad, net.parameters()),lr=learning_rate,weight_decay=weight_decay,momentum=momentum)
+    optimizer=prepare_optimizer(net,optimizer,no_grad,momentum,learning_rate,weight_decay)
 
     print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):

@@ -26,8 +26,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # print(checkpoint['highest_accuracy'])
 #
 # measure_flops.measure_model(net, 'cifar10', print_flop=True)
-#
-#
 # prune_and_train.prune_inactive_neural_with_regressor(net=net,
 #                                                      net_name='test',
 #                                                      dataset_name='cifar10',
@@ -222,44 +220,93 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # )
 
 
-net=vgg.vgg16_bn(pretrained=True).to(device)
-net=torch.nn.DataParallel(net)              #多gpu训练
+# net=vgg.vgg16_bn(pretrained=True).to(device)
+# net=torch.nn.DataParallel(net)              #多gpu训练
+#
+# # import evaluate
+# # evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=24,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
+#
+# measure_flops.measure_model(net, 'imagenet', print_flop=True)
+# a=[0.3 for i in range(13)]
+# # a[8]=0.2
+# # a[0]=a[2]=a[4]=a[6]=a[8]=a[10]=a[12]=0.3
+# # a[1]=a[3]=a[5]=a[7]=a[9]=a[11]=0.3
+# prune_and_train.prune_inactive_neural_with_regressor(net=net,
+#                                                      net_name='vgg16bn_imagenet_prune',
+#                                                      prune_rate=0.1,
+#                                                      load_regressor=False,
+#                                                      dataset_name='imagenet',
+#                                                      filter_preserve_ratio=0.15,
+#                                                      max_filters_pruned_for_one_time=a,
+#                                                      # [0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
+#                                                      target_accuracy=0.91,
+#                                                      tar_acc_gradual_decent=True,
+#                                                      flop_expected=3e9,
+#                                                      top_acc=5,
+#
+#                                                      batch_size=256,
+#
+#                                                      num_epoch=20,
+#                                                      checkpoint_step=4000,
+#                                                      use_random_data=False,
+#                                                      round_for_train=2,
+#                                                      round=1,
+#
+#
+#                                                      optimizer=optim.SGD,
+#                                                      learning_rate=0.001,
+#                                                      # weight_decay=0.0006,
+#                                                      momentum=0.9,
+#                                                      learning_rate_decay=True,
+#                                                      learning_rate_decay_epoch=[5, 10, 15],
+#                                                      learning_rate_decay_factor=0.1,
+#                                      )
 
-# import evaluate
-# evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=24,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
 
-measure_flops.measure_model(net, 'imagenet', print_flop=True)
-a=[0.3 for i in range(13)]
-# a[8]=0.2
-# a[0]=a[2]=a[4]=a[6]=a[8]=a[10]=a[12]=0.3
-# a[1]=a[3]=a[5]=a[7]=a[9]=a[11]=0.3
+checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+
+net = checkpoint['net'].to(device)
+
+# 载入预训练模型参数后...
+for name, value in net.named_parameters():
+    if 'classifier' in name :
+        value.requires_grad = True
+    else:
+        value.requires_grad=False
+
+
+
+net.load_state_dict(checkpoint['state_dict'])
+print(checkpoint['highest_accuracy'])
+
+measure_flops.measure_model(net, 'cifar10', print_flop=True)
 prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                                     net_name='vgg16bn_imagenet_prune',
-                                                     prune_rate=0.1,
+                                                     net_name='test',
+                                                     dataset_name='cifar10',
+                                                     prune_rate=0.02,
                                                      load_regressor=False,
-                                                     dataset_name='imagenet',
-                                                     filter_preserve_ratio=0.15,
-                                                     max_filters_pruned_for_one_time=a,
-                                                     # [0.11,0.11,0.11,0.11,0.11,0.11,0.08,0.11,0.11,0.11,0.2,0.2,0.2],
-                                                     target_accuracy=0.91,
-                                                     tar_acc_gradual_decent=True,
-                                                     flop_expected=3e9,
-                                                     top_acc=5,
-
-                                                     batch_size=256,
-
-                                                     num_epoch=20,
-                                                     checkpoint_step=4000,
-                                                     use_random_data=False,
                                                      round_for_train=2,
                                                      round=1,
 
+                                                        max_training_iteration=2,
 
+
+                                                     filter_preserve_ratio=0.1,
+                                                     max_filters_pruned_for_one_time=0.3,
+                                                     target_accuracy=0.931,
+                                                     tar_acc_gradual_decent=True,
+                                                     flop_expected=1e7,
+                                                     batch_size=512,
+                                                     num_epoch=450,
+                                                     checkpoint_step=1600,
+                                                     use_random_data=True,
+                                                     # optimizer=optim.Adam,
+                                                     # learning_rate=1e-3,
+                                                     # weight_decay=0
                                                      optimizer=optim.SGD,
-                                                     learning_rate=0.001,
-                                                     # weight_decay=0.0006,
-                                                     momentum=0.9,
+                                                     learning_rate=0.01,
                                                      learning_rate_decay=True,
-                                                     learning_rate_decay_epoch=[5, 10, 15],
-                                                     learning_rate_decay_factor=0.1,
-                                     )
+                                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                                                     learning_rate_decay_factor=0.5,
+                                                     no_grad=['features']
+)

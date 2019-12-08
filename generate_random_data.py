@@ -48,7 +48,7 @@ def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406
             simulated_tensor[i,:,:]=(simulated_tensor[i,:,:]-mean[i])/std[i]
         if is_image is False:
             simulated_tensor[simulated_tensor<0]=0
-        return simulated_te
+        return simulated_tensor
 
     out=np.zeros(shape=[num,size[0],size[1],size[2]],dtype=np.float)
     for i in range(num):

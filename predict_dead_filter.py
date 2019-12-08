@@ -266,7 +266,7 @@ class fc(nn.Module):
         return 1
 
 class predictor:
-    def __init__(self, name,**kargs):
+    def __init__(self, name):
         self.name=name
         self.min_max_scaler=None
         if name is 'gradient_boosting':

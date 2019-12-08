@@ -184,7 +184,7 @@ def prune_dead_neural_with_classifier(net,
             # use filters from (round_for_train)rounds to train the classifier
 
             ##train the predictor######################################################################################################
-            predictor=predict_dead_filter.predictor(name=predictor_name,**kwargs)
+            predictor=predict_dead_filter.predictor(name=predictor_name)
             predictor.fit(lived_filter=lived_filter, dead_filter=dead_filter)
 
         if round<=round_for_train:
@@ -288,6 +288,7 @@ def prune_inactive_neural(net,
                       learning_rate_decay_factor=conf.learning_rate_decay_factor,
                       weight_decay=conf.weight_decay,
                       learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                          **kwargs
                      ):
     '''
 
@@ -347,6 +348,7 @@ def prune_inactive_neural(net,
                   dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
                   weight_decay,learning_rate_decay_epoch))
+    print(kwargs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
@@ -438,20 +440,21 @@ def prune_inactive_neural(net,
         while not success:
             old_net=copy.deepcopy(net)
             success=train.train(net=net,
-                        net_name=net_name,
-                        num_epochs=num_epoch,
-                        target_accuracy=target_accuracy,
-                        learning_rate=learning_rate,
-                        load_net=False,
-                        checkpoint_step=checkpoint_step,
-                        dataset_name=dataset_name,
-                        optimizer=optimizer,
-                        batch_size=batch_size,
-                        learning_rate_decay=learning_rate_decay,
-                        learning_rate_decay_factor=learning_rate_decay_factor,
-                        weight_decay=weight_decay,
-                        learning_rate_decay_epoch=learning_rate_decay_epoch,
-                        test_net=True,
+                                net_name=net_name,
+                                num_epochs=num_epoch,
+                                target_accuracy=target_accuracy,
+                                learning_rate=learning_rate,
+                                load_net=False,
+                                checkpoint_step=checkpoint_step,
+                                dataset_name=dataset_name,
+                                optimizer=optimizer,
+                                batch_size=batch_size,
+                                learning_rate_decay=learning_rate_decay,
+                                learning_rate_decay_factor=learning_rate_decay_factor,
+                                weight_decay=weight_decay,
+                                learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                test_net=True,
+                                **kwargs
                         )
             if not success:
                 net=old_net
@@ -481,6 +484,7 @@ def prune_dead_neural(net,
                       learning_rate_decay_factor=conf.learning_rate_decay_factor,
                       weight_decay=conf.weight_decay,
                       learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                      **kwargs
                      ):
     '''
 
@@ -546,7 +550,7 @@ def prune_dead_neural(net,
                   neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
                   weight_decay,learning_rate_decay_epoch))
-
+    print(kwargs)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
     if torch.cuda.is_available():
@@ -640,20 +644,21 @@ def prune_dead_neural(net,
         while not success:
             old_net=copy.deepcopy(net)
             success=train.train(net=net,
-                        net_name=net_name,
-                        num_epochs=num_epoch,
-                        target_accuracy=target_accuracy,
-                        learning_rate=learning_rate,
-                        load_net=False,
-                        checkpoint_step=checkpoint_step,
-                        dataset_name=dataset_name,
-                        optimizer=optimizer,
-                        batch_size=batch_size,
-                        learning_rate_decay=learning_rate_decay,
-                        learning_rate_decay_factor=learning_rate_decay_factor,
-                        weight_decay=weight_decay,
-                        learning_rate_decay_epoch=learning_rate_decay_epoch,
-                        test_net=True,
+                                net_name=net_name,
+                                num_epochs=num_epoch,
+                                target_accuracy=target_accuracy,
+                                learning_rate=learning_rate,
+                                load_net=False,
+                                checkpoint_step=checkpoint_step,
+                                dataset_name=dataset_name,
+                                optimizer=optimizer,
+                                batch_size=batch_size,
+                                learning_rate_decay=learning_rate_decay,
+                                learning_rate_decay_factor=learning_rate_decay_factor,
+                                weight_decay=weight_decay,
+                                learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                test_net=True,
+                                **kwargs
                         )
             if not success:
                 net=old_net
@@ -680,6 +685,7 @@ def prune_filters_randomly(net,
                            learning_rate_decay_factor=conf.learning_rate_decay_factor,
                            weight_decay=conf.weight_decay,
                            learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                           **kwargs
                            ):
     '''
 
@@ -737,6 +743,7 @@ def prune_filters_randomly(net,
                   num_epoch, learning_rate_decay,
                   learning_rate_decay_factor,
                   weight_decay, learning_rate_decay_epoch))
+    print(kwargs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
@@ -809,62 +816,63 @@ def prune_filters_randomly(net,
                                   weight_decay=weight_decay,
                                   learning_rate_decay_epoch=learning_rate_decay_epoch,
                                   test_net=True,
+                                  **kwargs
                                   )
             if not success:
                 net = old_net
 
 
-def prune_layer_gradually():
-    net = train.create_net('vgg16_bn', True)
-
-    num_conv = 0  # num of conv layers in the net
-    for mod in net.features:
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv += 1
-
-    # for i in range(1, 7):
-    #     net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
-    #                                   ord=2)  # prune the model
-
-    file_new = '/home/victorfang/Desktop/pytorch_model/vgg16_bn,gradual_pruned/checkpoint/sample_num=64064.tar'
-    if os.path.isfile(file_new):
-        checkpoint = torch.load(file_new)
-        net = checkpoint['net']
-        net.load_state_dict(checkpoint['state_dict'])
-
-    iteration = 1
-    while (True):
-        print('{} start iteration:{}'.format(datetime.now(), iteration))
-        for i in range(10, num_conv + 1):
-            net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
-                                          ord=2)  # prune the model
-            print('{} layer {} pruned'.format(datetime.now(), i))
-
-            validation_loader = data_loader.create_validation_loader(dataset_path=conf.imagenet['validation_set_path'],
-                                                                     default_image_size=224,
-                                                                     mean=conf.imagenet['mean'],
-                                                                     std=conf.imagenet['std'],
-                                                                     batch_size=conf.batch_size,
-                                                                     num_workers=conf.num_workers,
-                                                                     dataset_name='imagenet')
-            net_name = 'vgg16_bn,gradual_pruned'
-            checkpoint_path = conf.root_path + net_name + '/checkpoint'
-            accuracy = evaluate.evaluate_net(net, validation_loader,
-                                             save_net=True,
-                                             checkpoint_path=checkpoint_path,
-                                             sample_num=0,
-                                             target_accuracy=0.7)
-            if accuracy < 0.7:
-                train.train(net=net,
-                            net_name=net_name,
-                            num_epochs=1,
-                            target_accuracy=0.7,
-                            learning_rate=2e-5,
-                            load_net=False,
-                            checkpoint_step=1000
-                            )
-        break
-        iteration += 1
+# def prune_layer_gradually():
+#     net = train.create_net('vgg16_bn', True)
+#
+#     num_conv = 0  # num of conv layers in the net
+#     for mod in net.features:
+#         if isinstance(mod, torch.nn.modules.conv.Conv2d):
+#             num_conv += 1
+#
+#     # for i in range(1, 7):
+#     #     net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
+#     #                                   ord=2)  # prune the model
+#
+#     file_new = '/home/victorfang/Desktop/pytorch_model/vgg16_bn,gradual_pruned/checkpoint/sample_num=64064.tar'
+#     if os.path.isfile(file_new):
+#         checkpoint = torch.load(file_new)
+#         net = checkpoint['net']
+#         net.load_state_dict(checkpoint['state_dict'])
+#
+#     iteration = 1
+#     while (True):
+#         print('{} start iteration:{}'.format(datetime.now(), iteration))
+#         for i in range(10, num_conv + 1):
+#             net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
+#                                           ord=2)  # prune the model
+#             print('{} layer {} pruned'.format(datetime.now(), i))
+#
+#             validation_loader = data_loader.create_validation_loader(dataset_path=conf.imagenet['validation_set_path'],
+#                                                                      default_image_size=224,
+#                                                                      mean=conf.imagenet['mean'],
+#                                                                      std=conf.imagenet['std'],
+#                                                                      batch_size=conf.batch_size,
+#                                                                      num_workers=conf.num_workers,
+#                                                                      dataset_name='imagenet')
+#             net_name = 'vgg16_bn,gradual_pruned'
+#             checkpoint_path = conf.root_path + net_name + '/checkpoint'
+#             accuracy = evaluate.evaluate_net(net, validation_loader,
+#                                              save_net=True,
+#                                              checkpoint_path=checkpoint_path,
+#                                              sample_num=0,
+#                                              target_accuracy=0.7)
+#             if accuracy < 0.7:
+#                 train.train(net=net,
+#                             net_name=net_name,
+#                             num_epochs=1,
+#                             target_accuracy=0.7,
+#                             learning_rate=2e-5,
+#                             load_net=False,
+#                             checkpoint_step=1000
+#                             )
+#         break
+#         iteration += 1
 
 def prune_inactive_neural_with_regressor(net,
                                          net_name,
@@ -1005,7 +1013,7 @@ def prune_inactive_neural_with_regressor(net,
     filter=list()
     filter_layer=list()
     dead_ratio=list()
-    predictor = predict_dead_filter.predictor(name=predictor_name, **kwargs)
+    predictor = predict_dead_filter.predictor(name=predictor_name)
     if load_regressor is True:
         regressor_exists=predictor.load(path=conf.root_path + net_name)
         if regressor_exists is True:
@@ -1123,7 +1131,8 @@ def prune_inactive_neural_with_regressor(net,
                                   weight_decay=weight_decay,
                                   learning_rate_decay_epoch=learning_rate_decay_epoch,
                                   test_net=True,
-                                  top_acc=top_acc
+                                  top_acc=top_acc,
+                                  **kwargs
                                   )
             if not success:
                 net = old_net.to(device)
@@ -1282,7 +1291,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     filter_layer = list()
     filter=list()
     dead_ratio=list()
-    predictor = predict_dead_filter.predictor(name=predictor_name, **kwargs)
+    predictor = predict_dead_filter.predictor(name=predictor_name)
     if load_regressor is True:
         regressor_exists=predictor.load(path=conf.root_path + net_name)
         if regressor_exists is True:
@@ -1399,6 +1408,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                   weight_decay=weight_decay,
                                   learning_rate_decay_epoch=learning_rate_decay_epoch,
                                   test_net=True,
+                                  **kwargs
                                   )
             if not success:
                 net = old_net
