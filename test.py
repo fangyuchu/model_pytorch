@@ -23,6 +23,9 @@ import resnet_copied
 from torch import optim
 from torch.autograd import Variable
 import vgg_channel_weight
+import transform_conv
+
+
 
 #
 # c=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel/checkpoint/flop=18923530,accuracy=0.93600.tar')
