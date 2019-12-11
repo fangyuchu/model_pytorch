@@ -5,7 +5,7 @@ def conv_to_matrix(conv):
     '''
     transform  4-d filters in conv to a matrix
     :param conv: conv module
-    :return: 2-d tensor. each column is one filter.
+    :return: 2-d tensor. each row is one filter.
     '''
     weight = conv.weight.data
     matrix = weight.view(weight.size(0), -1)
@@ -21,7 +21,7 @@ def conv_dct(net):
     for mod in net.modules():
         if isinstance(mod,torch.nn.Conv2d):
             weight_matrix=conv_to_matrix(mod).cpu().numpy()
-            frequency_matrix+=[cv2.dct(weight_matrix.T)]
+            frequency_matrix+=[cv2.dct(weight_matrix)]
     return frequency_matrix
 
 
