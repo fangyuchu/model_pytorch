@@ -2,14 +2,14 @@ import torch
 import torch.optim as optim
 from framework import measure_flops
 from prune import prune_and_train
-from network import vgg
+from network import vgg,storage
 # print(torch.cuda.device(0))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 #
-# net = checkpoint['net'].to(device)
+# net=storage.restore_net(checkpoint).to(device)
 #
 # net.load_state_dict(checkpoint['state_dict'])
 # print(checkpoint['highest_accuracy'])
@@ -50,7 +50,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # checkpoint=torch.load('../data/baseline/resnet56_cifar100_0.71580.tar')
 # checkpoint=torch.load('/home/zengyao/fang/model_pytorch/model_saved/resnet56_cifar100_regressor3/checkpoint/flop=90655076,accuracy=0.71000.tar')
-# net=checkpoint['net']
+# net=storage.restore_net(checkpoint).to(device)
 # net.load_state_dict(checkpoint['state_dict'])
 # net.to(device)
 # measure_flops.measure_model(net,'cifar100')
@@ -85,7 +85,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # checkpoint = torch.load('../data/baseline/vgg16bn_cifar100_0.72940.tar')
 #
-# net = checkpoint['net'].to(device)
+# net=storage.restore_net(checkpoint).to(device)
 #
 # net.load_state_dict(checkpoint['state_dict'])
 # print(checkpoint['highest_accuracy'])
@@ -127,7 +127,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # checkpoint = torch.load('../data/baseline/vgg16bn_tinyimagenet_0.73150.tar')
 # checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_tinyimagenet_prune/checkpoint/flop=9501473860,accuracy=0.70140.tar')
 #
-# net = checkpoint['net'].to(device)
+# net=storage.restore_net(checkpoint).to(device)
 #
 # net.load_state_dict(checkpoint['state_dict'])
 # print(checkpoint['highest_accuracy'])
@@ -169,7 +169,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # checkpoint = torch.load('/home/disk_new/model_saved/vgg16bn_cifar10_realdata_regressor6_大幅度/checkpoint/flop=39915982,accuracy=0.93200.tar')
 # checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_cifar10_inactiveFilter_tolerance/checkpoint/flop=39045282,accuracy=0.92880.tar')
 #
-# net = checkpoint['net'].to(device)
+# net=storage.restore_net(checkpoint).to(device)
 #
 # net.load_state_dict(checkpoint['state_dict'])
 # print(checkpoint['highest_accuracy'])
@@ -255,7 +255,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # 
 # #只训练全连接层
 # checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-# net = checkpoint['net'].to(device)
+# net=storage.restore_net(checkpoint).to(device)
 # # 载入预训练模型参数后...
 # for name, value in net.named_parameters():
 #     if 'classifier' in name :
@@ -300,7 +300,7 @@ from network import create_net
 from network import vgg
 checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 
-net=checkpoint['net']
+net=storage.restore_net(checkpoint)
 net.load_state_dict(checkpoint['state_dict'])
 from framework import evaluate
 from framework import data_loader

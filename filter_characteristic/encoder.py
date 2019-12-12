@@ -9,6 +9,7 @@ import random
 import math
 from sklearn.decomposition import PCA           #加载PCA算法包
 from framework import train
+from network import storage
 
 # 超参数
 EPOCH = 10
@@ -125,12 +126,12 @@ class AutoEncoder(nn.Module):
         return encoded, decoded
 
     def extract_feature(self,pad_mode,**kwargs):
-        if 'network' in kwargs.keys():
-            filters=get_filters(kwargs['network'])
+        if 'net' in kwargs.keys():
+            filters=get_filters(kwargs['net'])
         elif 'filters' in kwargs.keys():
             filters=kwargs['filters']
         else:
-            print('you must provide network or filters')
+            print('you must provide net or filters')
             raise AttributeError
         filters=pad_filter(filters,pad_mode=pad_mode)
         x = torch.from_numpy(filters).float().to(self.device)
@@ -152,14 +153,14 @@ def pca(conv_weight):
 
 def read_from_checkpoint(path):
     if '.tar' in path:
-        file_list=[path]                                #single network
+        file_list=[path]                                #single net
     else:
         file_list=os.listdir(path)
     filters = list()
     for file_name in file_list:
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
-            net=checkpoint['net']
+            net=storage.restore_net(checkpoint)
             net.load_state_dict(checkpoint['state_dict'])
             filters+=get_filters(net=net)
     return filters
@@ -246,7 +247,7 @@ def train_auto_encoder(train_dir='',val_dir='',pad_mode='-1'):
                   'state_dict': auto_encoder.state_dict(),
                   'sample_num': sample_num}
     torch.save(checkpoint, '../data/auto_encoder.tar')
-    print("{} network saved at sample num = {}".format(datetime.now(), sample_num))
+    print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
 
 
 
@@ -269,9 +270,9 @@ root='/home/victorfang/PycharmProjects/model_pytorch/data/model_params/'
 
 # def download_weight():
 #     for net_name in model_urls:
-#         network=create_net(net_name,pretrained=True)
-#         for i in range(len(network.features)):
-#             mod=network.features[i]
+#         net=create_net(net_name,pretrained=True)
+#         for i in range(len(net.features)):
+#             mod=net.features[i]
 #             if isinstance(mod, torch.nn.modules.conv.Conv2d):
 #                 weight=mod.weight.data.cpu().numpy()
 #                 np.save(root+'weight/'+net_name+','+str(i),weight)
@@ -291,10 +292,10 @@ if __name__ == "__main__":
     # auto_encoder.load_state_dict(checkpoint['state_dict'])
     #
     # checkpoint = torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    # network=checkpoint['net']
-    # network.load_state_dict(checkpoint['state_dict'])
+    # net=checkpoint['net']
+    # net.load_state_dict(checkpoint['state_dict'])
     #
-    # feature,decode=auto_encoder.extract_feature(network=network)
+    # feature,decode=auto_encoder.extract_feature(net=net)
 
     print()
 

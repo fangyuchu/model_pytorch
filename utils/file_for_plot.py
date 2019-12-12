@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from framework import data_loader, evaluate
-from network import vgg, resnet_copied
+from network import vgg, resnet_cifar,storage
 from filter_characteristic import predict_dead_filter
 import matplotlib.pyplot as plt
 import copy
@@ -18,10 +18,10 @@ def dead_neural_rate():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     checkpoint=torch.load('../data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
-    net = resnet_copied.resnet56().to(device)
+    net = resnet_cifar.resnet56().to(device)
     net.load_state_dict(checkpoint['state_dict'])
 
-    # network=create_net.vgg_cifar10()
+    # net=create_net.vgg_cifar10()
     val_loader= data_loader.create_validation_loader(batch_size=1000, num_workers=6, dataset_name='cifar10')
     # train_loader=data_loader.create_train_loader(batch_size=1600,num_workers=6,dataset_name='cifar10')
     #
@@ -50,11 +50,11 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     checkpoint = torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    vgg16=checkpoint['net']
+    vgg16=storage.restore_net(checkpoint)
     vgg16.load_state_dict(checkpoint['state_dict'])
 
     checkpoint=torch.load('../data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
-    resnet56 = resnet_copied.resnet56().to(device)
+    resnet56 = resnet_cifar.resnet56().to(device)
     resnet56.load_state_dict(checkpoint['state_dict'])
 
     vgg16_imagenet= vgg.vgg16_bn(pretrained=True).to(device)
@@ -71,7 +71,7 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
 
 
     def get_statistics(net,relu_list,neural_list,neural_dead_times,sample_num=10000):
-        num_conv = 0  # num of conv layers in the network
+        num_conv = 0  # num of conv layers in the net
         for mod in net.modules():
             if isinstance(mod, torch.nn.modules.conv.Conv2d):
                 num_conv += 1
@@ -182,18 +182,18 @@ def plot_dead_filter_num_with_different_fdt():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #
-    # # network=create_net.vgg_cifar10()
+    # # net=create_net.vgg_cifar10()
     checkpoint = torch.load('../data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
-    net = resnet_copied.resnet56().to(device)
+    net = resnet_cifar.resnet56().to(device)
     net.load_state_dict(checkpoint['state_dict'])
 
     val_loader= data_loader.create_validation_loader(batch_size=500, num_workers=6, dataset_name='cifar10')
     relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=8000, data_loader=val_loader)
 
 
-    # network=vgg.vgg16_bn(pretrained=False)
+    # net=vgg.vgg16_bn(pretrained=False)
     # checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
-    # network=resnet.resnet34(pretrained=True)
+    # net=resnet.resnet34(pretrained=True)
     # checkpoint=torch.load('/home/victorfang/Desktop/resnet34_imagenet_DeadReLU.tar')
     # neural_list=checkpoint['neural_list']
     # relu_list=checkpoint['relu_list']
@@ -220,7 +220,7 @@ def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_de
 
     dead_filter_num=list()                                                                      #num of dead filters in each layer
     filter_num=list()                                                                           #num of filters in each layer
-    num_conv = 0  # num of conv layers in the network
+    num_conv = 0  # num of conv layers in the net
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
@@ -255,16 +255,16 @@ def speed_up_pruned_net():
     fontsize=15
 
     checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    net_original=checkpoint['net']
+    net_original=storage.restore_net(checkpoint)
 
     checkpoint=torch.load('../data/baseline/resnet56_cifar10,accuracy=0.93280.tar')
-    net_original= resnet_copied.resnet56()
+    net_original= resnet_cifar.resnet56()
     net_original.load_state_dict(checkpoint['state_dict'])
 
     checkpoint=torch.load('../data/model_saved/vgg16bn_cifar10_realdata_regressor6_大幅度/checkpoint/flop=39915982,accuracy=0.93200.tar')
 
     checkpoint=torch.load('../data/model_saved/resnet56_cifar10_regressor_prunedBaseline2/checkpoint/flop=36145802,accuracy=0.92110.tar')
-    net_pruned=checkpoint['net']
+    net_pruned=storage.restore_net(checkpoint)
     net_pruned.load_state_dict(checkpoint['state_dict'])
 
 
@@ -334,9 +334,9 @@ def speed_up_regressor():
     for file in file_list:
         print(file)
         checkpoint_path=os.path.join(path,file)
-        chekpoint=torch.load(checkpoint_path)
-        net=chekpoint['network']
-        net.load_state_dict(chekpoint['state_dict'])
+        checkpoint=torch.load(checkpoint_path)
+        net=storage.restore_net(checkpoint)
+        net.load_state_dict(checkpoint['state_dict'])
         #time for regressor
         start_time = time.time()
         evaluate.find_useless_filters_regressor_version(net=net,

@@ -4,7 +4,7 @@ import torch
 import torch.optim as optim
 import logger
 import sys
-from network import resnet_copied
+from network import resnet_cifar
 
 # network=vgg.vgg16(pretrained=True)
 # print('haha')
@@ -51,7 +51,7 @@ if not os.path.exists('../data/model_saved/resnet56_on_cifar100'):
     os.makedirs('../data/model_saved/resnet56_on_cifar100', exist_ok=True)
 sys.stdout = logger.Logger( '../data/model_saved/resnet56_on_cifar100/log.txt', sys.stdout)
 sys.stderr = logger.Logger( '../data/model_saved/resnet56_on_cifar100/log.txt', sys.stderr)  # redirect std err, if necessary
-net= resnet_copied.ResNet(resnet_copied.BasicBlock, [9, 9, 9], num_classes=100)
+net= resnet_cifar.ResNet(resnet_cifar.BasicBlock, [9, 9, 9], num_classes=100)
 net=net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 # checkpoint=torch.load('/home/zengyao/fang/model_pytorch/model_saved/resnet56_on_cifar1007/checkpoint/flop=125491556,accuracy=0.65020.tar')

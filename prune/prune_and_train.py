@@ -10,243 +10,7 @@ import sys
 import random
 import copy
 from filter_characteristic import predict_dead_filter
-from network import resnet_copied, resnet_tinyimagenet
-
-
-def prune_dead_neural_with_classifier(net,
-                                     net_name,
-                                     neural_dead_times,
-                                     filter_dead_ratio,
-                                     target_accuracy,
-                                     predictor_name='logistic_regression',
-                                     round_for_train=2,
-                                     tar_acc_gradual_decent=False,
-                                     flop_expected=None,
-                                     filter_dead_ratio_decay=0.95,
-                                     neural_dead_times_decay=0.95,
-                                     dataset_name='imagenet',
-                                     use_random_data=False,
-                                     validation_loader=None,
-                                     batch_size=conf.batch_size,
-                                     num_workers=conf.num_workers,
-                                     optimizer=optim.Adam,
-                                     learning_rate=0.01,
-                                     checkpoint_step=1000,
-                                     num_epoch=350,
-                                     filter_preserve_ratio=0.3,
-                                     min_filters_pruned_for_one_time=0.05,
-                                     max_filters_pruned_for_one_time=0.5,
-                                     learning_rate_decay=False,
-                                     learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                                     weight_decay=conf.weight_decay,
-                                     learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-                                     **kwargs
-                                     ):
-    '''
-
-    :param net:
-    :param net_name:
-    :param neural_dead_times:
-    :param filter_dead_ratio:
-    :param target_accuracy:
-    :param predictor_name: name of the predictor used
-    :param round_for_train:
-    :param tar_acc_gradual_decent:
-    :param flop_expected:
-    :param filter_dead_ratio_decay:
-    :param neural_dead_times_decay:
-    :param dataset_name:
-    :param use_random_data:
-    :param validation_loader:
-    :param batch_size:
-    :param num_workers:
-    :param optimizer:
-    :param learning_rate:
-    :param checkpoint_step:
-    :param num_epoch:
-    :param filter_preserve_ratio:
-    :param min_filters_pruned_for_one_time:
-    :param max_filters_pruned_for_one_time:
-    :param learning_rate_decay:
-    :param learning_rate_decay_factor:
-    :param weight_decay:
-    :param learning_rate_decay_epoch:
-    :return:
-    '''
-    # save the output to log
-    print('save log in:' + conf.root_path + net_name + '/log.txt')
-    if not os.path.exists(conf.root_path + net_name):
-        os.makedirs(conf.root_path + net_name, exist_ok=True)
-    sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
-    sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
-
-    print('network:{}\n'
-          'net_name:{}\n'
-          'use_random_data:{}\n'
-          'neural_dead_times:{}\n'
-          'filter_dead_ratio:{}\n'
-          'target_accuracy:{}\n'
-          'predictor_name:{}\n'
-          'round_for_train:{}\n'
-          'tar_acc_gradual_decent:{}\n'
-          'flop_expected:{}\n'
-          'filter_dead_ratio_decay:{}\n'
-          'neural_dead_times_decay:{}\n'
-          'dataset_name:{}\n'
-          'validation_loader:{}\n'
-          'batch_size:{}\n'
-          'num_workers:{}\n'
-          'optimizer:{}\n'
-          'learning_rate:{}\n'
-          'checkpoint_step:{}\n'
-          'num_epoch:{}\n'
-          'filter_preserve_ratio:{}\n'
-          'max_filters_pruned_for_one_time:{}\n'
-          'min_filters_pruned_for_one_time:{}\n'
-          'learning_rate_decay:{}\n'
-          'learning_rate_decay_factor:{}\n'
-          'weight_decay:{}\n'
-          'learning_rate_decay_epoch:{}'
-          .format(net, net_name, use_random_data, neural_dead_times, filter_dead_ratio, target_accuracy,
-                  predictor_name,round_for_train,
-                  tar_acc_gradual_decent,
-                  flop_expected, filter_dead_ratio_decay,
-                  neural_dead_times_decay, dataset_name, validation_loader, batch_size, num_workers, optimizer,
-                  learning_rate, checkpoint_step,
-                  num_epoch, filter_preserve_ratio, max_filters_pruned_for_one_time,min_filters_pruned_for_one_time, learning_rate_decay,
-                  learning_rate_decay_factor,
-                  weight_decay, learning_rate_decay_epoch))
-    print(kwargs)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print('using: ', end='')
-    if torch.cuda.is_available():
-        print(torch.cuda.device_count(),' * ',end='')
-        print(torch.cuda.get_device_name(torch.cuda.current_device()))
-    else:
-        print(device)
-
-    if validation_loader is None:
-        validation_loader = data_loader.create_validation_loader(
-                                                                 batch_size=batch_size,
-                                                                 num_workers=num_workers,
-                                                                 dataset_name=dataset_name,
-                                                                 )
-
-    flop_original_net = measure_flops.measure_model(net, dataset_name)
-    original_accuracy = evaluate.evaluate_net(net=net,
-                                              data_loader=validation_loader,
-                                              save_net=False,
-                                              dataset_name=dataset_name,
-                                              )
-    if tar_acc_gradual_decent is True:
-        flop_drop_expected = flop_original_net - flop_expected
-        acc_drop_tolerance = original_accuracy - target_accuracy
-
-    num_conv = 0  # num of conv layers in the network
-    filter_num_lower_bound = list()
-    filter_num = list()
-    for mod in net.features:
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv += 1
-            filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))
-            filter_num.append(mod.out_channels)
-
-    lived_filter=list()
-    dead_filter=list()
-
-    #using data to prune the network for (round_for_train)rounds
-    round = 0
-    while True:
-        round += 1
-        print('{} start round {} of filter pruning.'.format(datetime.now(), round))
-
-        if round==round_for_train+1:
-            # use filters from (round_for_train)rounds to train the classifier
-
-            ##train the predictor######################################################################################################
-            predictor= predict_dead_filter.predictor(name=predictor_name)
-            predictor.fit(lived_filter=lived_filter, dead_filter=dead_filter)
-
-        if round<=round_for_train:
-            print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(), filter_dead_ratio,
-                                                                                neural_dead_times))
-            #find dead filters
-            dead_filter_index,module_list,neural_list = evaluate.find_useless_filters_data_version(net=net, filter_dead_ratio=filter_dead_ratio,
-                                                                                                   neural_dead_times=neural_dead_times, batch_size=batch_size, use_random_data=use_random_data)
-            # save dead and lived filters for training the classifier
-            i = 0
-            for mod in net.features:
-                if isinstance(mod, torch.nn.modules.conv.Conv2d):
-                    conv_weight = copy.deepcopy(mod).weight.cpu().detach().numpy()
-                    dead_filter = dead_filter + list(conv_weight[dead_filter_index[i]])
-                    lived_filter = lived_filter + list(
-                        conv_weight[[j for j in range(conv_weight.shape[0]) if j not in dead_filter_index[i]]])
-
-                    # ensure the number of filters pruned will not be too large for one time
-                    if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
-                        dead_filter_index[i] = dead_filter_index[i][
-                                               :int(filter_num[i] * max_filters_pruned_for_one_time)]
-                    # ensure the lower bound of filter number
-                    if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
-                        dead_filter_index[i] = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
-                    i += 1
-        else:
-            dead_filter_index= evaluate.predict_dead_filters_classifier_version(net=net,
-                                                                                predictor=predictor,
-                                                                                min_ratio_dead_filters=min_filters_pruned_for_one_time,
-                                                                                max_ratio_dead_filters=max_filters_pruned_for_one_time,
-                                                                                filter_num_lower_bound=filter_num_lower_bound)
-
-        net_compressed = False
-        #prune the network according to dead_filter_index
-        for i in range(num_conv):
-            filter_num[i] = filter_num[i] - len(dead_filter_index[i])
-            if len(dead_filter_index[i]) > 0:
-                net_compressed = True
-            print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
-                                                                          len(dead_filter_index[i])))
-
-            net = prune.prune_conv_layer(model=net, layer_index=i + 1,
-                                         filter_index=dead_filter_index[i])  # prune the dead filter
-
-        if net_compressed is False:
-            round -= 1
-            filter_dead_ratio *= filter_dead_ratio_decay
-            neural_dead_times *= neural_dead_times_decay
-            print('{} round {} did not prune any filters. Restart.'.format(datetime.now(), round + 1))
-            continue
-
-        flop_pruned_net = measure_flops.measure_model(net, dataset_name)
-
-        if tar_acc_gradual_decent is True:  # decent the target_accuracy
-            flop_reduced = flop_original_net - flop_pruned_net
-            target_accuracy = original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected)
-            print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
-
-        success = False
-        # while not success:
-        #     old_net = copy.deepcopy(network)
-        #     success = train.train(network=network,
-        #                           net_name=net_name,
-        #                           num_epochs=num_epoch,
-        #                           target_accuracy=target_accuracy,
-        #                           learning_rate=learning_rate,
-        #                           load_net=False,
-        #                           checkpoint_step=checkpoint_step,
-        #                           dataset_name=dataset_name,
-        #                           optimizer=optimizer,
-        #                           batch_size=batch_size,
-        #                           learning_rate_decay=learning_rate_decay,
-        #                           learning_rate_decay_factor=learning_rate_decay_factor,
-        #                           weight_decay=weight_decay,
-        #                           learning_rate_decay_epoch=learning_rate_decay_epoch,
-        #                           test_net=True,
-        #                           )
-        #     if not success:
-        #         network = old_net
-        # filter_dead_ratio *= filter_dead_ratio_decay
-        # neural_dead_times *= neural_dead_times_decay
+from network import resnet_cifar, resnet_tinyimagenet,storage
 
 def prune_inactive_neural(net,
                       net_name,
@@ -278,7 +42,7 @@ def prune_inactive_neural(net,
     :param prune_rate
     :param target_accuracy: float,
     :param tar_acc_gradual_decent:bool, if true, the target accuracy will decent from original acc. to target acc. during every round of pruning
-    :param flop_expected: int: expected flop after network pruned. will only work when tar_acc_gradual_decent is true
+    :param flop_expected: int: expected flop after net pruned. will only work when tar_acc_gradual_decent is true
     :param dataset_name:
     :param use_random_data:bool, if true, generated data which fits normal distribution will be used to calculate dead filters.
     :param validation_loader:
@@ -303,7 +67,7 @@ def prune_inactive_neural(net,
     sys.stdout = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stdout)
     sys.stderr = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stderr)  # redirect std err, if necessary
 
-    print('network:{}\n'
+    print('net:{}\n'
           'net_name:{}\n'
           'use_random_data:{}\n'
           'prune_rate:{}\n'
@@ -355,7 +119,7 @@ def prune_inactive_neural(net,
         flop_drop_expected = flop_original_net - flop_expected
         acc_drop_tolerance = original_accuracy - target_accuracy
 
-    num_conv = 0  # num of conv layers in the network
+    num_conv = 0  # num of conv layers in the net
     filter_num_lower_bound=list()
     filter_num=list()
     for mod in net.features:
@@ -381,9 +145,9 @@ def prune_inactive_neural(net,
         if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
             os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
 
-        torch.save({'prune_rate': prune_rate,
-                    'network': net, 'module_list': module_list,
-                    'neural_list': neural_list, 'state_dict': net.state_dict(),'batch_size':batch_size},
+        torch.save({'prune_rate': prune_rate,'module_list': module_list,
+                    'neural_list': neural_list, 'state_dict': net.state_dict()
+                       ,'batch_size':batch_size}.update(storage.get_net_information(net,dataset_name,net_name)),
                    conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
 
         net_compressed = False
@@ -439,421 +203,10 @@ def prune_inactive_neural(net,
                                  )
             if not success:
                 net=old_net
+                
+                
 
 
-def prune_dead_neural(net,
-                      net_name,
-                      neural_dead_times,
-                      filter_dead_ratio,
-                      target_accuracy,
-                      tar_acc_gradual_decent=False,
-                      flop_expected=None,
-                      filter_dead_ratio_decay=0.95,
-                      neural_dead_times_decay=0.95,
-                      dataset_name='imagenet',
-                      use_random_data=False,
-                      validation_loader=None,
-                      batch_size=conf.batch_size,
-                      num_workers=conf.num_workers,
-                      optimizer=optim.Adam,
-                      learning_rate=0.01,
-                      checkpoint_step=1000,
-                      num_epoch=350,
-                      filter_preserve_ratio=0.3,
-                      max_filters_pruned_for_one_time=0.5,
-                      learning_rate_decay=False,
-                      learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                      weight_decay=conf.weight_decay,
-                      learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-                      **kwargs
-                     ):
-    '''
-
-    :param net:
-    :param net_name:
-    :param neural_dead_times(ndt):int, threshold for judging a dead neural node
-    :param filter_dead_ratio(fdr):float, threshold for judging a dead filter
-    :param target_accuracy: float,
-    :param tar_acc_gradual_decent:bool, if true, the target accuracy will decent from original acc. to target acc. during every round of pruning
-    :param flop_expected: int: expected flop after network pruned. will only work when tar_acc_gradual_decent is true
-    :param filter_dead_ratio_decay:float, decay rate for fdr in each round of pruning
-    :param neural_dead_times_decay:float, decay rate for ndt in each round of pruning
-    :param dataset_name:
-    :param use_random_data:bool, if true, generated data which fits normal distribution will be used to calculate dead filters.
-    :param validation_loader:
-    :param batch_size:
-    :param num_workers:
-    :param optimizer:
-    :param learning_rate:
-    :param checkpoint_step:
-    :param num_epoch:
-    :param filter_preserve_ratio:
-    :param max_filters_pruned_for_one_time:
-    :param learning_rate_decay:
-    :param learning_rate_decay_factor:
-    :param weight_decay:
-    :param learning_rate_decay_epoch:
-    :return:
-    '''
-    #save the output to log
-    print('save log in:' + conf.root_path + net_name + '/log.txt')
-    if not os.path.exists(conf.root_path + net_name ):
-        os.makedirs(conf.root_path + net_name , exist_ok=True)
-    sys.stdout = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stdout)
-    sys.stderr = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stderr)  # redirect std err, if necessary
-
-    print('network:{}\n'
-          'net_name:{}\n'
-          'use_random_data:{}\n'
-          'neural_dead_times:{}\n'
-          'filter_dead_ratio:{}\n'
-          'target_accuracy:{}\n'
-          'tar_acc_gradual_decent:{}\n'
-          'flop_expected:{}\n'
-          'filter_dead_ratio_decay:{}\n'
-          'neural_dead_times_decay:{}\n'
-          'dataset_name:{}\n'
-          'validation_loader:{}\n'
-          'batch_size:{}\n'
-          'num_workers:{}\n'
-          'optimizer:{}\n'
-          'learning_rate:{}\n'
-          'checkpoint_step:{}\n'
-          'num_epoch:{}\n'
-          'filter_preserve_ratio:{}\n'
-          'max_filters_pruned_for_one_time:{}\n'
-          'learning_rate_decay:{}\n'
-          'learning_rate_decay_factor:{}\n'
-          'weight_decay:{}\n'
-          'learning_rate_decay_epoch:{}'
-          .format(net,net_name,use_random_data,neural_dead_times,filter_dead_ratio,target_accuracy,tar_acc_gradual_decent,
-                  flop_expected,filter_dead_ratio_decay,
-                  neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
-                  num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
-                  weight_decay,learning_rate_decay_epoch))
-    print(kwargs)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print('using: ', end='')
-    if torch.cuda.is_available():
-        print(torch.cuda.device_count(),' * ',end='')
-        print(torch.cuda.get_device_name(torch.cuda.current_device()))
-    else:
-        print(device)
-
-    if validation_loader is None :
-        validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
-                                                                 num_workers=num_workers,
-                                                                 dataset_name=dataset_name,
-                                                                 )
-
-    flop_original_net= measure_flops.measure_model(net, dataset_name)
-    original_accuracy= evaluate.evaluate_net(net=net,
-                                             data_loader=validation_loader,
-                                             save_net=False,
-                                             dataset_name=dataset_name,
-                                             )
-    if tar_acc_gradual_decent is True:
-        flop_drop_expected = flop_original_net - flop_expected
-        acc_drop_tolerance = original_accuracy - target_accuracy
-
-    num_conv = 0  # num of conv layers in the network
-    filter_num_lower_bound=list()
-    filter_num=list()
-    for mod in net.features:
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv += 1
-            filter_num_lower_bound.append(int(mod.out_channels*filter_preserve_ratio))
-            filter_num.append(mod.out_channels)
-
-    round=0
-    while True:
-        round+=1
-        print('{} start round {} of filter pruning.'.format(datetime.now(), round))
-        print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(), filter_dead_ratio,
-                                                                            neural_dead_times))
-
-        # find dead filters
-        dead_filter_index, module_list, neural_list = evaluate.find_useless_filters_data_version(net=net,
-                                                                                                 filter_dead_ratio=filter_dead_ratio,
-                                                                                                 neural_dead_times=neural_dead_times,
-                                                                                                 batch_size=batch_size,
-                                                                                                 use_random_data=use_random_data)
-
-        if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
-            os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
-
-        torch.save({'neural_dead_times': neural_dead_times, 'filter_dead_ratio': filter_dead_ratio,
-                    'network': net, 'module_list': module_list,
-                    'neural_list': neural_list, 'state_dict': net.state_dict(),'batch_size':batch_size},
-                   conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
-
-        net_compressed = False
-        for i in range(num_conv):
-            # ensure the number of filters pruned will not be too large for one time
-            if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
-                dead_filter_index[i] = dead_filter_index[i][:int(filter_num[i] * max_filters_pruned_for_one_time)]
-            # ensure the lower bound of filter number
-            if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
-                dead_filter_index[i] = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
-            filter_num[i] = filter_num[i] - len(dead_filter_index[i])
-            if len(dead_filter_index[i]) > 0:
-                net_compressed = True
-
-            print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
-                                                                          len(dead_filter_index[i])))
-
-            net= prune.prune_conv_layer(model=net, layer_index=i + 1, filter_index=dead_filter_index[i])    #prune the dead filter
-
-        if net_compressed is False:
-            os.remove(conf.root_path+net_name+'/dead_neural/round %d.tar'%round)
-            round-=1
-            filter_dead_ratio *= filter_dead_ratio_decay
-            neural_dead_times *= neural_dead_times_decay
-            print('{} round {} did not prune any filters. Restart.'.format(datetime.now(),round+1))
-            continue
-
-        flop_pruned_net= measure_flops.measure_model(net, dataset_name)
-
-        #todo:现在根据剪了多少浮点量来线性降低准确率，也可考虑根据剪的轮数来降低准确率
-        #todo:也可考虑改为非线性下降，一开始下降的少点
-        if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
-            flop_reduced=flop_original_net-flop_pruned_net
-            target_accuracy=original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected)
-            print('{} current target accuracy:{}'.format(datetime.now(),target_accuracy))
-
-        success=False
-        while not success:
-            old_net=copy.deepcopy(net)
-            success= train.train(net=net,
-                                 net_name=net_name,
-                                 num_epochs=num_epoch,
-                                 target_accuracy=target_accuracy,
-                                 learning_rate=learning_rate,
-                                 load_net=False,
-                                 checkpoint_step=checkpoint_step,
-                                 dataset_name=dataset_name,
-                                 optimizer=optimizer,
-                                 batch_size=batch_size,
-                                 learning_rate_decay=learning_rate_decay,
-                                 learning_rate_decay_factor=learning_rate_decay_factor,
-                                 weight_decay=weight_decay,
-                                 learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                 test_net=True,
-                                 **kwargs
-                                 )
-            if not success:
-                net=old_net
-        filter_dead_ratio*=filter_dead_ratio_decay
-        neural_dead_times*=neural_dead_times_decay
-
-
-def prune_filters_randomly(net,
-                           net_name,
-                           target_accuracy,
-                           round_of_prune,
-                           final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
-                           tar_acc_gradual_decent=False,
-                           flop_expected=None,
-                           validation_loader=None,
-                           dataset_name='cifar10',
-                           batch_size=conf.batch_size,
-                           num_workers=conf.num_workers,
-                           optimizer=optim.Adam,
-                           learning_rate=0.01,
-                           checkpoint_step=1000,
-                           num_epoch=450,
-                           learning_rate_decay=False,
-                           learning_rate_decay_factor=conf.learning_rate_decay_factor,
-                           weight_decay=conf.weight_decay,
-                           learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-                           **kwargs
-                           ):
-    '''
-
-    :param net:
-    :param net_name:
-    :param target_accuracy:
-    :param round_of_prune:
-    :param final_filter_num:
-    :param tar_acc_gradual_decent:
-    :param flop_expected:
-    :param validation_loader:
-    :param dataset_name:
-    :param batch_size:
-    :param num_workers:
-    :param optimizer:
-    :param learning_rate:
-    :param checkpoint_step:
-    :param num_epoch:
-    :param learning_rate_decay:
-    :param learning_rate_decay_factor:
-    :param weight_decay:
-    :param learning_rate_decay_epoch:
-    :return:
-    '''
-    # save the output to log
-    print('save log in:' + conf.root_path + net_name + '/log.txt')
-    if not os.path.exists(conf.root_path + net_name):
-        os.makedirs(conf.root_path + net_name, exist_ok=True)
-    sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
-    sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
-
-    print('network:{}\n'
-          'net_name:{}\n'
-          'target_accuracy:{}\n'
-          'round of prune:{}\n'
-          'final_filter_num:{}\n'
-          'tar_acc_gradual_decent:{}\n'
-          'flop_expected:{}\n'
-          'validation_loader:{}\n'
-          'dataset_name:{}\n'
-          'batch_size:{}\n'
-          'num_workers:{}\n'
-          'optimizer:{}\n'
-          'learning_rate:{}\n'
-          'checkpoint_step:{}\n'
-          'num_epoch:{}\n'
-          'learning_rate_decay:{}\n'
-          'learning_rate_decay_factor:{}\n'
-          'weight_decay:{}\n'
-          'learning_rate_decay_epoch:{}'
-          .format(net, net_name,   target_accuracy,
-                  round_of_prune,final_filter_num,tar_acc_gradual_decent,flop_expected,validation_loader,
-                  dataset_name, batch_size, num_workers, optimizer,
-                  learning_rate, checkpoint_step,
-                  num_epoch, learning_rate_decay,
-                  learning_rate_decay_factor,
-                  weight_decay, learning_rate_decay_epoch))
-    print(kwargs)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print('using: ', end='')
-    if torch.cuda.is_available():
-        print(torch.cuda.device_count(),' * ',end='')
-        print(torch.cuda.get_device_name(torch.cuda.current_device()))
-    else:
-        print(device)
-
-    if validation_loader is None :
-        validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
-                                                                 num_workers=num_workers,
-                                                                 dataset_name=dataset_name,
-                                                                 )
-
-    flop_original_net = measure_flops.measure_model(net, dataset_name)
-    original_accuracy = evaluate.evaluate_net(net=net,
-                                              data_loader=validation_loader,
-                                              save_net=False,
-                                              dataset_name=dataset_name,
-                                              )
-    if tar_acc_gradual_decent is True:
-        flop_drop_expected = flop_original_net - flop_expected
-        acc_drop_tolerance = original_accuracy - target_accuracy
-
-    num_conv = 0  # num of conv layers in the network
-    filter_num=list()
-    for mod in net.features:
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            num_conv += 1
-            filter_num.append(mod.out_channels)
-
-    round=0
-    while round<round_of_prune:
-        round+=1
-        print('{} start round {} of random filter pruning.'.format(datetime.now(),round))
-        for i in range(num_conv):
-            num_to_prune=int((filter_num[i]-final_filter_num[i])/(round_of_prune-round+1))           #number of filters to prune in this round
-            filter_num[i]=filter_num[i]-num_to_prune                                            #update the number of filters in layer i
-            pruning_filter_index=random.sample(range(0,filter_num[i]),num_to_prune)
-            print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
-                                                                          num_to_prune))
-            net = prune.prune_conv_layer(model=net, layer_index=i + 1,
-                                         filter_index=pruning_filter_index)  # prune the dead filter
-
-
-
-        flop_pruned_net = measure_flops.measure_model(net, dataset_name)
-
-        if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
-            flop_reduced=flop_original_net-flop_pruned_net
-            target_accuracy=min(0.935,original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected))
-            print('{} current target accuracy:{}'.format(datetime.now(),target_accuracy))
-
-        success=False
-        while not success:
-            old_net = copy.deepcopy(net)
-            success = train.train(net=net,
-                                  net_name=net_name,
-                                  num_epochs=num_epoch,
-                                  target_accuracy=target_accuracy,
-                                  learning_rate=learning_rate,
-                                  load_net=False,
-                                  checkpoint_step=checkpoint_step,
-                                  dataset_name=dataset_name,
-                                  optimizer=optimizer,
-                                  batch_size=batch_size,
-                                  learning_rate_decay=learning_rate_decay,
-                                  learning_rate_decay_factor=learning_rate_decay_factor,
-                                  weight_decay=weight_decay,
-                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                  test_net=True,
-                                  **kwargs
-                                  )
-            if not success:
-                net = old_net
-
-
-# def prune_layer_gradually():
-#     network = train.create_net('vgg16_bn', True)
-#
-#     num_conv = 0  # num of conv layers in the network
-#     for mod in network.features:
-#         if isinstance(mod, torch.nn.modules.conv.Conv2d):
-#             num_conv += 1
-#
-#     # for i in range(1, 7):
-#     #     network = select_and_prune_filter(network, layer_index=i, percent_of_pruning=0.1,
-#     #                                   ord=2)  # prune the model
-#
-#     file_new = '/home/victorfang/Desktop/pytorch_model/vgg16_bn,gradual_pruned/checkpoint/sample_num=64064.tar'
-#     if os.path.isfile(file_new):
-#         checkpoint = torch.load(file_new)
-#         network = checkpoint['net']
-#         network.load_state_dict(checkpoint['state_dict'])
-#
-#     iteration = 1
-#     while (True):
-#         print('{} start iteration:{}'.format(datetime.now(), iteration))
-#         for i in range(10, num_conv + 1):
-#             network = select_and_prune_filter(network, layer_index=i, percent_of_pruning=0.1,
-#                                           ord=2)  # prune the model
-#             print('{} layer {} pruned'.format(datetime.now(), i))
-#
-#             validation_loader = data_loader.create_validation_loader(dataset_path=conf.imagenet['validation_set_path'],
-#                                                                      default_image_size=224,
-#                                                                      mean=conf.imagenet['mean'],
-#                                                                      std=conf.imagenet['std'],
-#                                                                      batch_size=conf.batch_size,
-#                                                                      num_workers=conf.num_workers,
-#                                                                      dataset_name='imagenet')
-#             net_name = 'vgg16_bn,gradual_pruned'
-#             checkpoint_path = conf.root_path + net_name + '/checkpoint'
-#             accuracy = evaluate.evaluate_net(network, validation_loader,
-#                                              save_net=True,
-#                                              checkpoint_path=checkpoint_path,
-#                                              sample_num=0,
-#                                              target_accuracy=0.7)
-#             if accuracy < 0.7:
-#                 train.train(network=network,
-#                             net_name=net_name,
-#                             num_epochs=1,
-#                             target_accuracy=0.7,
-#                             learning_rate=2e-5,
-#                             load_net=False,
-#                             checkpoint_step=1000
-#                             )
-#         break
-#         iteration += 1
 
 def prune_inactive_neural_with_regressor(net,
                                          net_name,
@@ -923,7 +276,7 @@ def prune_inactive_neural_with_regressor(net,
     sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
 
     print(
-        'network:{}\n' 
+        'net:{}\n' 
         'net_name:{}\n' 
         'target_accuracy:{}\n' 
         'prune_rate:{}\n' 
@@ -982,7 +335,7 @@ def prune_inactive_neural_with_regressor(net,
         flop_drop_expected = flop_original_net - flop_expected
         acc_drop_tolerance = original_accuracy - target_accuracy
 
-    num_conv = 0  # num of conv layers in the network
+    num_conv = 0  # num of conv layers in the net
     filter_num_lower_bound = list()
     filter_num = list()
     for mod in net.modules():
@@ -1010,7 +363,7 @@ def prune_inactive_neural_with_regressor(net,
             filter+=filter_tmp
             filter_layer+=filter_layer_tmp
 
-    #using data to prune the network for (round_for_train)rounds
+    #using data to prune the net for (round_for_train)rounds
 
     round-=1           # 懒得改了，先这样吧
     while True:
@@ -1034,9 +387,9 @@ def prune_inactive_neural_with_regressor(net,
             if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
                 os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
 
-            torch.save({'prune_rate': prune_rate,
-                        'network': net, 'module_list': module_list,
-                        'neural_list': neural_list, 'state_dict': net.state_dict(), 'batch_size': batch_size},
+            torch.save({'prune_rate': prune_rate,'module_list': module_list,
+                        'neural_list': neural_list, 'state_dict': net.state_dict(),
+                        'batch_size': batch_size}.update(storage.get_net_information(net,dataset_name,net_name)),
                        conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
 
             dead_ratio+=dead_ratio_tmp
@@ -1059,7 +412,7 @@ def prune_inactive_neural_with_regressor(net,
                                                                                )
 
         net_compressed = False
-        #prune the network according to dead_filter_index
+        #prune the net according to dead_filter_index
         for i in range(num_conv):
             # ensure the number of filters pruned will not be too large for one time
             if type(max_filters_pruned_for_one_time) is list:
@@ -1119,7 +472,7 @@ def prune_inactive_neural_with_regressor(net,
                 net = old_net.to(device)
                 max_training_iteration -= 1
                 if max_training_iteration == 0:
-                    print('{} network can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
+                    print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
                     return
 
 
@@ -1149,7 +502,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                                 learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                                                 max_training_iteration=9999,
                                                 round=1,
-                                 **kwargs
+                                                **kwargs
                                  ):
     '''
 
@@ -1177,7 +530,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     :param learning_rate_decay_factor:
     :param weight_decay:
     :param learning_rate_decay_epoch:
-    :param max_training_iteration:if the network can't reach target accuracy in max_training_iteration , the program stop.
+    :param max_training_iteration:if the net can't reach target accuracy in max_training_iteration , the program stop.
     :param kwargs:
     :return:
     '''
@@ -1189,7 +542,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
     sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
 
-    print('network:',net)
+    print('net:',net)
     print('net_name:',net_name)
     print('target_accuracy:',target_accuracy)
     print('prune_rate:',prune_rate)
@@ -1249,7 +602,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     filter_num_lower_bound = list()  # 最低filter数量
     filter_num = list()
     for mod in net.modules():
-        if isinstance(mod, resnet_copied.BasicBlock) or isinstance(mod, resnet_tinyimagenet.BasicBlock):
+        if isinstance(mod, resnet_cifar.BasicBlock) or isinstance(mod, resnet_tinyimagenet.BasicBlock):
             index_in_block = 1
         elif isinstance(mod, torch.nn.modules.conv.Conv2d):
             if index_in_block == 1:  # 在block里面
@@ -1267,7 +620,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                 filter_num.append(mod.out_channels)
             i += 1
 
-    modules_list=create_module_list(net)  # 创建一个list保存每一个module的名字
+    modules_list=prune.create_module_list(net)  # 创建一个list保存每一个module的名字
 
     filter_layer = list()
     filter=list()
@@ -1287,7 +640,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
             dead_ratio+=dead_ratio_tmp
             filter+=filter_tmp
             filter_layer+=filter_layer_tmp
-    # using data to prune the network for (round_for_train)rounds
+    # using data to prune the net for (round_for_train)rounds
     round-=1                        #懒得改了，先这样吧
     while True:
         round += 1
@@ -1312,9 +665,9 @@ def prune_inactive_neural_with_regressor_resnet(net,
             if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
                 os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
 
-            torch.save({'prune_rate': prune_rate,
-                        'network': net, 'module_list': module_list,
-                        'neural_list': neural_list, 'state_dict': net.state_dict(), 'batch_size': batch_size},
+            torch.save({'prune_rate': prune_rate,'module_list': module_list,
+                        'neural_list': neural_list, 'state_dict': net.state_dict(),
+                        'batch_size': batch_size}.update(storage.get_net_information(net,dataset_name,net_name)),
                        conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
 
             dead_ratio += dead_ratio_tmp
@@ -1395,11 +748,671 @@ def prune_inactive_neural_with_regressor_resnet(net,
                 net = old_net
                 max_training_iteration-=1
                 if max_training_iteration==0:
-                    print('{} network can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
+                    print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
                     return
 
+def prune_filters_randomly(net,
+                           net_name,
+                           target_accuracy,
+                           round_of_prune,
+                           final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
+                           tar_acc_gradual_decent=False,
+                           flop_expected=None,
+                           validation_loader=None,
+                           dataset_name='cifar10',
+                           batch_size=conf.batch_size,
+                           num_workers=conf.num_workers,
+                           optimizer=optim.Adam,
+                           learning_rate=0.01,
+                           checkpoint_step=1000,
+                           num_epoch=450,
+                           learning_rate_decay=False,
+                           learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                           weight_decay=conf.weight_decay,
+                           learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                           **kwargs
+                           ):
+    '''
 
-# def prune_dead_neural_resnet(network,
+    :param net:
+    :param net_name:
+    :param target_accuracy:
+    :param round_of_prune:
+    :param final_filter_num:
+    :param tar_acc_gradual_decent:
+    :param flop_expected:
+    :param validation_loader:
+    :param dataset_name:
+    :param batch_size:
+    :param num_workers:
+    :param optimizer:
+    :param learning_rate:
+    :param checkpoint_step:
+    :param num_epoch:
+    :param learning_rate_decay:
+    :param learning_rate_decay_factor:
+    :param weight_decay:
+    :param learning_rate_decay_epoch:
+    :return:
+    '''
+    # save the output to log
+    print('save log in:' + conf.root_path + net_name + '/log.txt')
+    if not os.path.exists(conf.root_path + net_name):
+        os.makedirs(conf.root_path + net_name, exist_ok=True)
+    sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
+    sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
+
+    print('net:{}\n'
+          'net_name:{}\n'
+          'target_accuracy:{}\n'
+          'round of prune:{}\n'
+          'final_filter_num:{}\n'
+          'tar_acc_gradual_decent:{}\n'
+          'flop_expected:{}\n'
+          'validation_loader:{}\n'
+          'dataset_name:{}\n'
+          'batch_size:{}\n'
+          'num_workers:{}\n'
+          'optimizer:{}\n'
+          'learning_rate:{}\n'
+          'checkpoint_step:{}\n'
+          'num_epoch:{}\n'
+          'learning_rate_decay:{}\n'
+          'learning_rate_decay_factor:{}\n'
+          'weight_decay:{}\n'
+          'learning_rate_decay_epoch:{}'
+          .format(net, net_name,   target_accuracy,
+                  round_of_prune,final_filter_num,tar_acc_gradual_decent,flop_expected,validation_loader,
+                  dataset_name, batch_size, num_workers, optimizer,
+                  learning_rate, checkpoint_step,
+                  num_epoch, learning_rate_decay,
+                  learning_rate_decay_factor,
+                  weight_decay, learning_rate_decay_epoch))
+    print(kwargs)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print('using: ', end='')
+    if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))
+    else:
+        print(device)
+
+    if validation_loader is None :
+        validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+                                                                 num_workers=num_workers,
+                                                                 dataset_name=dataset_name,
+                                                                 )
+
+    flop_original_net = measure_flops.measure_model(net, dataset_name)
+    original_accuracy = evaluate.evaluate_net(net=net,
+                                              data_loader=validation_loader,
+                                              save_net=False,
+                                              dataset_name=dataset_name,
+                                              )
+    if tar_acc_gradual_decent is True:
+        flop_drop_expected = flop_original_net - flop_expected
+        acc_drop_tolerance = original_accuracy - target_accuracy
+
+    num_conv = 0  # num of conv layers in the net
+    filter_num=list()
+    for mod in net.features:
+        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+            num_conv += 1
+            filter_num.append(mod.out_channels)
+
+    round=0
+    while round<round_of_prune:
+        round+=1
+        print('{} start round {} of random filter pruning.'.format(datetime.now(),round))
+        for i in range(num_conv):
+            num_to_prune=int((filter_num[i]-final_filter_num[i])/(round_of_prune-round+1))           #number of filters to prune in this round
+            filter_num[i]=filter_num[i]-num_to_prune                                            #update the number of filters in layer i
+            pruning_filter_index=random.sample(range(0,filter_num[i]),num_to_prune)
+            print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
+                                                                          num_to_prune))
+            net = prune.prune_conv_layer(model=net, layer_index=i + 1,
+                                         filter_index=pruning_filter_index)  # prune the dead filter
+
+
+
+        flop_pruned_net = measure_flops.measure_model(net, dataset_name)
+
+        if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
+            flop_reduced=flop_original_net-flop_pruned_net
+            target_accuracy=min(0.935,original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected))
+            print('{} current target accuracy:{}'.format(datetime.now(),target_accuracy))
+
+        success=False
+        while not success:
+            old_net = copy.deepcopy(net)
+            success = train.train(net=net,
+                                  net_name=net_name,
+                                  num_epochs=num_epoch,
+                                  target_accuracy=target_accuracy,
+                                  learning_rate=learning_rate,
+                                  load_net=False,
+                                  checkpoint_step=checkpoint_step,
+                                  dataset_name=dataset_name,
+                                  optimizer=optimizer,
+                                  batch_size=batch_size,
+                                  learning_rate_decay=learning_rate_decay,
+                                  learning_rate_decay_factor=learning_rate_decay_factor,
+                                  weight_decay=weight_decay,
+                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                  test_net=True,
+                                  **kwargs
+                                  )
+            if not success:
+                net = old_net
+                
+                
+                
+                
+
+# def prune_dead_neural_with_classifier(net,
+#                                      net_name,
+#                                      neural_dead_times,
+#                                      filter_dead_ratio,
+#                                      target_accuracy,
+#                                      predictor_name='logistic_regression',
+#                                      round_for_train=2,
+#                                      tar_acc_gradual_decent=False,
+#                                      flop_expected=None,
+#                                      filter_dead_ratio_decay=0.95,
+#                                      neural_dead_times_decay=0.95,
+#                                      dataset_name='imagenet',
+#                                      use_random_data=False,
+#                                      validation_loader=None,
+#                                      batch_size=conf.batch_size,
+#                                      num_workers=conf.num_workers,
+#                                      optimizer=optim.Adam,
+#                                      learning_rate=0.01,
+#                                      checkpoint_step=1000,
+#                                      num_epoch=350,
+#                                      filter_preserve_ratio=0.3,
+#                                      min_filters_pruned_for_one_time=0.05,
+#                                      max_filters_pruned_for_one_time=0.5,
+#                                      learning_rate_decay=False,
+#                                      learning_rate_decay_factor=conf.learning_rate_decay_factor,
+#                                      weight_decay=conf.weight_decay,
+#                                      learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+#                                      **kwargs
+#                                      ):
+#     '''
+# 
+#     :param net:
+#     :param net_name:
+#     :param neural_dead_times:
+#     :param filter_dead_ratio:
+#     :param target_accuracy:
+#     :param predictor_name: name of the predictor used
+#     :param round_for_train:
+#     :param tar_acc_gradual_decent:
+#     :param flop_expected:
+#     :param filter_dead_ratio_decay:
+#     :param neural_dead_times_decay:
+#     :param dataset_name:
+#     :param use_random_data:
+#     :param validation_loader:
+#     :param batch_size:
+#     :param num_workers:
+#     :param optimizer:
+#     :param learning_rate:
+#     :param checkpoint_step:
+#     :param num_epoch:
+#     :param filter_preserve_ratio:
+#     :param min_filters_pruned_for_one_time:
+#     :param max_filters_pruned_for_one_time:
+#     :param learning_rate_decay:
+#     :param learning_rate_decay_factor:
+#     :param weight_decay:
+#     :param learning_rate_decay_epoch:
+#     :return:
+#     '''
+#     # save the output to log
+#     print('save log in:' + conf.root_path + net_name + '/log.txt')
+#     if not os.path.exists(conf.root_path + net_name):
+#         os.makedirs(conf.root_path + net_name, exist_ok=True)
+#     sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
+#     sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
+# 
+#     print('net:{}\n'
+#           'net_name:{}\n'
+#           'use_random_data:{}\n'
+#           'neural_dead_times:{}\n'
+#           'filter_dead_ratio:{}\n'
+#           'target_accuracy:{}\n'
+#           'predictor_name:{}\n'
+#           'round_for_train:{}\n'
+#           'tar_acc_gradual_decent:{}\n'
+#           'flop_expected:{}\n'
+#           'filter_dead_ratio_decay:{}\n'
+#           'neural_dead_times_decay:{}\n'
+#           'dataset_name:{}\n'
+#           'validation_loader:{}\n'
+#           'batch_size:{}\n'
+#           'num_workers:{}\n'
+#           'optimizer:{}\n'
+#           'learning_rate:{}\n'
+#           'checkpoint_step:{}\n'
+#           'num_epoch:{}\n'
+#           'filter_preserve_ratio:{}\n'
+#           'max_filters_pruned_for_one_time:{}\n'
+#           'min_filters_pruned_for_one_time:{}\n'
+#           'learning_rate_decay:{}\n'
+#           'learning_rate_decay_factor:{}\n'
+#           'weight_decay:{}\n'
+#           'learning_rate_decay_epoch:{}'
+#           .format(net, net_name, use_random_data, neural_dead_times, filter_dead_ratio, target_accuracy,
+#                   predictor_name,round_for_train,
+#                   tar_acc_gradual_decent,
+#                   flop_expected, filter_dead_ratio_decay,
+#                   neural_dead_times_decay, dataset_name, validation_loader, batch_size, num_workers, optimizer,
+#                   learning_rate, checkpoint_step,
+#                   num_epoch, filter_preserve_ratio, max_filters_pruned_for_one_time,min_filters_pruned_for_one_time, learning_rate_decay,
+#                   learning_rate_decay_factor,
+#                   weight_decay, learning_rate_decay_epoch))
+#     print(kwargs)
+# 
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     print('using: ', end='')
+#     if torch.cuda.is_available():
+#         print(torch.cuda.device_count(),' * ',end='')
+#         print(torch.cuda.get_device_name(torch.cuda.current_device()))
+#     else:
+#         print(device)
+# 
+#     if validation_loader is None:
+#         validation_loader = data_loader.create_validation_loader(
+#                                                                  batch_size=batch_size,
+#                                                                  num_workers=num_workers,
+#                                                                  dataset_name=dataset_name,
+#                                                                  )
+# 
+#     flop_original_net = measure_flops.measure_model(net, dataset_name)
+#     original_accuracy = evaluate.evaluate_net(net=net,
+#                                               data_loader=validation_loader,
+#                                               save_net=False,
+#                                               dataset_name=dataset_name,
+#                                               )
+#     if tar_acc_gradual_decent is True:
+#         flop_drop_expected = flop_original_net - flop_expected
+#         acc_drop_tolerance = original_accuracy - target_accuracy
+# 
+#     num_conv = 0  # num of conv layers in the net
+#     filter_num_lower_bound = list()
+#     filter_num = list()
+#     for mod in net.features:
+#         if isinstance(mod, torch.nn.modules.conv.Conv2d):
+#             num_conv += 1
+#             filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))
+#             filter_num.append(mod.out_channels)
+# 
+#     lived_filter=list()
+#     dead_filter=list()
+# 
+#     #using data to prune the net for (round_for_train)rounds
+#     round = 0
+#     while True:
+#         round += 1
+#         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
+# 
+#         if round==round_for_train+1:
+#             # use filters from (round_for_train)rounds to train the classifier
+# 
+#             ##train the predictor######################################################################################################
+#             predictor= predict_dead_filter.predictor(name=predictor_name)
+#             predictor.fit(lived_filter=lived_filter, dead_filter=dead_filter)
+# 
+#         if round<=round_for_train:
+#             print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(), filter_dead_ratio,
+#                                                                                 neural_dead_times))
+#             #find dead filters
+#             dead_filter_index,module_list,neural_list = evaluate.find_useless_filters_data_version(net=net, filter_dead_ratio=filter_dead_ratio,
+#                                                                                                    neural_dead_times=neural_dead_times, batch_size=batch_size, use_random_data=use_random_data)
+#             # save dead and lived filters for training the classifier
+#             i = 0
+#             for mod in net.features:
+#                 if isinstance(mod, torch.nn.modules.conv.Conv2d):
+#                     conv_weight = copy.deepcopy(mod).weight.cpu().detach().numpy()
+#                     dead_filter = dead_filter + list(conv_weight[dead_filter_index[i]])
+#                     lived_filter = lived_filter + list(
+#                         conv_weight[[j for j in range(conv_weight.shape[0]) if j not in dead_filter_index[i]]])
+# 
+#                     # ensure the number of filters pruned will not be too large for one time
+#                     if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
+#                         dead_filter_index[i] = dead_filter_index[i][
+#                                                :int(filter_num[i] * max_filters_pruned_for_one_time)]
+#                     # ensure the lower bound of filter number
+#                     if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
+#                         dead_filter_index[i] = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
+#                     i += 1
+#         else:
+#             dead_filter_index= evaluate.predict_dead_filters_classifier_version(net=net,
+#                                                                                 predictor=predictor,
+#                                                                                 min_ratio_dead_filters=min_filters_pruned_for_one_time,
+#                                                                                 max_ratio_dead_filters=max_filters_pruned_for_one_time,
+#                                                                                 filter_num_lower_bound=filter_num_lower_bound)
+# 
+#         net_compressed = False
+#         #prune the net according to dead_filter_index
+#         for i in range(num_conv):
+#             filter_num[i] = filter_num[i] - len(dead_filter_index[i])
+#             if len(dead_filter_index[i]) > 0:
+#                 net_compressed = True
+#             print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
+#                                                                           len(dead_filter_index[i])))
+# 
+#             net = prune.prune_conv_layer(model=net, layer_index=i + 1,
+#                                          filter_index=dead_filter_index[i])  # prune the dead filter
+# 
+#         if net_compressed is False:
+#             round -= 1
+#             filter_dead_ratio *= filter_dead_ratio_decay
+#             neural_dead_times *= neural_dead_times_decay
+#             print('{} round {} did not prune any filters. Restart.'.format(datetime.now(), round + 1))
+#             continue
+# 
+#         flop_pruned_net = measure_flops.measure_model(net, dataset_name)
+# 
+#         if tar_acc_gradual_decent is True:  # decent the target_accuracy
+#             flop_reduced = flop_original_net - flop_pruned_net
+#             target_accuracy = original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected)
+#             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
+# 
+#         success = False
+#         # while not success:
+#         #     old_net = copy.deepcopy(net)
+#         #     success = train.train(net=net,
+#         #                           net_name=net_name,
+#         #                           num_epochs=num_epoch,
+#         #                           target_accuracy=target_accuracy,
+#         #                           learning_rate=learning_rate,
+#         #                           load_net=False,
+#         #                           checkpoint_step=checkpoint_step,
+#         #                           dataset_name=dataset_name,
+#         #                           optimizer=optimizer,
+#         #                           batch_size=batch_size,
+#         #                           learning_rate_decay=learning_rate_decay,
+#         #                           learning_rate_decay_factor=learning_rate_decay_factor,
+#         #                           weight_decay=weight_decay,
+#         #                           learning_rate_decay_epoch=learning_rate_decay_epoch,
+#         #                           test_net=True,
+#         #                           )
+#         #     if not success:
+#         #         net = old_net
+#         # filter_dead_ratio *= filter_dead_ratio_decay
+#         # neural_dead_times *= neural_dead_times_decay
+
+
+
+
+# def prune_dead_neural(net,
+#                       net_name,
+#                       neural_dead_times,
+#                       filter_dead_ratio,
+#                       target_accuracy,
+#                       tar_acc_gradual_decent=False,
+#                       flop_expected=None,
+#                       filter_dead_ratio_decay=0.95,
+#                       neural_dead_times_decay=0.95,
+#                       dataset_name='imagenet',
+#                       use_random_data=False,
+#                       validation_loader=None,
+#                       batch_size=conf.batch_size,
+#                       num_workers=conf.num_workers,
+#                       optimizer=optim.Adam,
+#                       learning_rate=0.01,
+#                       checkpoint_step=1000,
+#                       num_epoch=350,
+#                       filter_preserve_ratio=0.3,
+#                       max_filters_pruned_for_one_time=0.5,
+#                       learning_rate_decay=False,
+#                       learning_rate_decay_factor=conf.learning_rate_decay_factor,
+#                       weight_decay=conf.weight_decay,
+#                       learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+#                       **kwargs
+#                      ):
+#     '''
+# 
+#     :param net:
+#     :param net_name:
+#     :param neural_dead_times(ndt):int, threshold for judging a dead neural node
+#     :param filter_dead_ratio(fdr):float, threshold for judging a dead filter
+#     :param target_accuracy: float,
+#     :param tar_acc_gradual_decent:bool, if true, the target accuracy will decent from original acc. to target acc. during every round of pruning
+#     :param flop_expected: int: expected flop after net pruned. will only work when tar_acc_gradual_decent is true
+#     :param filter_dead_ratio_decay:float, decay rate for fdr in each round of pruning
+#     :param neural_dead_times_decay:float, decay rate for ndt in each round of pruning
+#     :param dataset_name:
+#     :param use_random_data:bool, if true, generated data which fits normal distribution will be used to calculate dead filters.
+#     :param validation_loader:
+#     :param batch_size:
+#     :param num_workers:
+#     :param optimizer:
+#     :param learning_rate:
+#     :param checkpoint_step:
+#     :param num_epoch:
+#     :param filter_preserve_ratio:
+#     :param max_filters_pruned_for_one_time:
+#     :param learning_rate_decay:
+#     :param learning_rate_decay_factor:
+#     :param weight_decay:
+#     :param learning_rate_decay_epoch:
+#     :return:
+#     '''
+#     #save the output to log
+#     print('save log in:' + conf.root_path + net_name + '/log.txt')
+#     if not os.path.exists(conf.root_path + net_name ):
+#         os.makedirs(conf.root_path + net_name , exist_ok=True)
+#     sys.stdout = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stdout)
+#     sys.stderr = logger.Logger(conf.root_path+net_name+'/log.txt', sys.stderr)  # redirect std err, if necessary
+# 
+#     print('net:{}\n'
+#           'net_name:{}\n'
+#           'use_random_data:{}\n'
+#           'neural_dead_times:{}\n'
+#           'filter_dead_ratio:{}\n'
+#           'target_accuracy:{}\n'
+#           'tar_acc_gradual_decent:{}\n'
+#           'flop_expected:{}\n'
+#           'filter_dead_ratio_decay:{}\n'
+#           'neural_dead_times_decay:{}\n'
+#           'dataset_name:{}\n'
+#           'validation_loader:{}\n'
+#           'batch_size:{}\n'
+#           'num_workers:{}\n'
+#           'optimizer:{}\n'
+#           'learning_rate:{}\n'
+#           'checkpoint_step:{}\n'
+#           'num_epoch:{}\n'
+#           'filter_preserve_ratio:{}\n'
+#           'max_filters_pruned_for_one_time:{}\n'
+#           'learning_rate_decay:{}\n'
+#           'learning_rate_decay_factor:{}\n'
+#           'weight_decay:{}\n'
+#           'learning_rate_decay_epoch:{}'
+#           .format(net,net_name,use_random_data,neural_dead_times,filter_dead_ratio,target_accuracy,tar_acc_gradual_decent,
+#                   flop_expected,filter_dead_ratio_decay,
+#                   neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
+#                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
+#                   weight_decay,learning_rate_decay_epoch))
+#     print(kwargs)
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     print('using: ', end='')
+#     if torch.cuda.is_available():
+#         print(torch.cuda.device_count(),' * ',end='')
+#         print(torch.cuda.get_device_name(torch.cuda.current_device()))
+#     else:
+#         print(device)
+# 
+#     if validation_loader is None :
+#         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+#                                                                  num_workers=num_workers,
+#                                                                  dataset_name=dataset_name,
+#                                                                  )
+# 
+#     flop_original_net= measure_flops.measure_model(net, dataset_name)
+#     original_accuracy= evaluate.evaluate_net(net=net,
+#                                              data_loader=validation_loader,
+#                                              save_net=False,
+#                                              dataset_name=dataset_name,
+#                                              )
+#     if tar_acc_gradual_decent is True:
+#         flop_drop_expected = flop_original_net - flop_expected
+#         acc_drop_tolerance = original_accuracy - target_accuracy
+# 
+#     num_conv = 0  # num of conv layers in the net
+#     filter_num_lower_bound=list()
+#     filter_num=list()
+#     for mod in net.features:
+#         if isinstance(mod, torch.nn.modules.conv.Conv2d):
+#             num_conv += 1
+#             filter_num_lower_bound.append(int(mod.out_channels*filter_preserve_ratio))
+#             filter_num.append(mod.out_channels)
+# 
+#     round=0
+#     while True:
+#         round+=1
+#         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
+#         print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(), filter_dead_ratio,
+#                                                                             neural_dead_times))
+# 
+#         # find dead filters
+#         dead_filter_index, module_list, neural_list = evaluate.find_useless_filters_data_version(net=net,
+#                                                                                                  filter_dead_ratio=filter_dead_ratio,
+#                                                                                                  neural_dead_times=neural_dead_times,
+#                                                                                                  batch_size=batch_size,
+#                                                                                                  use_random_data=use_random_data)
+# 
+#         if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
+#             os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
+# 
+#         torch.save({'neural_dead_times': neural_dead_times, 'filter_dead_ratio': filter_dead_ratio,
+#                     'net': net, 'module_list': module_list,
+#                     'neural_list': neural_list, 'state_dict': net.state_dict(),'batch_size':batch_size},
+#                    conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
+# 
+#         net_compressed = False
+#         for i in range(num_conv):
+#             # ensure the number of filters pruned will not be too large for one time
+#             if filter_num[i] * max_filters_pruned_for_one_time < len(dead_filter_index[i]):
+#                 dead_filter_index[i] = dead_filter_index[i][:int(filter_num[i] * max_filters_pruned_for_one_time)]
+#             # ensure the lower bound of filter number
+#             if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
+#                 dead_filter_index[i] = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
+#             filter_num[i] = filter_num[i] - len(dead_filter_index[i])
+#             if len(dead_filter_index[i]) > 0:
+#                 net_compressed = True
+# 
+#             print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i],
+#                                                                           len(dead_filter_index[i])))
+# 
+#             net= prune.prune_conv_layer(model=net, layer_index=i + 1, filter_index=dead_filter_index[i])    #prune the dead filter
+# 
+#         if net_compressed is False:
+#             os.remove(conf.root_path+net_name+'/dead_neural/round %d.tar'%round)
+#             round-=1
+#             filter_dead_ratio *= filter_dead_ratio_decay
+#             neural_dead_times *= neural_dead_times_decay
+#             print('{} round {} did not prune any filters. Restart.'.format(datetime.now(),round+1))
+#             continue
+# 
+#         flop_pruned_net= measure_flops.measure_model(net, dataset_name)
+# 
+#         #todo:现在根据剪了多少浮点量来线性降低准确率，也可考虑根据剪的轮数来降低准确率
+#         #todo:也可考虑改为非线性下降，一开始下降的少点
+#         if tar_acc_gradual_decent is True:                                      #decent the target_accuracy
+#             flop_reduced=flop_original_net-flop_pruned_net
+#             target_accuracy=original_accuracy-acc_drop_tolerance*(flop_reduced/flop_drop_expected)
+#             print('{} current target accuracy:{}'.format(datetime.now(),target_accuracy))
+# 
+#         success=False
+#         while not success:
+#             old_net=copy.deepcopy(net)
+#             success= train.train(net=net,
+#                                  net_name=net_name,
+#                                  num_epochs=num_epoch,
+#                                  target_accuracy=target_accuracy,
+#                                  learning_rate=learning_rate,
+#                                  load_net=False,
+#                                  checkpoint_step=checkpoint_step,
+#                                  dataset_name=dataset_name,
+#                                  optimizer=optimizer,
+#                                  batch_size=batch_size,
+#                                  learning_rate_decay=learning_rate_decay,
+#                                  learning_rate_decay_factor=learning_rate_decay_factor,
+#                                  weight_decay=weight_decay,
+#                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
+#                                  test_net=True,
+#                                  **kwargs
+#                                  )
+#             if not success:
+#                 net=old_net
+#         filter_dead_ratio*=filter_dead_ratio_decay
+#         neural_dead_times*=neural_dead_times_decay
+
+
+
+
+
+# def prune_layer_gradually():
+#     net = train.create_net('vgg16_bn', True)
+#
+#     num_conv = 0  # num of conv layers in the net
+#     for mod in net.features:
+#         if isinstance(mod, torch.nn.modules.conv.Conv2d):
+#             num_conv += 1
+#
+#     # for i in range(1, 7):
+#     #     net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
+#     #                                   ord=2)  # prune the model
+#
+#     file_new = '/home/victorfang/Desktop/pytorch_model/vgg16_bn,gradual_pruned/checkpoint/sample_num=64064.tar'
+#     if os.path.isfile(file_new):
+#         checkpoint = torch.load(file_new)
+#         net = checkpoint['net']
+#         net.load_state_dict(checkpoint['state_dict'])
+#
+#     iteration = 1
+#     while (True):
+#         print('{} start iteration:{}'.format(datetime.now(), iteration))
+#         for i in range(10, num_conv + 1):
+#             net = select_and_prune_filter(net, layer_index=i, percent_of_pruning=0.1,
+#                                           ord=2)  # prune the model
+#             print('{} layer {} pruned'.format(datetime.now(), i))
+#
+#             validation_loader = data_loader.create_validation_loader(dataset_path=conf.imagenet['validation_set_path'],
+#                                                                      default_image_size=224,
+#                                                                      mean=conf.imagenet['mean'],
+#                                                                      std=conf.imagenet['std'],
+#                                                                      batch_size=conf.batch_size,
+#                                                                      num_workers=conf.num_workers,
+#                                                                      dataset_name='imagenet')
+#             net_name = 'vgg16_bn,gradual_pruned'
+#             checkpoint_path = conf.root_path + net_name + '/checkpoint'
+#             accuracy = evaluate.evaluate_net(net, validation_loader,
+#                                              save_net=True,
+#                                              checkpoint_path=checkpoint_path,
+#                                              sample_num=0,
+#                                              target_accuracy=0.7)
+#             if accuracy < 0.7:
+#                 train.train(net=net,
+#                             net_name=net_name,
+#                             num_epochs=1,
+#                             target_accuracy=0.7,
+#                             learning_rate=2e-5,
+#                             load_net=False,
+#                             checkpoint_step=1000
+#                             )
+#         break
+#         iteration += 1
+
+
+
+
+# def prune_dead_neural_resnet(net,
 #                  net_name,
 #                  neural_dead_times,
 #                  filter_dead_ratio,  # no use
@@ -1438,7 +1451,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
 #     sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
 #
-#     print('network:{}\n'
+#     print('net:{}\n'
 #           'net_name:{}\n'
 #           'use_random_data:{}\n'
 #           'neural_dead_times:{}\n'
@@ -1464,7 +1477,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           'learning_rate_decay:{}\n'
 #           'learning_rate_decay_factor:{}\n'
 #           'weight_decay:{}\n'
-#           'learning_rate_decay_epoch:{}'.format(network, net_name, use_random_data, neural_dead_times, filter_dead_ratio,
+#           'learning_rate_decay_epoch:{}'.format(net, net_name, use_random_data, neural_dead_times, filter_dead_ratio,
 #                                                 target_accuracy,
 #                                                 predictor_name, round_for_train,
 #                                                 tar_acc_gradual_decent,
@@ -1484,15 +1497,15 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #         print(torch.cuda.get_device_name(torch.cuda.current_device()))
 #     else:
 #         print(device)
-#     network.to(device)
+#     net.to(device)
 #     '''加载数据集'''
 #     if validation_loader is None:
 #         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
 #                                                                  num_workers=num_workers,
 #                                                                  dataset_name=dataset_name)
 #
-#     flop_original_net = measure_flops.measure_model(network, dataset_name)
-#     original_accuracy = evaluate.evaluate_net(network=network,
+#     flop_original_net = measure_flops.measure_model(net, dataset_name)
+#     original_accuracy = evaluate.evaluate_net(net=net,
 #                                               data_loader=validation_loader,
 #                                               save_net=False,
 #                                               dataset_name=dataset_name,
@@ -1507,7 +1520,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     index_in_block = -1
 #     filter_num_lower_bound = list()  # 最低filter数量
 #     filter_num = list()
-#     for mod in network.modules():
+#     for mod in net.modules():
 #         if isinstance(mod, resnet_copied.BasicBlock):
 #             index_in_block = 1
 #         elif isinstance(mod, torch.nn.modules.conv.Conv2d):
@@ -1526,12 +1539,12 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                 filter_num.append(mod.out_channels)
 #             i += 1
 #
-#     modules_list=create_modulesList(network)  # 创建一个list保存每一个module的名字
+#     modules_list=prune.create_modulesList(net)  # 创建一个list保存每一个module的名字
 #
 #     lived_filter = list()
 #     dead_filter = list()
 #
-#     # using data to prune the network for (round_for_train)rounds
+#     # using data to prune the net for (round_for_train)rounds
 #     round = 0
 #     while True:
 #         round += 1
@@ -1549,14 +1562,14 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                                                                 neural_dead_times))
 #             '''找到死亡卷积核'''
 #             dead_filter_index, module_list, neural_list \
-#                 = evaluate.find_useless_filters_data_version(network=network,
+#                 = evaluate.find_useless_filters_data_version(net=net,
 #                                                           filter_dead_ratio=filter_dead_ratio,
 #                                                           neural_dead_times=neural_dead_times,
 #                                                           batch_size=batch_size,
 #                                                           use_random_data=use_random_data)
 #         else:
 #             dead_filter_index \
-#                 = evaluate.predict_dead_filters_classifier_version(network=network,
+#                 = evaluate.predict_dead_filters_classifier_version(net=net,
 #                                                                    predictor=predictor,
 #                                                                    min_ratio_dead_filters=min_filters_pruned_for_one_time,
 #                                                                    max_ratio_dead_filters=max_filters_pruned_for_one_time,
@@ -1577,7 +1590,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #             if len(dead_filter_index[i]) > 0:
 #                 net_compressed = True
 #             print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i], len(dead_filter_index[i])))
-#             network = prune.prune_conv_layer_resnet(network=network,
+#             net = prune.prune_conv_layer_resnet(net=net,
 #                                                 layer_index=i + 1,
 #                                                 filter_index=dead_filter_index[i],
 #                                                 modules_list=modules_list)
@@ -1589,7 +1602,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #             print('{} round {} did not prune any filters. Restart.'.format(datetime.now(), round + 1))
 #             continue
 #
-#         flop_pruned_net = measure_flops.measure_model(network, dataset_name)
+#         flop_pruned_net = measure_flops.measure_model(net, dataset_name)
 #
 #         if tar_acc_gradual_decent is True:  # decent the target_accuracy
 #             flop_reduced = flop_original_net - flop_pruned_net
@@ -1598,8 +1611,8 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #
 #         success = False
 #         # while not success:
-#         #     old_net = copy.deepcopy(network)
-#         #     success = train.train(network=network,
+#         #     old_net = copy.deepcopy(net)
+#         #     success = train.train(net=net,
 #         #                           net_name=net_name,
 #         #                           num_epochs=num_epoch,
 #         #                           target_accuracy=target_accuracy,
@@ -1616,33 +1629,17 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #         #                           test_net=True,
 #         #                           )
 #         #     if not success:
-#         #         network = old_net
+#         #         net = old_net
 #         # filter_dead_ratio *= filter_dead_ratio_decay
 #         # neural_dead_times *= neural_dead_times_decay
-def create_module_list(module,key='',prefix=''):
-    module_dict=getattr(module,'_modules')
-    if not module_dict:                                 #module_dict is empty, which means this module is the last node.
-        if prefix =='':
-            return [key]
-        else:
-            return [prefix+'.'+key]
-    modules_list=list()
-    if key != '':                                               #module is not network
-        if prefix =='':
-            prefix=key
-        else:
-            prefix=prefix+'.'+key
-    for k in module_dict:
-        modules_list+=create_module_list(module_dict[k],k,prefix)
-    return modules_list
 
 
 
 
-# def create_modulesList(network):
+# def prune.create_modulesList(net):
 #     """
 #     创建一个list保存每一个module的名字
-#     :param network:
+#     :param net:
 #     :return: modules_list
 #     """
 #     modules_list = []
@@ -1651,7 +1648,7 @@ def create_module_list(module,key='',prefix=''):
 #     index_in_block = -1
 #     layer = 1  # layer从1开始
 #     tag=0
-#     for mod in network.modules():
+#     for mod in net.modules():
 #         if isinstance(mod, torch.nn.modules.container.Sequential):  # layer
 #             if tag==0:# 上一层不是Sequential
 #                 temp_string = "layer" + str(layer) + "."
@@ -1700,16 +1697,16 @@ if __name__ == "__main__":
     #
     checkpoint = torch.load('../data/baseline/vgg16bn_cifar100_0.72630_t+v.tar')
     # checkpoint=torch.load('/home/zzj/fang/model_pytorch/model_saved/vgg16bn_cifar10_realdata_regressor5_大幅度/checkpoint/flop=49582154,accuracy=0.93330.tar')
-    # network=checkpoint['net']
+    # net=checkpoint['net']
 
     # checkpoint = torch.load('../data/baseline/resnet56_cifar10,accuracy=0.93280.tar')
     # checkpoint=torch.load('../data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
     # checkpoint=torch.load('/home/zzj/fang/model_pytorch/model_saved/resnet56_cifar10_regressor_prunedBaseline2/checkpoint/flop=52642442,accuracy=0.93320.tar')
-    # network = resnet_copied.resnet56().to(device)
-    net = checkpoint['net'].to(device)
+    # net = resnet_copied.resnet56().to(device)
+    net = net=storage.restore_net(checkpoint).to(device)
 
     # checkpoint=torch.load('/home/disk_new/model_saved/resnet56_cifar10_DeadNeural_realdata_good_baseline_过得去/代表/sample_num=13300000,accuracy=0.93610，flop=65931914.tar')
-    # network=checkpoint['net']
+    # net=checkpoint['net']
 
     net.load_state_dict(checkpoint['state_dict'])
     print(checkpoint['highest_accuracy'])
@@ -1745,7 +1742,7 @@ if __name__ == "__main__":
                                          )
 
     # for original baseline
-    # prune_inactive_neural_with_regressor_resnet(network=network,
+    # prune_inactive_neural_with_regressor_resnet(net=net,
     #                                             net_name='resnet56_cifar10_regressor2',
     #                                             prune_rate=0.15,
     #                                             load_regressor=False,
@@ -1769,7 +1766,7 @@ if __name__ == "__main__":
     #                                             learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
     #                                             learning_rate_decay_factor=0.5,
     #                                             )
-    # prune_resnet(network=network,
+    # prune_resnet(net=net,
     #              net_name='tmp',
     #              neural_dead_times=9000,
     #              filter_dead_ratio=0.9,
@@ -1792,7 +1789,7 @@ if __name__ == "__main__":
     #              )
 
 
-    # prune_filters_randomly(network=network,
+    # prune_filters_randomly(net=net,
     #
     #                         net_name='vgg16bn_cifar10_randomly_pruned_acc_not_decent',
     #                        round_of_prune=11,
@@ -1813,7 +1810,7 @@ if __name__ == "__main__":
     #
     #                                                  )
 
-    # prune_inactive_neural(network=network,
+    # prune_inactive_neural(net=net,
     #                       net_name='vgg16bn_cifar10_inactiveFilter',
     #                       dataset_name='cifar10',
     #                       prune_rate=0.1,

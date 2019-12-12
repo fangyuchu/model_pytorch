@@ -28,7 +28,6 @@ net.train_channel_weight(if_train=False)
 net.prune_channel_weight(percent=[0 for i in range(13)])
 net.to(device)
 
-evaluate.evaluate_net(net, data_loader=data_loader.create_validation_loader(batch_size=512, num_workers=8, dataset_name='cifar10'), save_net=False)
 # print()
 
 

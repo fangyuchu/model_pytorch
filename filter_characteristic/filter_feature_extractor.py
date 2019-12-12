@@ -6,6 +6,7 @@ from network import vgg
 import network.vgg as vgg
 import os
 import numpy as np
+from network import storage
 
 class extractor(nn.Module):
     def __init__(self,net,feature_len,gcn_rounds=2):
@@ -54,7 +55,7 @@ def read_data(path='/home/victorfang/PycharmProjects/model_pytorch/data/最少�
     for file_name in file_list:
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
-            net=checkpoint['net']
+            net=storage.restore_net(checkpoint)
             net.load_state_dict(checkpoint['state_dict'])
             nets+=[net]
             neural_list=checkpoint['neural_list']

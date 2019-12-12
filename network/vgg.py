@@ -22,18 +22,31 @@ model_urls = {
 
 class VGG(nn.Module):
 
-    def __init__(self, features, num_classes=1000, init_weights=True):
+    def __init__(self, features, num_classes=1000, init_weights=True,dataset_name='imagenet'):
         super(VGG, self).__init__()
         self.features = features
-        self.classifier = nn.Sequential(
-            nn.Linear(512 * 7 * 7, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, num_classes),
-        )
+        if dataset_name == 'imagenet':
+            self.classifier = nn.Sequential(
+                nn.Linear(512*7*7, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 1000),
+            )
+        elif dataset_name == 'cifar10':
+            self.classifier = nn.Sequential(
+                nn.Dropout(),
+                nn.Linear(512 , 512),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(512, 512),
+                nn.ReLU(True),
+                nn.Linear(512, 10),
+            )
+        else:
+            raise Exception("Please input right dataset_name")
         if init_weights:
             self._initialize_weights()
 

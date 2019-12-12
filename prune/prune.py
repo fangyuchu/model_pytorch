@@ -8,6 +8,23 @@ def replace_layers(module,old_mod,new_mod):
             return new_mod[i]
     return module
 
+def create_module_list(module,key='',prefix=''):
+    module_dict=getattr(module,'_modules')
+    if not module_dict:                                 #module_dict is empty, which means this module is the last node.
+        if prefix =='':
+            return [key]
+        else:
+            return [prefix+'.'+key]
+    modules_list=list()
+    if key != '':                                               #module is not network
+        if prefix =='':
+            prefix=key
+        else:
+            prefix=prefix+'.'+key
+    for k in module_dict:
+        modules_list+=create_module_list(module_dict[k],k,prefix)
+    return modules_list
+
 def prune_conv_layer_resnet(net, layer_index, filter_index, modules_list):
     """
     :param net:
@@ -155,7 +172,7 @@ def prune_conv_layer_resnet(net, layer_index, filter_index, modules_list):
         # Prunning the last conv layer. This affects the first linear layer of the classifier.
         layer_index = 0
         old_linear_layer = None
-        for _, module in net.classifier._modules.items():
+        for _, module in net.named_modules():
             if isinstance(module, torch.nn.Linear):
                 old_linear_layer = module
                 break
@@ -180,19 +197,14 @@ def prune_conv_layer_resnet(net, layer_index, filter_index, modules_list):
         new_weights[:] = old_weights[:,
                          [i for i in range(old_weights.shape[1]) if i not in node_index]]  # 复制剩余的filters的weight
 
-        #
-        # new_weights[:, : filter_index * params_per_input_channel] = \
-        #     old_weights[:, : filter_index * params_per_input_channel]
-        # new_weights[:, filter_index * params_per_input_channel:] = \
-        #     old_weights[:, (filter_index + 1) * params_per_input_channel:]
+
 
         new_linear_layer.bias.data = old_linear_layer.bias.data
 
         if torch.cuda.is_available():
             new_linear_layer.cuda()
 
-        net.classifier = torch.nn.Sequential(
-            *(replace_layers(mod, [old_linear_layer], [new_linear_layer]) for mod in net.classifier))
+        net.fc = new_linear_layer
 
     return net
 

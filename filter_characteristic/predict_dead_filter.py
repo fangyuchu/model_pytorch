@@ -11,6 +11,7 @@ from sklearn import preprocessing
 from sklearn.externals import joblib
 from sklearn import ensemble
 import math
+from network import storage
 
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               balance=False,
@@ -35,7 +36,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
         if '.tar' in file_name:
 
             checkpoint=torch.load(os.path.join(path,file_name))
-            net=checkpoint['net']
+            net=storage.restore_net(checkpoint)
             net.load_state_dict(checkpoint['state_dict'])
             neural_list=checkpoint['neural_list']
             try:
@@ -316,7 +317,7 @@ def read_from_checkpoint(path):
     for file_name in file_list:
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
-            net=checkpoint['net']
+            net=storage.restore_net(checkpoint)
             net.load_state_dict(checkpoint['state_dict'])
             filters_tmp,layers_tmp=get_filters(net=net)
             filters+=filters_tmp

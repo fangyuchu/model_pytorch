@@ -96,7 +96,7 @@ class ResNet(nn.Module):
         self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
-        self.linear = nn.Linear(64, num_classes)
+        self.fc = nn.Linear(64, num_classes)
 
         self.apply(_weights_init)
 
@@ -123,7 +123,7 @@ class ResNet(nn.Module):
         out = self.layer3(out)
         out = F.avg_pool2d(out, out.size()[3])
         out = out.view(out.size(0), -1)
-        out = self.linear(out)
+        out = self.fc(out)
         return out
 
 
@@ -161,67 +161,44 @@ def test(net):
     print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size()) > 1, net.parameters()))))
 
 
-def checkpoint_conversion(path):
-    '''
-    convert checkpoint downloaded to fit network which does not support parallel training.
-    :param path:
-    :return:
-    '''
-    c_original = torch.load(path)
-    new_state_dict = OrderedDict()
-    for k, v in c_original['state_dict'].items():
-        if 'module.' not in k:
-            return
-        name = k[7:]  # remove module.
-        new_state_dict[name] = v
-
-    c_new = {'highest_accuracy': c_original['best_prec1'],
-             'state_dict': new_state_dict}
-
-    torch.save(c_new, path)
-
-def checkpoint_conversion_with_block(path,net):
-    '''
-    convert checkpoint downloaded to fit network which does not support parallel training.
-    :param path:
-    :return:
-    '''
-    c_original = torch.load(path)
-    new_state_dict = OrderedDict()
-    for k, v in c_original['state_dict'].items():
-        if 'layer'  in k:
-            list_k=list(k)
-            list_k.insert(7,'block')
-            k=''.join(list_k)
-        new_state_dict[k] = v
-
-    c_new = {'highest_accuracy': c_original['highest_accuracy'],
-             'state_dict': new_state_dict}
-
-    torch.save(c_new, path)
+# def checkpoint_conversion(path):
+#     '''
+#     convert checkpoint downloaded to fit network which does not support parallel training.
+#     :param path:
+#     :return:
+#     '''
+#     c_original = torch.load(path)
+#     new_state_dict = OrderedDict()
+#     for k, v in c_original['state_dict'].items():
+#         if 'module.' not in k:
+#             return
+#         name = k[7:]  # remove module.
+#         new_state_dict[name] = v
+#
+#     c_new = {'highest_accuracy': c_original['best_prec1'],
+#              'state_dict': new_state_dict}
+#
+#     torch.save(c_new, path)
+#
+# def checkpoint_conversion_with_block(path,net):
+#     '''
+#     convert checkpoint downloaded to fit network which does not support parallel training.
+#     :param path:
+#     :return:
+#     '''
+#     c_original = torch.load(path)
+#     new_state_dict = OrderedDict()
+#     for k, v in c_original['state_dict'].items():
+#         if 'layer'  in k:
+#             list_k=list(k)
+#             list_k.insert(7,'block')
+#             k=''.join(list_k)
+#         new_state_dict[k] = v
+#
+#     c_new = {'highest_accuracy': c_original['highest_accuracy'],
+#              'state_dict': new_state_dict}
+#
+#     torch.save(c_new, path)
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net=resnet32().to(device)
-    path='/home/victorfang/PycharmProjects/model_pytorch/baseline/resnet56_cifar10,accuracy=0.94230.tar'
-
-    checkpoint=torch.load(path)
-    torch.save({'highest_accuracy': checkpoint['highest_accuracy'],
-             'state_dict': checkpoint['state_dict']},path)
-
-    #checkpoint_conversion_with_block(path=path,network=network)
-    checkpoint=torch.load(path)
-
-    net.load_state_dict(checkpoint['state_dict'])
-
-
-    validation_loader= data_loader.create_validation_loader(batch_size=1024, num_workers=6, dataset_name='cifar10')
-    evaluate.evaluate_net(net=net, data_loader=validation_loader, save_net=False)
-
-
-
-    # for net_name in __all__:
-    #     if net_name.startswith('resnet'):
-    #         print(net_name)
-    #         test(globals()[net_name]())
-    #         print()
+    print()
