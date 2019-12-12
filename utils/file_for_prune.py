@@ -1,24 +1,13 @@
-import train
-import vgg
-import torch.nn as nn
-import os
 import torch
-import torchvision.datasets as datasets
-import torchvision.transforms as transforms
-import config as conf
 import torch.optim as optim
-import logger
-import sys
-import resnet_copied
-import data_loader
-import measure_flops
-import prune_and_train
-
+from framework import measure_flops
+from prune import prune_and_train
+from network import vgg
 # print(torch.cuda.device(0))
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+# checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 #
 # net = checkpoint['net'].to(device)
 #
@@ -45,7 +34,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      batch_size=1600,
 #                                                      num_epoch=450,
 #                                                      checkpoint_step=1600,
-#                                                      use_random_data=True,
+#                                                      use_random_data=False,
 #                                                      # optimizer=optim.Adam,
 #                                                      # learning_rate=1e-3,
 #                                                      # weight_decay=0
@@ -59,7 +48,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 
-# checkpoint=torch.load('./baseline/resnet56_cifar100_0.71580.tar')
+# checkpoint=torch.load('../data/baseline/resnet56_cifar100_0.71580.tar')
 # checkpoint=torch.load('/home/zengyao/fang/model_pytorch/model_saved/resnet56_cifar100_regressor3/checkpoint/flop=90655076,accuracy=0.71000.tar')
 # net=checkpoint['net']
 # net.load_state_dict(checkpoint['state_dict'])
@@ -94,7 +83,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                             momentum=0.9,
 #                                                             )
 
-# checkpoint = torch.load('./baseline/vgg16bn_cifar100_0.72940.tar')
+# checkpoint = torch.load('../data/baseline/vgg16bn_cifar100_0.72940.tar')
 #
 # net = checkpoint['net'].to(device)
 #
@@ -135,7 +124,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      momentum=0.9,
 #                                                             )
 
-# checkpoint = torch.load('./baseline/vgg16bn_tinyimagenet_0.73150.tar')
+# checkpoint = torch.load('../data/baseline/vgg16bn_tinyimagenet_0.73150.tar')
 # checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/model_saved/vgg16bn_tinyimagenet_prune/checkpoint/flop=9501473860,accuracy=0.70140.tar')
 #
 # net = checkpoint['net'].to(device)
@@ -263,29 +252,67 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                      )
 
 
-checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+# 
+# #只训练全连接层
+# checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+# net = checkpoint['net'].to(device)
+# # 载入预训练模型参数后...
+# for name, value in net.named_parameters():
+#     if 'classifier' in name :
+#         value.requires_grad = True
+#     else:
+#         value.requires_grad=False
+# 
+# net.load_state_dict(checkpoint['state_dict'])
+# print(checkpoint['highest_accuracy'])
+# 
+# measure_flops.measure_model(net, 'cifar10', print_flop=True)
+# prune_and_train.prune_inactive_neural_with_regressor(net=net,
+#                                                      net_name='test',
+#                                                      dataset_name='cifar10',
+#                                                      prune_rate=0.02,
+#                                                      load_regressor=False,
+#                                                      round_for_train=2,
+#                                                      round=1,
+#                                                      max_training_iteration=2,
+#                                                      filter_preserve_ratio=0.1,
+#                                                      max_filters_pruned_for_one_time=0.3,
+#                                                      target_accuracy=0.931,
+#                                                      tar_acc_gradual_decent=False,
+#                                                      flop_expected=1e7,
+#                                                      batch_size=512,
+#                                                      num_epoch=450,
+#                                                      checkpoint_step=1600,
+#                                                      use_random_data=False,
+#                                                      # optimizer=optim.Adam,
+#                                                      # learning_rate=1e-3,
+#                                                      # weight_decay=0
+#                                                      optimizer=optim.SGD,
+#                                                      learning_rate=0.001,
+#                                                      learning_rate_decay=True,
+#                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+#                                                      learning_rate_decay_factor=0.5,
+#                                                      no_grad=['features']
+#                                                      )
 
-net = checkpoint['net'].to(device)
+#用图片抽样剪，获取regressor的训练数据
+from network import create_net
+from network import vgg
+checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 
-# 载入预训练模型参数后...
-for name, value in net.named_parameters():
-    if 'classifier' in name :
-        value.requires_grad = True
-    else:
-        value.requires_grad=False
-
-
-
+net=checkpoint['net']
 net.load_state_dict(checkpoint['state_dict'])
-print(checkpoint['highest_accuracy'])
+from framework import evaluate
+from framework import data_loader
+# evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
 
 measure_flops.measure_model(net, 'cifar10', print_flop=True)
 prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                                     net_name='test',
+                                                     net_name='vgg16_realdata',
                                                      dataset_name='cifar10',
                                                      prune_rate=0.02,
                                                      load_regressor=False,
-                                                     round_for_train=2,
+                                                     round_for_train=10,
                                                      round=1,
 
                                                         max_training_iteration=2,
@@ -294,19 +321,18 @@ prune_and_train.prune_inactive_neural_with_regressor(net=net,
                                                      filter_preserve_ratio=0.1,
                                                      max_filters_pruned_for_one_time=0.3,
                                                      target_accuracy=0.931,
-                                                     tar_acc_gradual_decent=False,
+                                                     tar_acc_gradual_decent=True,
                                                      flop_expected=1e7,
                                                      batch_size=512,
                                                      num_epoch=450,
                                                      checkpoint_step=1600,
-                                                     use_random_data=True,
+                                                     use_random_data=False,
                                                      # optimizer=optim.Adam,
                                                      # learning_rate=1e-3,
                                                      # weight_decay=0
                                                      optimizer=optim.SGD,
-                                                     learning_rate=0.001,
+                                                     learning_rate=0.01,
                                                      learning_rate_decay=True,
                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
                                                      learning_rate_decay_factor=0.5,
-                                                     no_grad=['features']
 )

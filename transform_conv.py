@@ -1,6 +1,8 @@
 import torch
 import cv2
-import vgg
+from network import vgg
+
+
 def conv_to_matrix(conv):
     '''
     transform  4-d filters in conv to a matrix
@@ -29,5 +31,5 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("using: "+torch.cuda.get_device_name(torch.cuda.current_device())+" of capacity: "+str(torch.cuda.get_device_capability(torch.cuda.current_device())))
     '''选择网络模型'''
-    net=vgg.vgg16_bn(pretrained=False).to(device)
+    net= vgg.vgg16_bn(pretrained=False).to(device)
     conv_dct(net)

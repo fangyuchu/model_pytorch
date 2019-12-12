@@ -11,5 +11,5 @@ class Logger(object):
     def flush(self):
         pass
 
-# sys.stdout = Logger('./test.log', sys.stdout)
-# sys.stderr = Logger('./test.log', sys.stderr)     # redirect std err, if necessary
+# sys.stdout = Logger('../data/test.log', sys.stdout)
+# sys.stderr = Logger('../data/test.log', sys.stderr)     # redirect std err, if necessary

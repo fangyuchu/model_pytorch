@@ -26,9 +26,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 from collections import OrderedDict
-import data_loader
-import evaluate
-from torch.autograd import Variable
+from framework import data_loader, evaluate
 
 __all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet1202']
 
@@ -165,7 +163,7 @@ def test(net):
 
 def checkpoint_conversion(path):
     '''
-    convert checkpoint downloaded to fit net which does not support parallel training.
+    convert checkpoint downloaded to fit network which does not support parallel training.
     :param path:
     :return:
     '''
@@ -184,7 +182,7 @@ def checkpoint_conversion(path):
 
 def checkpoint_conversion_with_block(path,net):
     '''
-    convert checkpoint downloaded to fit net which does not support parallel training.
+    convert checkpoint downloaded to fit network which does not support parallel training.
     :param path:
     :return:
     '''
@@ -211,14 +209,14 @@ if __name__ == "__main__":
     torch.save({'highest_accuracy': checkpoint['highest_accuracy'],
              'state_dict': checkpoint['state_dict']},path)
 
-    #checkpoint_conversion_with_block(path=path,net=net)
+    #checkpoint_conversion_with_block(path=path,network=network)
     checkpoint=torch.load(path)
 
     net.load_state_dict(checkpoint['state_dict'])
 
 
-    validation_loader=data_loader.create_validation_loader(batch_size=1024,num_workers=6,dataset_name='cifar10')
-    evaluate.evaluate_net(net=net,data_loader=validation_loader,save_net=False)
+    validation_loader= data_loader.create_validation_loader(batch_size=1024, num_workers=6, dataset_name='cifar10')
+    evaluate.evaluate_net(net=net, data_loader=validation_loader, save_net=False)
 
 
 

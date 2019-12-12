@@ -4,18 +4,12 @@ import time
 import os
 from datetime import datetime
 import numpy as np
-import vgg
-import data_loader
-import config as conf
-import prune_and_train
+from framework import data_loader, measure_flops, config as conf
+from prune import prune_and_train
 import torch.optim as optim
-import train
-import measure_flops
-import logger
 import math
 import generate_random_data
-import matplotlib.pyplot as plt
-import predict_dead_filter
+from filter_characteristic import predict_dead_filter
 import copy
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -124,15 +118,15 @@ def evaluate_net(  net,
                    device=None,
                    ):
     '''
-    :param net: net of NN
+    :param net: network of NN
     :param data_loader: data loader of test set
-    :param save_net: Boolean. Whether or not to save the net.
+    :param save_net: Boolean. Whether or not to save the network.
     :param checkpoint_path:
     :param highest_accuracy_path:
     :param sample_num_path:
-    :param sample_num: sample num of the current trained net
-    :param target_accuracy: save the net if its accuracy surpasses the target_accuracy
-    :param max_data_to_test: use at most max_data_to_test images to evaluate the net
+    :param sample_num: sample num of the current trained network
+    :param target_accuracy: save the network if its accuracy surpasses the target_accuracy
+    :param max_data_to_test: use at most max_data_to_test images to evaluate the network
     :param top_acc: top 1 or top 5 accuracy
     '''
     if save_net:
@@ -166,15 +160,15 @@ def evaluate_net(  net,
         accuracy=top5_accuracy
 
     if save_net and (accuracy > highest_accuracy or accuracy>target_accuracy):
-        # save net
-        print("{} Saving net...".format(datetime.now()))
-        checkpoint={'net':net,
+        # save network
+        print("{} Saving network...".format(datetime.now()))
+        checkpoint={'network':net,
                     'highest_accuracy':accuracy,
                     'state_dict':net.state_dict(),
                     'sample_num':sample_num,
                     'flop_num':flop_num}
         torch.save(checkpoint,'%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num,accuracy))
-        print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
+        print("{} network saved at sample num = {}".format(datetime.now(), sample_num))
 
     return accuracy
 
@@ -185,7 +179,7 @@ def predict_dead_filters_classifier_version(net,
                                          filter_num_lower_bound=None
                                          ):
     '''
-    use trained predictor to predict dead filters in net
+    use trained predictor to predict dead filters in network
     :param net:
     :param predictor:
     :param min_ratio_dead_filters: float, ensure the function will return at least (min_ratio_dead_filters)*100% of the filters.
@@ -198,7 +192,7 @@ def predict_dead_filters_classifier_version(net,
     :return:
     '''
 
-    # dead_filter_index_data,_,_=find_useless_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
+    # dead_filter_index_data,_,_=find_useless_filters_data_version(network=network,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
 
     dead_filter_index=list()
     df_num_max=list()                           #max number of filter num
@@ -221,7 +215,7 @@ def predict_dead_filters_classifier_version(net,
             num_conv+=1
 
 #todo:全部的卷积核一起标准化更合理
-    stat_filters,_=predict_dead_filter.statistics(weight,min_max_scaler=predictor.min_max_scaler)
+    stat_filters,_= predict_dead_filter.statistics(weight, min_max_scaler=predictor.min_max_scaler)
 
     s=0
     for i in range(num_conv):
@@ -308,7 +302,7 @@ def find_useless_filters_data_version(net,
                                       max_data_to_test=10000,
                       ):
     '''
-    use validation set or random generated data to find useless filters in net
+    use validation set or random generated data to find useless filters in network
     :param net:
     :param batch_size:
     :param dataset_name:
@@ -341,7 +335,7 @@ def find_useless_filters_data_version(net,
             random_data=generate_random_data.random_normal(num=batch_size,dataset_name=dataset_name)
             num_test_images=batch_size
             print('{} generate random data.'.format(datetime.now()))
-            # module_list, neural_list = check_conv_alive_layerwise(net=net,neural_dead_times=batch_size,batch_size=batch_size)
+            # module_list, neural_list = check_conv_alive_layerwise(network=network,neural_dead_times=batch_size,batch_size=batch_size)
             module_list, neural_list = check_ReLU_alive(net=net, neural_dead_times=batch_size, data=random_data)
             del random_data
         else:
@@ -369,7 +363,7 @@ def find_useless_filters_data_version(net,
                                                      neural_dead_times=neural_dead_times,max_data_to_test=max_data_to_test)
             del net_test
             del train_loader
-    num_conv = 0  # num of conv layers in the net
+    num_conv = 0  # num of conv layers in the network
     filter_num = list()
     relu_layer=list()   #denote the layer for ReLU
     for mod in net.modules():
@@ -560,8 +554,8 @@ def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
 
 
 if __name__ == "__main__":
-    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    #checkpoint = torch.load('./vgg16_bn,baseline.tar')
+    checkpoint = torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    #checkpoint = torch.load('../data/vgg16_bn,baseline.tar')
 
     net=checkpoint['net']
     net.load_state_dict(checkpoint['state_dict'])
@@ -572,7 +566,7 @@ if __name__ == "__main__":
     find_useless_filters_data_version(net=net,batch_size=1000,use_random_data=True,dead_or_inactive='inactive',percent_of_inactive_filter=0.3)
 
 
-    #measure_flops.measure_model(net,dataset_name='cifar10')
+    #measure_flops.measure_model(network,dataset_name='cifar10')
 
     prune_and_train.prune_dead_neural(net=net,
                                       net_name='tmp',
@@ -601,7 +595,7 @@ if __name__ == "__main__":
                                       )
 
 
-    # prune_and_train.prune_dead_neural_with_predictor(net=net,
+    # prune_and_train.prune_dead_neural_with_predictor(network=network,
     #                                   net_name='tmp',
     #                                      # predictor_name='logistic_regression',
     #                                    predictor_name='svm',

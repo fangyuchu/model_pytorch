@@ -1,27 +1,19 @@
-import config as conf
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-import resnet
-import vgg
+from network import vgg
 import os
 from datetime import datetime
-import re
 import math
 from PIL import Image
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA           #加载PCA算法包
-import evaluate
-import data_loader
+from framework import data_loader, measure_flops, evaluate, config as conf
 from math import ceil
 import logger
 import sys
-import measure_flops
-import resnet_copied
 import copy
-import create_net
-
 
 
 def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
@@ -97,8 +89,8 @@ def train(
 ):
     '''
 
-    :param net: net to be trained
-    :param net_name: name of the net
+    :param net: network to be trained
+    :param net_name: name of the network
     :param dataset_name: name of the dataset
     :param train_loader: data_loader for training. If not provided, a data_loader will be created based on dataset_name
     :param validation_loader: data_loader for validation. If not provided, a data_loader will be created based on dataset_name
@@ -108,22 +100,22 @@ def train(
     :param learning_rate_decay_epoch: list[int], the specific epoch that the learning rate will decay.
     :param num_epochs: max number of epochs for training
     :param batch_size:
-    :param checkpoint_step: how often will the net be tested on validation set. At least one test every epoch is guaranteed
-    :param load_net: boolean, whether loading net from previous checkpoint. The newest checkpoint will be selected.
-    :param test_net:boolean, if true, the net will be tested before training.
+    :param checkpoint_step: how often will the network be tested on validation set. At least one test every epoch is guaranteed
+    :param load_net: boolean, whether loading network from previous checkpoint. The newest checkpoint will be selected.
+    :param test_net:boolean, if true, the network will be tested before training.
     :param root_path:
     :param checkpoint_path:
     :param momentum:
     :param num_workers:
     :param weight_decay:
-    :param target_accuracy:float, the training will stop once the net reached target accuracy
+    :param target_accuracy:float, the training will stop once the network reached target accuracy
     :param optimizer:
     :param top_acc: can be 1 or 5
     :param criterion： loss function
     :param no_grad: list containing names of the modules that do not need to be trained
     :return:
     '''
-    success=True                                                                   #if the trained net reaches target accuracy
+    success=True                                                                   #if the trained network reaches target accuracy
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ',end='')
@@ -164,21 +156,21 @@ def train(
         validation_set_path=conf.cifar100['dataset_path']
         default_image_size=conf.cifar100['default_image_size']
     if train_loader is None:
-        train_loader=data_loader.create_train_loader(dataset_path=train_set_path,
-                                                     default_image_size=default_image_size,
-                                                     mean=mean,
-                                                     std=std,
-                                                     batch_size=batch_size,
-                                                     num_workers=num_workers,
-                                                     dataset_name=dataset_name)
+        train_loader= data_loader.create_train_loader(dataset_path=train_set_path,
+                                                      default_image_size=default_image_size,
+                                                      mean=mean,
+                                                      std=std,
+                                                      batch_size=batch_size,
+                                                      num_workers=num_workers,
+                                                      dataset_name=dataset_name)
     if validation_loader is None:
-        validation_loader=data_loader.create_validation_loader(dataset_path=validation_set_path,
-                                                               default_image_size=default_image_size,
-                                                               mean=mean,
-                                                               std=std,
-                                                               batch_size=batch_size,
-                                                               num_workers=num_workers,
-                                                               dataset_name=dataset_name)
+        validation_loader= data_loader.create_validation_loader(dataset_path=validation_set_path,
+                                                                default_image_size=default_image_size,
+                                                                mean=mean,
+                                                                std=std,
+                                                                batch_size=batch_size,
+                                                                num_workers=num_workers,
+                                                                dataset_name=dataset_name)
 
 
     if checkpoint_path is None:
@@ -197,28 +189,28 @@ def train(
     if os.path.isfile(file_new):
         if load_net:
             checkpoint = torch.load(file_new)
-            print('{} load net from previous checkpoint'.format(datetime.now()))
-            # net=checkpoint['net']                             #net won't be updated if using this frame. I don't know why.
+            print('{} load network from previous checkpoint'.format(datetime.now()))
+            # network=checkpoint['net']                             #network won't be updated if using this frame. I don't know why.
             net.load_state_dict(checkpoint['state_dict'])
             sample_num = checkpoint['sample_num']
 
     if test_net:
-        print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
+        print('{} test the network'.format(datetime.now()))                      #no previous checkpoint
         net_test=copy.deepcopy(net)
-        accuracy=evaluate.evaluate_net(net_test,validation_loader,
-                                       save_net=True,
-                                       checkpoint_path=checkpoint_path,
-                                       sample_num=sample_num,
-                                       target_accuracy=target_accuracy,
-                                       dataset_name=dataset_name,
-                                       top_acc=top_acc)
+        accuracy= evaluate.evaluate_net(net_test, validation_loader,
+                                        save_net=True,
+                                        checkpoint_path=checkpoint_path,
+                                        sample_num=sample_num,
+                                        target_accuracy=target_accuracy,
+                                        dataset_name=dataset_name,
+                                        top_acc=top_acc)
         del net_test
 
         if accuracy >= target_accuracy:
-            print('{} net reached target accuracy.'.format(datetime.now()))
+            print('{} network reached target accuracy.'.format(datetime.now()))
             return success
 
-    #ensure the net will be evaluated despite the inappropriate checkpoint_step
+    #ensure the network will be evaluated despite the inappropriate checkpoint_step
     if checkpoint_step>math.ceil(train_set_size/batch_size)-1:
         checkpoint_step=math.ceil(train_set_size/batch_size)-1
 
@@ -233,16 +225,16 @@ def train(
         for step, data in enumerate(train_loader, 0):
             if sample_num / train_set_size==epoch+1:               #one epoch of training finished
                 net_test = copy.deepcopy(net)
-                accuracy=evaluate.evaluate_net(net_test,validation_loader,
-                                               save_net=True,
-                                               checkpoint_path=checkpoint_path,
-                                               sample_num=sample_num,
-                                               target_accuracy=target_accuracy,
-                                               dataset_name=dataset_name,
-                                               top_acc=top_acc)
+                accuracy= evaluate.evaluate_net(net_test, validation_loader,
+                                                save_net=True,
+                                                checkpoint_path=checkpoint_path,
+                                                sample_num=sample_num,
+                                                target_accuracy=target_accuracy,
+                                                dataset_name=dataset_name,
+                                                top_acc=top_acc)
                 del net_test
                 if accuracy>=target_accuracy:
-                    print('{} net reached target accuracy.'.format(datetime.now()))
+                    print('{} network reached target accuracy.'.format(datetime.now()))
                     return success
                 break
 
@@ -273,23 +265,23 @@ def train(
 
             if step % checkpoint_step == 0 and step != 0:
                 net_test = copy.deepcopy(net)
-                accuracy=evaluate.evaluate_net(net_test,validation_loader,
+                accuracy= evaluate.evaluate_net(net_test, validation_loader,
                                                 save_net=True,
                                                 checkpoint_path=checkpoint_path,
                                                 sample_num=sample_num,
-                                               target_accuracy=target_accuracy,
-                                               dataset_name=dataset_name,
-                                               top_acc=top_acc)
+                                                target_accuracy=target_accuracy,
+                                                dataset_name=dataset_name,
+                                                top_acc=top_acc)
                 del net_test
                 if accuracy>=target_accuracy:
-                    print('{} net reached target accuracy.'.format(datetime.now()))
+                    print('{} network reached target accuracy.'.format(datetime.now()))
                     return success
                 accuracy =float(accuracy)
                 print('{} continue training'.format(datetime.now()))
 
-    print("{} Training finished. Saving net...".format(datetime.now()))
+    print("{} Training finished. Saving network...".format(datetime.now()))
     net_test = copy.deepcopy(net)
-    flop_num=measure_flops.measure_model(net=net_test,dataset_name=dataset_name,print_flop=False)
+    flop_num= measure_flops.measure_model(net=net_test, dataset_name=dataset_name, print_flop=False)
     accuracy = evaluate.evaluate_net(net_test, validation_loader,
                                      save_net=True,
                                      checkpoint_path=checkpoint_path,
@@ -298,13 +290,13 @@ def train(
                                      dataset_name=dataset_name,
                                      top_acc=top_acc)
     accuracy=float(accuracy)
-    checkpoint = {'net': net,
+    checkpoint = {'network': net,
                   'highest_accuracy': accuracy,
                   'state_dict': net.state_dict(),
                   'sample_num': sample_num,
                   'flop_num': flop_num}
     torch.save(checkpoint, '%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num, accuracy))
-    print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
+    print("{} network saved at sample num = {}".format(datetime.now(), sample_num))
     return not success
 
 
@@ -316,7 +308,7 @@ def show_feature_map(
                      ):
     '''
     show the feature converted feature maps of a cnn
-    :param net: full network net
+    :param net: full network network
     :param data_loader: data_loader to load data
     :param layer_indexes: list of indexes of conv layer whose feature maps will be extracted and showed
     :param num_image_show: number of feature maps showed in one conv_layer. Supposed to be a square number
@@ -336,7 +328,7 @@ def show_feature_map(
                 sub_net.append(nn.Sequential(*list(net.children())[0][:ind_in_features+1]))
                 j+=1
     
-    #sub_net = nn.Sequential(*list(net.children())[0][:conv_index+1])
+    #sub_net = nn.Sequential(*list(network.children())[0][:conv_index+1])
     for step, data in enumerate(data_loader, 0):
         # 准备数据
         images, labels = data
@@ -394,22 +386,22 @@ if __name__ == "__main__":
     # save the output to log
     print('save log in:./log.txt')
 
-    sys.stdout = logger.Logger( './log2.txt', sys.stdout)
-    sys.stderr = logger.Logger( './log2.txt', sys.stderr)  # redirect std err, if necessary
+    sys.stdout = logger.Logger( '../data/log2.txt', sys.stdout)
+    sys.stderr = logger.Logger( '../data/log2.txt', sys.stderr)  # redirect std err, if necessary
 
-    net=vgg.vgg16_bn(pretrained=False)
+    net= vgg.vgg16_bn(pretrained=False)
 
     # m1=nn.Linear(2048,4096)
     # nn.init.normal_(m1.weight, 0, 0.01)
     # nn.init.constant_(m1.bias, 0)
-    # net.classifier[0]=m1
+    # network.classifier[0]=m1
     #
     # m3=nn.Linear(4096,200)
     # nn.init.normal_(m3.weight, 0, 0.01)
     # nn.init.constant_(m3.bias, 0)
-    # net.classifier[6]=m3
+    # network.classifier[6]=m3
 
-    # net.classifier = nn.Sequential(
+    # network.classifier = nn.Sequential(
     #     nn.Dropout(),
     #     nn.Linear(2048, 512),
     #     nn.ReLU(True),
@@ -418,27 +410,27 @@ if __name__ == "__main__":
     #     nn.ReLU(True),
     #     nn.Linear(512, 200),
     # )
-    # for m in net.modules():
+    # for m in network.modules():
     #     if isinstance(m, nn.Linear):
     #         nn.init.normal_(m.weight, 0, 0.01)
     #         nn.init.constant_(m.bias, 0)
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    # net=create_net.vgg_tiny_imagenet(net_name='vgg16_bn')
+    # network=create_net.vgg_tiny_imagenet(net_name='vgg16_bn')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
-    # measure_flops.measure_model(net, dataset_name='cifar10')
+    # measure_flops.measure_model(network, dataset_name='cifar10')
     batch_size=32
     num_worker=8
-    train_loader=data_loader.create_train_loader(batch_size=batch_size,
-                                                 num_workers=num_worker,
-                                                 dataset_name='tiny_imagenet',
-                                                 default_image_size=224,
-                                                 )
-    validation_loader=data_loader.create_validation_loader(batch_size=batch_size,
-                                                           num_workers=num_worker,
-                                                           dataset_name='tiny_imagenet',
-                                                           default_image_size=224
-                                                        )
+    train_loader= data_loader.create_train_loader(batch_size=batch_size,
+                                                  num_workers=num_worker,
+                                                  dataset_name='tiny_imagenet',
+                                                  default_image_size=224,
+                                                  )
+    validation_loader= data_loader.create_validation_loader(batch_size=batch_size,
+                                                            num_workers=num_worker,
+                                                            dataset_name='tiny_imagenet',
+                                                            default_image_size=224
+                                                            )
     for i in range(10):
         print(i)
         train(net=net,
@@ -470,13 +462,13 @@ if __name__ == "__main__":
     # checkpoint = torch.load(
     #     '/home/victorfang/Desktop/pytorch_model/vgg16bn_cifar10_dead_neural_normal_tar_acc_decent1/checkpoint/sample_num=11050000,accuracy=0.93370.tar')
     #
-    # net = checkpoint['net']
-    # net.load_state_dict(checkpoint['state_dict'])
+    # network = checkpoint['net']
+    # network.load_state_dict(checkpoint['state_dict'])
     # print(checkpoint['highest_accuracy'])
     #
-    # measure_flops.measure_model(net, dataset_name='cifar10')
+    # measure_flops.measure_model(network, dataset_name='cifar10')
     #
-    # train(net=net,
+    # train(network=network,
     #       net_name='temp_train_a_net',
     #       dataset_name='cifar10',
     #       optimizer=optim.SGD,

@@ -1,7 +1,8 @@
 import torch
 import transform_conv
 import torch.nn as nn
-import vgg
+from network import vgg
+
 
 class gcn(nn.Module):
     def __init__(self,in_features,out_features):
@@ -75,11 +76,11 @@ def pca(tensor_2d,dim):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    net=vgg.vgg16_bn(pretrained=True).to(device)
+    net= vgg.vgg16_bn(pretrained=True).to(device)
     test=gcn(in_features=27,out_features=10).to(device)
     c=test.forward(net=net,rounds=2)
     print()
-    # for name, module in net.named_modules():
+    # for name, module in network.named_modules():
     #     if isinstance(module,torch.nn.Conv2d):
     #         w=module.weight.data
     #         w[0,0,0,0]=1000

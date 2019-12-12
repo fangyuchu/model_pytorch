@@ -24,8 +24,8 @@ imagenet['mean']=[0.485, 0.456, 0.406]
 imagenet['std']=[0.229, 0.224, 0.225]
 imagenet['train_set_size']=1271167
 imagenet['validation_set_size']=50000
-imagenet['train_set_path']='./dataset/imagenet/train'
-imagenet['validation_set_path']='./dataset/imagenet/validation'
+imagenet['train_set_path']='../data/dataset/imagenet/train'
+imagenet['validation_set_path']='../data/dataset/imagenet/validation'
 #(array([0.47068703, 0.44848716, 0.39994222], dtype=float32), array([0.28111452, 0.27503234, 0.28819305], dtype=float32))
 
 imagenet['default_image_size']=224
@@ -35,7 +35,7 @@ cifar10['num_class']=10
 cifar10['train_set_size']=50000
 cifar10['mean']=[0.485, 0.456, 0.406]
 cifar10['std']=[0.229, 0.224, 0.225]
-cifar10['dataset_path']='./dataset/cifar10'
+cifar10['dataset_path']='../data/dataset/cifar10'
 cifar10['validation_set_size']=10000
 cifar10['default_image_size']=32
 
@@ -45,7 +45,7 @@ cifar100['num_class']=100
 cifar100['train_set_size']=50000
 cifar100['mean']=[0.485, 0.456, 0.406]
 cifar100['std']=[0.229, 0.224, 0.225]
-cifar100['dataset_path']='./dataset/cifar100'
+cifar100['dataset_path']='../data/dataset/cifar100'
 cifar100['validation_set_size']=10000
 cifar100['default_image_size']=32
 
@@ -55,9 +55,9 @@ tiny_imagenet['num_class']=200
 tiny_imagenet['train_set_size']=100000
 tiny_imagenet['mean']=[0.485, 0.456, 0.406]
 tiny_imagenet['std']=[0.229, 0.224, 0.225]
-tiny_imagenet['train_set_path']='./dataset/tiny_imagenet/train'
-tiny_imagenet['train+val_set_path']='./dataset/tiny_imagenet/train+val'
-tiny_imagenet['validation_set_path']='./dataset/tiny_imagenet/val'
+tiny_imagenet['train_set_path']='../data/dataset/tiny_imagenet/train'
+tiny_imagenet['train+val_set_path']='../data/dataset/tiny_imagenet/train+val'
+tiny_imagenet['validation_set_path']='../data/dataset/tiny_imagenet/val'
 tiny_imagenet['validation_set_size']=10000
 tiny_imagenet['default_image_size']=224
 
@@ -66,7 +66,7 @@ tiny_imagenet['default_image_size']=224
 checkpoint_step=4000
 
 # Path for tf.summary.FileWriter and to store model checkpoints
-root_path='./model_saved/'
+root_path='../data/model_saved/'
 checkpoint_path = "_model_saved/checkpoints"
 highest_accuracy_path='_model_saved/accuracy.txt'
 sample_num_path='_model_saved/sample_num.txt'

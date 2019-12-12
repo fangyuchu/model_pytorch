@@ -3,7 +3,7 @@ import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import math
-import config as conf
+from framework import config as conf
 from PIL import Image
 import os
 import os.path

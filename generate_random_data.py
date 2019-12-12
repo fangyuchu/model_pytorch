@@ -1,17 +1,9 @@
 import torch
-import train
-import config as conf
-import torchvision.datasets as datasets
-import torchvision.transforms as transforms
 import torch.nn as nn
-import math
-import prune_and_train
-import measure_flops
-import data_loader
 from datetime import datetime
-import evaluate
+from framework import evaluate
 import numpy as np
-import create_net
+from network import create_net
 
 
 def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225],is_image=True):
@@ -62,10 +54,10 @@ if __name__ == "__main__":
 
 
     a=random_normal(100)
-    net=create_net.vgg_cifar10(net_name='vgg16_bn')
+    net= create_net.vgg_cifar10(net_name='vgg16_bn')
     # loader=data_loader.create_validation_loader(batch_size=300,num_workers=2,dataset_name='cifar10')
-    # evaluate.check_ReLU_alive(net=net,neural_dead_times=8000,data_loader=loader)
-    relu_list,neural_list=evaluate.check_ReLU_alive(net=net,neural_dead_times=80,data=a)
+    # evaluate.check_ReLU_alive(network=network,neural_dead_times=8000,data_loader=loader)
+    relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=80, data=a)
 
     neural_dead_times = 80
     filter_dead_ratio = 0.9
@@ -79,7 +71,7 @@ if __name__ == "__main__":
     checkpoint_step = 1600
 
 
-    num_conv = 0  # num of conv layers in the net
+    num_conv = 0  # num of conv layers in the network
     filter_num_lower_bound=list()
     filter_num=list()
     for mod in net.features:

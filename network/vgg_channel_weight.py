@@ -155,7 +155,7 @@ class VGG_weighted_channel(nn.Module):
                 i+=1
 
 def reform_net(mod):
-    #change conv2d in net to conv2d_weighted_channel
+    #change conv2d in network to conv2d_weighted_channel
     for k, v in mod._modules.items():
         reform_net(v)
         if isinstance(v, nn.Conv2d):

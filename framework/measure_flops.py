@@ -1,6 +1,5 @@
 import torch
-import numpy as np
-import vgg
+from network import vgg
 import torch.nn as nn
 import copy
 
@@ -159,9 +158,9 @@ if __name__ == '__main__':
     net = net.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
     # checkpoint=torch.load('/home/victorfang/Desktop/sample_num=256032.tar',map_location='cpu')
-    # net=checkpoint['net']
+    # network=checkpoint['net']
 
     print(measure_model(net,dataset_name='cifar10'))
 
-    #print(measure_model_mine(net,dataset_name='cifar10'))
+    #print(measure_model_mine(network,dataset_name='cifar10'))
     # ≈1.8G，和原文一致

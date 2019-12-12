@@ -1,24 +1,14 @@
 import torch
 import torch.nn as nn
-import torch.utils.data as Data
-import torchvision
-from torch.autograd import Variable
 import numpy as np
 from datetime import datetime
-import vgg
 # from train import create_net
 # import pretrainedmodels
 import os
 import random
-import matplotlib.pyplot as plt
 import math
 from sklearn.decomposition import PCA           #加载PCA算法包
-import train
-
-
-
-
-
+from framework import train
 
 # 超参数
 EPOCH = 10
@@ -135,12 +125,12 @@ class AutoEncoder(nn.Module):
         return encoded, decoded
 
     def extract_feature(self,pad_mode,**kwargs):
-        if 'net' in kwargs.keys():
-            filters=get_filters(kwargs['net'])
+        if 'network' in kwargs.keys():
+            filters=get_filters(kwargs['network'])
         elif 'filters' in kwargs.keys():
             filters=kwargs['filters']
         else:
-            print('you must provide net or filters')
+            print('you must provide network or filters')
             raise AttributeError
         filters=pad_filter(filters,pad_mode=pad_mode)
         x = torch.from_numpy(filters).float().to(self.device)
@@ -162,7 +152,7 @@ def pca(conv_weight):
 
 def read_from_checkpoint(path):
     if '.tar' in path:
-        file_list=[path]                                #single net
+        file_list=[path]                                #single network
     else:
         file_list=os.listdir(path)
     filters = list()
@@ -237,11 +227,11 @@ def train_auto_encoder(train_dir='',val_dir='',pad_mode='-1'):
         batch_num=math.ceil(filter_train.shape[0]/batch_size)
         for i in range(batch_num):
             train.exponential_decay_learning_rate(optimizer=optimizer,
-                                            sample_num=sample_num,
-                                            learning_rate_decay_factor=0.1,
-                                            train_set_size=filter_train.shape[0],
-                                            learning_rate_decay_epoch=[1000],
-                                            batch_size=batch_size)
+                                                  sample_num=sample_num,
+                                                  learning_rate_decay_factor=0.1,
+                                                  train_set_size=filter_train.shape[0],
+                                                  learning_rate_decay_epoch=[1000],
+                                                  batch_size=batch_size)
 
 
             x=torch.from_numpy(filter_train[i*batch_size:(i+1)*batch_size]).float().to(device)
@@ -255,8 +245,8 @@ def train_auto_encoder(train_dir='',val_dir='',pad_mode='-1'):
     checkpoint = {
                   'state_dict': auto_encoder.state_dict(),
                   'sample_num': sample_num}
-    torch.save(checkpoint, './auto_encoder.tar')
-    print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
+    torch.save(checkpoint, '../data/auto_encoder.tar')
+    print("{} network saved at sample num = {}".format(datetime.now(), sample_num))
 
 
 
@@ -279,9 +269,9 @@ root='/home/victorfang/PycharmProjects/model_pytorch/data/model_params/'
 
 # def download_weight():
 #     for net_name in model_urls:
-#         net=create_net(net_name,pretrained=True)
-#         for i in range(len(net.features)):
-#             mod=net.features[i]
+#         network=create_net(net_name,pretrained=True)
+#         for i in range(len(network.features)):
+#             mod=network.features[i]
 #             if isinstance(mod, torch.nn.modules.conv.Conv2d):
 #                 weight=mod.weight.data.cpu().numpy()
 #                 np.save(root+'weight/'+net_name+','+str(i),weight)
@@ -289,7 +279,7 @@ root='/home/victorfang/PycharmProjects/model_pytorch/data/model_params/'
 #                 np.save(root+'bias/'+net_name+','+str(i),bias)
 
 if __name__ == "__main__":
-    # name='./auto_encoder_pad-1_144d.tar'
+    # name='../data/auto_encoder_pad-1_144d.tar'
     # checkpoint=torch.load(name)
     # checkpoint_new={'state_dict':checkpoint['state_dict'],'sample_num':checkpoint['sample_num']}
     # torch.save(checkpoint_new,name)
@@ -297,16 +287,16 @@ if __name__ == "__main__":
 
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # auto_encoder=AutoEncoder().to(device)
-    # checkpoint=torch.load('./auto_encoder.tar')
+    # checkpoint=torch.load('../data/auto_encoder.tar')
     # auto_encoder.load_state_dict(checkpoint['state_dict'])
     #
-    # checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-    # net=checkpoint['net']
-    # net.load_state_dict(checkpoint['state_dict'])
+    # checkpoint = torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    # network=checkpoint['net']
+    # network.load_state_dict(checkpoint['state_dict'])
     #
-    # feature,decode=auto_encoder.extract_feature(net=net)
+    # feature,decode=auto_encoder.extract_feature(network=network)
 
     print()
 
-    train_auto_encoder(train_dir='./auto_encoder/train',val_dir='./auto_encoder/val',pad_mode='-1')
+    train_auto_encoder(train_dir='../data/auto_encoder/train',val_dir='../data/auto_encoder/val',pad_mode='-1')
 

@@ -1,7 +1,6 @@
 import torch
 import numpy as np
-import vgg
-import copy
+from network import vgg
 import torch.nn as nn
 def replace_layers(module,old_mod,new_mod):
     for i in range(len(old_mod)):
@@ -368,7 +367,7 @@ def prune_conv_layer(model, layer_index, filter_index):
 def select_and_prune_filter(model,ord,layer_index=0,num_to_prune=0,percent_of_pruning=0):
     '''
 
-    :param model: net model
+    :param model: network model
     :param ord: which norm to compute as the standard. Support l1 and l2 norm
     :param layer_index: layer in which the filters being pruned. If being set to 0, all conv layers will be pruned.
     :param num_to_prune: number of filters to prune. Disabled if percent_of_pruning is not 0

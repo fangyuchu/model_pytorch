@@ -1,27 +1,15 @@
 import torch
 import numpy as np
-from sklearn import svm
-from sklearn.linear_model import LogisticRegressionCV
 import os
 import torch.nn as nn
 from datetime import datetime
 import random
 from torch import optim
-from sklearn.metrics import classification_report
 from sklearn.metrics import mean_absolute_error
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import f1_score
-from sklearn.metrics import precision_score
-from sklearn.metrics import SCORERS
 import copy
-import operate_excel
 from sklearn import preprocessing
-from sklearn.decomposition import PCA
-from sklearn.metrics import make_scorer
-from sklearn import ensemble
-import matplotlib.pyplot as plt
 from sklearn.externals import joblib
-import encoder
+from sklearn import ensemble
 import math
 
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
@@ -61,7 +49,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
             if batch_size is None:
                 batch_size=checkpoint['batch_size']
 
-            num_conv = 0  # num of conv layers in the net
+            num_conv = 0  # num of conv layers in the network
             filter_num=list()
             filters=list()
             layers=list()
@@ -246,14 +234,14 @@ class fc(nn.Module):
                 if highest_accuracy>0.7 and highest_precision>0.7 and epoch>1000:
                     break
                     # if highest_accuracy > 0.7:
-                    #     print("{} Saving self.net...".format(datetime.now()))
-                    #     checkpoint = {'net': self.net,
+                    #     print("{} Saving self.network...".format(datetime.now()))
+                    #     checkpoint = {'network': self.network,
                     #                   'highest_accuracy': acc,
-                    #                   'state_dict': self.net.state_dict(),
+                    #                   'state_dict': self.network.state_dict(),
                     #                   }
                     #     torch.save(checkpoint,
                     #                '/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=%.5f.tar' % (acc))
-                    #     print("{} net saved ".format(datetime.now()))
+                    #     print("{} network saved ".format(datetime.now()))
         self.net=net_saved
         return self.net
 
@@ -320,7 +308,7 @@ class predictor:
 
 def read_from_checkpoint(path):
     if '.tar' in path:
-        file_list=[path]                                #single net
+        file_list=[path]                                #single network
     else:
         file_list=os.listdir(path)
     filters = list()
@@ -524,8 +512,8 @@ if __name__ == "__main__":
     ratio=0.1
 
     #回归#################################################################################################################################################
-    filter_train,filter_label_train,filter_layer_train=read_data(batch_size=10000,regression_or_classification='regression',path='./最少样本测试/训练集')
-    filter_val,filter_label_val,filter_layer_val=read_data(sample_num=1000,batch_size=10000,regression_or_classification='regression',path='./最少样本测试/测试集')
+    filter_train,filter_label_train,filter_layer_train=read_data(batch_size=10000,regression_or_classification='regression',path='../data/最少样本测试/训练集')
+    filter_val,filter_label_val,filter_layer_val=read_data(sample_num=1000,batch_size=10000,regression_or_classification='regression',path='../data/最少样本测试/测试集')
 
     stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
     stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
@@ -534,7 +522,7 @@ if __name__ == "__main__":
     ##use auto_encoder to extract features################################################################################################
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # auto_encoder = encoder.AutoEncoder().to(device)
-    # checkpoint = torch.load('./auto_encoder_padrepeat_576d.tar')
+    # checkpoint = torch.load('../data/auto_encoder_padrepeat_576d.tar')
     # auto_encoder.load_state_dict(checkpoint['state_dict'])
     # # stat_train,_=auto_encoder.extract_feature(filters=filter_train)
     # # stat_val,_=auto_encoder.extract_feature(filters=filter_val)
@@ -704,8 +692,8 @@ if __name__ == "__main__":
 
     #分类#################################################################################################################################################
 
-    # df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='./最少样本测试/训练集')
-    # df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='./最少样本测试/测试集')
+    # df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='../data/最少样本测试/训练集')
+    # df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='../data/最少样本测试/测试集')
     #
     # #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
     #
@@ -730,8 +718,8 @@ if __name__ == "__main__":
     # # tmp1.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
     # # tmp2=stat_lf.tolist()
     # # tmp2.insert(0,['均值','截断均值','中位数','极差','中列数','第一四分卫数','第三四分位数','四分位数极差','标准差','最大值','最小值','通道数','降维后的参数'])
-    # # operate_excel.write_excel(tmp1,'./test.xlsx',0,bool_row_append=False)
-    # # operate_excel.write_excel(tmp2,'./test.xlsx',1,bool_row_append=False)
+    # # operate_excel.write_excel(tmp1,'../data/test.xlsx',0,bool_row_append=False)
+    # # operate_excel.write_excel(tmp2,'../data/test.xlsx',1,bool_row_append=False)
     #
     # train_x = np.vstack((stat_df, stat_lf))  # dead filters are in the front
     # train_y = np.zeros(train_x.shape[0])
@@ -870,10 +858,10 @@ if __name__ == "__main__":
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #
     # LR=0.01
-    # net = fc().to(device)
-    # optimizer = torch.optim.SGD(net.parameters(), lr=LR)
+    # network = fc().to(device)
+    # optimizer = torch.optim.SGD(network.parameters(), lr=LR)
     #
-    # #optimizer=optim.Adam(net.parameters())
+    # #optimizer=optim.Adam(network.parameters())
     # #loss_func = nn.CrossEntropyLoss(weight=torch.Tensor([1,0.1601118217]))
     # loss_func = nn.CrossEntropyLoss()
     #
@@ -899,18 +887,18 @@ if __name__ == "__main__":
     #
     # #load previous trained model(optional)
     # # checkpoint=torch.load('/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=0.72553.tar')
-    # # net.load_state_dict(checkpoint['state_dict'])
+    # # network.load_state_dict(checkpoint['state_dict'])
     # while True:
     #     epoch+=1
     #     ind_df=random.sample([i for i in range(stat_df.shape[0])],sample_num)
     #     ind_lf=random.sample([i for i in range(stat_df.shape[0],train_x.shape[0])],sample_num)
     #     ind=torch.tensor(ind_df+ind_lf,dtype=torch.long).to(device)
     #
-    #     net.train()
+    #     network.train()
     #
     #
     #     optimizer.zero_grad()
-    #     output = net(torch.index_select(input=x_tensor,dim=0,index=ind))
+    #     output = network(torch.index_select(input=x_tensor,dim=0,index=ind))
     #     loss = loss_func(output,y_tensor)
     #     loss.backward()
     #     optimizer.step()
@@ -918,8 +906,8 @@ if __name__ == "__main__":
     #         print("{} epoch:{},   loss is:{}".format(datetime.now(),epoch,loss))
     #
     #     if epoch%10000==0 :
-    #         net.eval()
-    #         output=net(val_x_tensor)
+    #         network.eval()
+    #         output=network(val_x_tensor)
     #         prediction=torch.argmax(output,1)
     #         correct=(prediction==val_y_tensor).sum().float()
     #         acc=correct.cpu().detach().data.numpy()/val_y_tensor.shape[0]
@@ -929,14 +917,14 @@ if __name__ == "__main__":
     #         if acc>highest_accuracy:
     #             highest_accuracy=acc
     #             if highest_accuracy>0.7:
-    #                 print("{} Saving net...".format(datetime.now()))
-    #                 checkpoint = {'net': net,
+    #                 print("{} Saving network...".format(datetime.now()))
+    #                 checkpoint = {'network': network,
     #                               'highest_accuracy': acc,
-    #                               'state_dict': net.state_dict(),
+    #                               'state_dict': network.state_dict(),
     #                               }
     #                 # torch.save(checkpoint,
     #                 #            '/home/victorfang/Desktop/预测死亡神经元的神经网络/accuracy=%.5f.tar' % (acc))
-    #                 print("{} net saved ".format(datetime.now()))
+    #                 print("{} network saved ".format(datetime.now()))
 
 
 

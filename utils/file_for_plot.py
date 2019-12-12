@@ -1,26 +1,11 @@
 import torch
-import train
-import config as conf
-import torchvision.datasets as datasets
-import torchvision.transforms as transforms
 import torch.nn as nn
-import math
-import prune_and_train
-import measure_flops
-import evaluate
 import numpy as np
-import data_loader
-from sklearn import svm
-import vgg
-import predict_dead_filter
-from predict_dead_filter import fc
-import prune
-import generate_random_data
-import resnet
-import create_net
+from framework import data_loader, evaluate
+from network import vgg, resnet_copied
+from filter_characteristic import predict_dead_filter
 import matplotlib.pyplot as plt
 import copy
-import resnet_copied
 import time
 import os
 
@@ -32,21 +17,21 @@ def dead_neural_rate():
     # relu_list=checkpoint['relu_list']
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+    checkpoint=torch.load('../data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
     net = resnet_copied.resnet56().to(device)
     net.load_state_dict(checkpoint['state_dict'])
 
-    # net=create_net.vgg_cifar10()
-    val_loader=data_loader.create_validation_loader(batch_size=1000,num_workers=6,dataset_name='cifar10')
+    # network=create_net.vgg_cifar10()
+    val_loader= data_loader.create_validation_loader(batch_size=1000, num_workers=6, dataset_name='cifar10')
     # train_loader=data_loader.create_train_loader(batch_size=1600,num_workers=6,dataset_name='cifar10')
     #
-    relu_list,neural_list=evaluate.check_ReLU_alive(net=net,neural_dead_times=10000,data_loader=val_loader)
+    relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=10000, data_loader=val_loader)
     # ndt_list=[i for i in range(35000,51000,1000)]
     ndt_list=[i for i in range(6000,11000,1000)]
     dead_rate=list()
     for ndt in ndt_list:
         print(ndt)
-        dead_rate.append(evaluate.cal_dead_neural_rate(neural_dead_times=ndt,neural_list_temp=neural_list))
+        dead_rate.append(evaluate.cal_dead_neural_rate(neural_dead_times=ndt, neural_list_temp=neural_list))
 
     plt.figure()
     plt.title('df')
@@ -64,29 +49,29 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    checkpoint = torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    checkpoint = torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
     vgg16=checkpoint['net']
     vgg16.load_state_dict(checkpoint['state_dict'])
 
-    checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+    checkpoint=torch.load('../data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
     resnet56 = resnet_copied.resnet56().to(device)
     resnet56.load_state_dict(checkpoint['state_dict'])
 
-    vgg16_imagenet=vgg.vgg16_bn(pretrained=True).to(device)
+    vgg16_imagenet= vgg.vgg16_bn(pretrained=True).to(device)
     checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
     relu_list_imagenet=checkpoint['relu_list']
     neural_list_imagenet=checkpoint['neural_list']
 
 
-    loader=data_loader.create_validation_loader(batch_size=100,num_workers=1,dataset_name=dataset_name)
+    loader= data_loader.create_validation_loader(batch_size=100, num_workers=1, dataset_name=dataset_name)
     # loader=data_loader.create_validation_loader(batch_size=1000,num_workers=8,dataset_name='cifar10_trainset')
 
-    relu_list_vgg,neural_list_vgg=evaluate.check_ReLU_alive(net=vgg16,neural_dead_times=neural_dead_times,data_loader=loader, max_data_to_test=10000)
-    relu_list_resnet,neural_list_resnet=evaluate.check_ReLU_alive(net=resnet56,neural_dead_times=neural_dead_times,data_loader=loader, max_data_to_test=10000)
+    relu_list_vgg,neural_list_vgg= evaluate.check_ReLU_alive(net=vgg16, neural_dead_times=neural_dead_times, data_loader=loader, max_data_to_test=10000)
+    relu_list_resnet,neural_list_resnet= evaluate.check_ReLU_alive(net=resnet56, neural_dead_times=neural_dead_times, data_loader=loader, max_data_to_test=10000)
 
 
     def get_statistics(net,relu_list,neural_list,neural_dead_times,sample_num=10000):
-        num_conv = 0  # num of conv layers in the net
+        num_conv = 0  # num of conv layers in the network
         for mod in net.modules():
             if isinstance(mod, torch.nn.modules.conv.Conv2d):
                 num_conv += 1
@@ -197,18 +182,18 @@ def plot_dead_filter_num_with_different_fdt():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #
-    # # net=create_net.vgg_cifar10()
-    checkpoint = torch.load('./baseline/resnet56_cifar10,accuracy=0.94230.tar')
+    # # network=create_net.vgg_cifar10()
+    checkpoint = torch.load('../data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
     net = resnet_copied.resnet56().to(device)
     net.load_state_dict(checkpoint['state_dict'])
 
-    val_loader=data_loader.create_validation_loader(batch_size=500,num_workers=6,dataset_name='cifar10')
-    relu_list,neural_list=evaluate.check_ReLU_alive(net=net,neural_dead_times=8000,data_loader=val_loader)
+    val_loader= data_loader.create_validation_loader(batch_size=500, num_workers=6, dataset_name='cifar10')
+    relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=8000, data_loader=val_loader)
 
 
-    # net=vgg.vgg16_bn(pretrained=False)
+    # network=vgg.vgg16_bn(pretrained=False)
     # checkpoint=torch.load('/home/victorfang/Desktop/vgg16_bn_imagenet_deadReLU.tar')
-    # net=resnet.resnet34(pretrained=True)
+    # network=resnet.resnet34(pretrained=True)
     # checkpoint=torch.load('/home/victorfang/Desktop/resnet34_imagenet_DeadReLU.tar')
     # neural_list=checkpoint['neural_list']
     # relu_list=checkpoint['relu_list']
@@ -235,7 +220,7 @@ def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_de
 
     dead_filter_num=list()                                                                      #num of dead filters in each layer
     filter_num=list()                                                                           #num of filters in each layer
-    num_conv = 0  # num of conv layers in the net
+    num_conv = 0  # num of conv layers in the network
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
@@ -269,16 +254,16 @@ def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_de
 def speed_up_pruned_net():
     fontsize=15
 
-    checkpoint=torch.load('./baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
     net_original=checkpoint['net']
 
-    checkpoint=torch.load('./baseline/resnet56_cifar10,accuracy=0.93280.tar')
-    net_original=resnet_copied.resnet56()
+    checkpoint=torch.load('../data/baseline/resnet56_cifar10,accuracy=0.93280.tar')
+    net_original= resnet_copied.resnet56()
     net_original.load_state_dict(checkpoint['state_dict'])
 
-    checkpoint=torch.load('./model_saved/vgg16bn_cifar10_realdata_regressor6_大幅度/checkpoint/flop=39915982,accuracy=0.93200.tar')
+    checkpoint=torch.load('../data/model_saved/vgg16bn_cifar10_realdata_regressor6_大幅度/checkpoint/flop=39915982,accuracy=0.93200.tar')
 
-    checkpoint=torch.load('./model_saved/resnet56_cifar10_regressor_prunedBaseline2/checkpoint/flop=36145802,accuracy=0.92110.tar')
+    checkpoint=torch.load('../data/model_saved/resnet56_cifar10_regressor_prunedBaseline2/checkpoint/flop=36145802,accuracy=0.92110.tar')
     net_pruned=checkpoint['net']
     net_pruned.load_state_dict(checkpoint['state_dict'])
 
@@ -299,16 +284,16 @@ def speed_up_pruned_net():
                 net_original.to(d)
                 net_pruned.to(d)
 
-                dl=data_loader.create_validation_loader(batch_size=bs,num_workers=num_worker,dataset_name='cifar10')
+                dl= data_loader.create_validation_loader(batch_size=bs, num_workers=num_worker, dataset_name='cifar10')
                 start_time=time.time()
-                evaluate.evaluate_net(net=net_original,data_loader=dl,save_net=False,device=d)
+                evaluate.evaluate_net(net=net_original, data_loader=dl, save_net=False, device=d)
                 end_time=time.time()
                 time_original.append(end_time-start_time)
                 del dl
 
-                dl=data_loader.create_validation_loader(batch_size=bs,num_workers=num_worker,dataset_name='cifar10')
+                dl= data_loader.create_validation_loader(batch_size=bs, num_workers=num_worker, dataset_name='cifar10')
                 start_time=time.time()
-                evaluate.evaluate_net(net=net_pruned,data_loader=dl,save_net=False,device=d)
+                evaluate.evaluate_net(net=net_pruned, data_loader=dl, save_net=False, device=d)
                 end_time=time.time()
                 time_pruned.append(end_time-start_time)
                 del dl
@@ -350,14 +335,14 @@ def speed_up_regressor():
         print(file)
         checkpoint_path=os.path.join(path,file)
         chekpoint=torch.load(checkpoint_path)
-        net=chekpoint['net']
+        net=chekpoint['network']
         net.load_state_dict(chekpoint['state_dict'])
         #time for regressor
         start_time = time.time()
         evaluate.find_useless_filters_regressor_version(net=net,
                                                         predictor=predictor,
                                                         percent_of_inactive_filter=0.1,
-                                                        max_filters_pruned_for_one_time=0.2,)
+                                                        max_filters_pruned_for_one_time=0.2, )
         end_time=time.time()
         regressor_time.append(end_time-start_time)
         #time for sampled data
