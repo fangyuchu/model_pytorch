@@ -61,15 +61,20 @@ def restore_net(checkpoint):
     return net.to(device)
 
 
-def conversion(dataset_name,net_name,checkpoint_path=''):
-    checkpoint=torch.load(checkpoint_path)
-    net=checkpoint.pop('net')
-    checkpoint.update(get_net_information(net,dataset_name,net_name))
-    # torch.save(checkpoint,checkpoint_path)
+# def conversion(dataset_name,net_name,checkpoint_path=''):
+#     checkpoint=torch.load(checkpoint_path)
+#     # net=checkpoint.pop('net')
+#     net=resnet_cifar.resnet32()
+#     checkpoint['state_dict']['fc.weight']=checkpoint['state_dict'].pop('linear.weight')
+#     checkpoint['state_dict']['fc.bias']=checkpoint['state_dict'].pop('linear.bias')
+#
+#     net.load_state_dict(checkpoint['state_dict'])
+#     checkpoint.update(get_net_information(net,dataset_name,net_name))
+#     torch.save(checkpoint,checkpoint_path)
 
 
 if __name__ == "__main__":
-    conversion(checkpoint_path='../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar',net_name='vgg16_bn',dataset_name='cifar10')
+    # conversion(checkpoint_path='../data/baseline/resnet32_cifar10,accuracy=0.92380.tar',net_name='resnet56',dataset_name='cifar10')
 
 
     dataset_name='imagenet'
