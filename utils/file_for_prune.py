@@ -298,17 +298,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #用图片抽样剪，获取regressor的训练数据
 from network import create_net
 from network import vgg
+print(torch.cuda.is_available())
 checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 
 net=storage.restore_net(checkpoint)
 net.load_state_dict(checkpoint['state_dict'])
+net=torch.nn.DataParallel(net)
 from framework import evaluate
 from framework import data_loader
 # evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
 
 measure_flops.measure_model(net, 'cifar10', print_flop=True)
 prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                                     net_name='vgg16_realdata',
+                                                     net_name='vgg16_realdata2',
                                                      dataset_name='cifar10',
                                                      prune_rate=0.02,
                                                      load_regressor=False,

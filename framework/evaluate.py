@@ -175,65 +175,7 @@ def evaluate_net(  net,
 
     return accuracy
 
-def predict_dead_filters_classifier_version(net,
-                                         predictor,
-                                         min_ratio_dead_filters=0,
-                                         max_ratio_dead_filters=1,
-                                         filter_num_lower_bound=None
-                                         ):
-    '''
-    use trained predictor to predict dead filters in net
-    :param net:
-    :param predictor:
-    :param min_ratio_dead_filters: float, ensure the function will return at least (min_ratio_dead_filters)*100% of the filters.
-
-    :param max_ratio_dead_filters: float, ensure the function will return at most (max_ratio_dead_filters)*100% of the filters.
-                                          ensure the number of filters pruned will not be too large for one time.
-    :param filter_num_lower_bound: int, ensure the number of filters alive will be larger than filter_num_lower_bound
-                                          ensure the lower bound of filter number
-
-    :return:
-    '''
-
-    # dead_filter_index_data,_,_=find_useless_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
-
-    dead_filter_index=list()
-    df_num_max=list()                           #max number of filter num
-    df_num_min=list()                           #min number of filter num
-    filter_num=list()                           #filter num in each layer
-    weight=list()
-    num_conv=0
-    for mod in net.features:
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
-            weight+=list(mod.weight.data.cpu().numpy())
-            filter_num.append(mod.weight.data.cpu().numpy().shape[0])
-            df_num_min.append(math.ceil(min_ratio_dead_filters*filter_num[num_conv]))                                            #lower bound of dead_filter's num
-            if filter_num_lower_bound is not None:                                                              #upper bound of dead_filter's num
-                df_num_max.append(min(int(max_ratio_dead_filters*len(weight)),filter_num[num_conv]-filter_num_lower_bound[num_conv]))
-            else:
-                df_num_max.append(int(max_ratio_dead_filters*len(weight)))
-
-            if df_num_max[num_conv]<df_num_min[num_conv]:
-                print('Number of filters in layer{} is {}. At most {} filters will be predicted to be dead.'.format(num_conv,filter_num[num_conv],df_num_max[num_conv]))
-            num_conv+=1
-
-#todo:全部的卷积核一起标准化更合理
-    stat_filters,_= predict_dead_filter.statistics(weight, min_max_scaler=predictor.min_max_scaler)
-
-    s=0
-    for i in range(num_conv):
-        output = predictor.predict_proba(stat_filters[s:s+filter_num[i]])
-        dead_filter_proba_sorted=np.argsort(-output[:,1])                   #filter indices sorted by the probability of which to be dead
-        dead_filter_predicted=np.where(np.argmax(output,1))[0]             #filter indices of which are predicted to be dead
-        if dead_filter_predicted.shape[0]<df_num_min[i]:
-            print(i,'死亡卷积核太少')
-            dead_filter_predicted=dead_filter_proba_sorted[:df_num_min[i]]
-        if dead_filter_predicted.shape[0]>df_num_max[i]:
-            print(i,'死亡卷积核太多')
-            dead_filter_predicted=dead_filter_proba_sorted[:df_num_max[i]]
-        dead_filter_index.append(dead_filter_predicted)
-        s += filter_num[i]
-    return dead_filter_index
+#
 
 def find_useless_filters_regressor_version(net,
                                            predictor,
@@ -555,7 +497,65 @@ def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),dead_neural_rate))
     return dead_neural_rate
 
-
+#def predict_dead_filters_classifier_version(net,
+#                                          predictor,
+#                                          min_ratio_dead_filters=0,
+#                                          max_ratio_dead_filters=1,
+#                                          filter_num_lower_bound=None
+#                                          ):
+#     '''
+#     use trained predictor to predict dead filters in net
+#     :param net:
+#     :param predictor:
+#     :param min_ratio_dead_filters: float, ensure the function will return at least (min_ratio_dead_filters)*100% of the filters.
+#
+#     :param max_ratio_dead_filters: float, ensure the function will return at most (max_ratio_dead_filters)*100% of the filters.
+#                                           ensure the number of filters pruned will not be too large for one time.
+#     :param filter_num_lower_bound: int, ensure the number of filters alive will be larger than filter_num_lower_bound
+#                                           ensure the lower bound of filter number
+#
+#     :return:
+#     '''
+#
+#     # dead_filter_index_data,_,_=find_useless_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
+#
+#     dead_filter_index=list()
+#     df_num_max=list()                           #max number of filter num
+#     df_num_min=list()                           #min number of filter num
+#     filter_num=list()                           #filter num in each layer
+#     weight=list()
+#     num_conv=0
+#     for mod in net.features:
+#         if isinstance(mod, torch.nn.modules.conv.Conv2d):
+#             weight+=list(mod.weight.data.cpu().numpy())
+#             filter_num.append(mod.weight.data.cpu().numpy().shape[0])
+#             df_num_min.append(math.ceil(min_ratio_dead_filters*filter_num[num_conv]))                                            #lower bound of dead_filter's num
+#             if filter_num_lower_bound is not None:                                                              #upper bound of dead_filter's num
+#                 df_num_max.append(min(int(max_ratio_dead_filters*len(weight)),filter_num[num_conv]-filter_num_lower_bound[num_conv]))
+#             else:
+#                 df_num_max.append(int(max_ratio_dead_filters*len(weight)))
+#
+#             if df_num_max[num_conv]<df_num_min[num_conv]:
+#                 print('Number of filters in layer{} is {}. At most {} filters will be predicted to be dead.'.format(num_conv,filter_num[num_conv],df_num_max[num_conv]))
+#             num_conv+=1
+#
+# #todo:全部的卷积核一起标准化更合理
+#     stat_filters,_= predict_dead_filter.statistics(weight, min_max_scaler=predictor.min_max_scaler)
+#
+#     s=0
+#     for i in range(num_conv):
+#         output = predictor.predict_proba(stat_filters[s:s+filter_num[i]])
+#         dead_filter_proba_sorted=np.argsort(-output[:,1])                   #filter indices sorted by the probability of which to be dead
+#         dead_filter_predicted=np.where(np.argmax(output,1))[0]             #filter indices of which are predicted to be dead
+#         if dead_filter_predicted.shape[0]<df_num_min[i]:
+#             print(i,'死亡卷积核太少')
+#             dead_filter_predicted=dead_filter_proba_sorted[:df_num_min[i]]
+#         if dead_filter_predicted.shape[0]>df_num_max[i]:
+#             print(i,'死亡卷积核太多')
+#             dead_filter_predicted=dead_filter_proba_sorted[:df_num_max[i]]
+#         dead_filter_index.append(dead_filter_predicted)
+#         s += filter_num[i]
+#     return dead_filter_index
 if __name__ == "__main__":
     print()
 
