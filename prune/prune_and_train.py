@@ -145,10 +145,13 @@ def prune_inactive_neural(net,
         if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
             os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
 
-        torch.save({'prune_rate': prune_rate,'module_list': module_list,
-                    'neural_list': neural_list, 'state_dict': net.state_dict()
-                       ,'batch_size':batch_size}.update(storage.get_net_information(net,dataset_name,net_name)),
+        checkpoint = {'prune_rate': prune_rate, 'module_list': module_list,
+                      'neural_list': neural_list, 'state_dict': net.state_dict(),
+                      'batch_size': batch_size}
+        checkpoint.update(storage.get_net_information(net, dataset_name, net_name))
+        torch.save(checkpoint,
                    conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
+
 
         net_compressed = False
         for i in range(num_conv):
@@ -386,10 +389,11 @@ def prune_inactive_neural_with_regressor(net,
                                                                                                                      dataset_name=dataset_name)
             if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
                 os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
-
-            torch.save({'prune_rate': prune_rate,'module_list': module_list,
+            checkpoint={'prune_rate': prune_rate,'module_list': module_list,
                         'neural_list': neural_list, 'state_dict': net.state_dict(),
-                        'batch_size': batch_size}.update(storage.get_net_information(net,dataset_name,net_name)),
+                        'batch_size': batch_size}
+            checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
+            torch.save(checkpoint,
                        conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
 
             dead_ratio+=dead_ratio_tmp
@@ -665,10 +669,13 @@ def prune_inactive_neural_with_regressor_resnet(net,
             if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
                 os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
 
-            torch.save({'prune_rate': prune_rate,'module_list': module_list,
+            checkpoint={'prune_rate': prune_rate,'module_list': module_list,
                         'neural_list': neural_list, 'state_dict': net.state_dict(),
-                        'batch_size': batch_size}.update(storage.get_net_information(net,dataset_name,net_name)),
+                        'batch_size': batch_size}
+            checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
+            torch.save(checkpoint,
                        conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
+
 
             dead_ratio += dead_ratio_tmp
             # save filters for training the regressor
