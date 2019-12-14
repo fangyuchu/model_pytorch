@@ -22,6 +22,7 @@ def prune_inactive_neural_with_regressor(net,
                                          net_name,
                                          target_accuracy,
                                          prune_rate,
+                                         exp_name,
                                          load_regressor=False,
                                          predictor_name='random_forest',
                                          round_for_train=2,
@@ -51,6 +52,7 @@ def prune_inactive_neural_with_regressor(net,
 
     :param net:
     :param net_name:
+    :param exp_name:
     :param target_accuracy:
     :param prune_rate:
     :param load_regressor:
@@ -79,15 +81,16 @@ def prune_inactive_neural_with_regressor(net,
     :return:
     '''
     # save the output to log
-    print('save log in:' + conf.root_path + net_name + '/log.txt')
-    if not os.path.exists(conf.root_path + net_name):
-        os.makedirs(conf.root_path + net_name, exist_ok=True)
-    sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
-    sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
+    print('save log in:' + conf.root_path + exp_name + '/log.txt')
+    if not os.path.exists(conf.root_path + exp_name):
+        os.makedirs(conf.root_path + exp_name, exist_ok=True)
+    sys.stdout = logger.Logger(conf.root_path + exp_name + '/log.txt', sys.stdout)
+    sys.stderr = logger.Logger(conf.root_path + exp_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
 
     print(
         'net:{}\n' 
         'net_name:{}\n' 
+        'exp_name:{}\n'
         'target_accuracy:{}\n' 
         'prune_rate:{}\n' 
         'predictor_name:{}\n' 
@@ -113,7 +116,7 @@ def prune_inactive_neural_with_regressor(net,
         'top_acc:{}\n'
         'max_training_iteration:{}\n'
         'round:{}\n'
-          .format(net, net_name, target_accuracy, prune_rate,predictor_name,load_regressor,round_for_train,tar_acc_gradual_decent,
+          .format(net, net_name,exp_name, target_accuracy, prune_rate,predictor_name,load_regressor,round_for_train,tar_acc_gradual_decent,
                   flop_expected,dataset_name,use_random_data,validation_loader,batch_size,num_workers,optimizer,learning_rate,
                   checkpoint_step,num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
                   weight_decay,learning_rate_decay_epoch,top_acc,max_training_iteration,round))
@@ -159,12 +162,12 @@ def prune_inactive_neural_with_regressor(net,
     dead_ratio=list()
     predictor = predict_dead_filter.predictor(name=predictor_name)
     if load_regressor is True:
-        regressor_exists=predictor.load(path=conf.root_path + net_name)
+        regressor_exists=predictor.load(path=conf.root_path + exp_name)
         if regressor_exists is True:
             round_for_train = -1
         else:                                                   #load data from previous rounds of pruning
             print('Can\' find saved regressor. Load data from previous round.')
-            filter_tmp, dead_ratio_tmp, filter_layer_tmp= predict_dead_filter.read_data(path=conf.root_path + net_name + '/dead_neural/',
+            filter_tmp, dead_ratio_tmp, filter_layer_tmp= predict_dead_filter.read_data(path=conf.root_path + exp_name + '/dead_neural/',
                                                                                         balance=False,
                                                                                         regression_or_classification='regression',
                                                                                         batch_size=batch_size,
@@ -185,7 +188,7 @@ def prune_inactive_neural_with_regressor(net,
 
             ##train the predictor######################################################################################################
             predictor.fit(filter=filter,filter_layer=filter_layer,filter_label=dead_ratio)
-            predictor.save(path=conf.root_path + net_name)
+            predictor.save(path=conf.root_path + exp_name)
         if round<=round_for_train:
 
             dead_filter_index, module_list, neural_list, dead_ratio_tmp = evaluate.find_useless_filters_data_version(net=net,
@@ -194,14 +197,14 @@ def prune_inactive_neural_with_regressor(net,
                                                                                                                      percent_of_inactive_filter=prune_rate,
                                                                                                                      dead_or_inactive='inactive',
                                                                                                                      dataset_name=dataset_name)
-            if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
-                os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
+            if not os.path.exists(conf.root_path + exp_name + '/dead_neural'):
+                os.makedirs(conf.root_path + exp_name + '/dead_neural', exist_ok=True)
             checkpoint={'prune_rate': prune_rate,'module_list': module_list,
                         'neural_list': neural_list, 'state_dict': net.state_dict(),
                         'batch_size': batch_size}
             checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
             torch.save(checkpoint,
-                       conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
+                       conf.root_path + exp_name + '/dead_neural/round %d.tar' % round, )
 
             dead_ratio+=dead_ratio_tmp
             # save filters for training the regressor
@@ -263,6 +266,7 @@ def prune_inactive_neural_with_regressor(net,
             old_net = copy.deepcopy(net).to(torch.device('cpu'))                                    #save cuda memory
             success = train.train(net=net,
                                   net_name=net_name,
+                                  exp_name=exp_name,
                                   num_epochs=num_epoch,
                                   target_accuracy=target_accuracy,
                                   learning_rate=learning_rate,
@@ -289,6 +293,7 @@ def prune_inactive_neural_with_regressor(net,
 
 def prune_inactive_neural_with_regressor_resnet(net,
                                                 net_name,
+                                                exp_name,
                                                 target_accuracy,
                                                 prune_rate,
                                                 load_regressor=False,
@@ -319,6 +324,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 
     :param net:
     :param net_name:
+    :param exp_name:
     :param target_accuracy:
     :param prune_rate:
     :param load_regressor:
@@ -347,14 +353,15 @@ def prune_inactive_neural_with_regressor_resnet(net,
     '''
 
     # save the output to log
-    print('save log in:' + conf.root_path + net_name + '/log.txt')
-    if not os.path.exists(conf.root_path + net_name):
-        os.makedirs(conf.root_path + net_name, exist_ok=True)
-    sys.stdout = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stdout)
-    sys.stderr = logger.Logger(conf.root_path + net_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
+    print('save log in:' + conf.root_path + exp_name + '/log.txt')
+    if not os.path.exists(conf.root_path + exp_name):
+        os.makedirs(conf.root_path + exp_name, exist_ok=True)
+    sys.stdout = logger.Logger(conf.root_path + exp_name + '/log.txt', sys.stdout)
+    sys.stderr = logger.Logger(conf.root_path + exp_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
 
     print('net:',net)
     print('net_name:',net_name)
+    print('exp_name:',exp_name)
     print('target_accuracy:',target_accuracy)
     print('prune_rate:',prune_rate)
     print('load_regressor:',load_regressor)
@@ -438,12 +445,12 @@ def prune_inactive_neural_with_regressor_resnet(net,
     dead_ratio=list()
     predictor = predict_dead_filter.predictor(name=predictor_name)
     if load_regressor is True:
-        regressor_exists=predictor.load(path=conf.root_path + net_name)
+        regressor_exists=predictor.load(path=conf.root_path + exp_name)
         if regressor_exists is True:
             round_for_train = -1
         else:                                                   #load data from previous rounds of pruning
             print('Can\'t find saved regressor. Load data from previous round.')
-            filter_tmp, dead_ratio_tmp, filter_layer_tmp= predict_dead_filter.read_data(path=conf.root_path + net_name + '/dead_neural/',
+            filter_tmp, dead_ratio_tmp, filter_layer_tmp= predict_dead_filter.read_data(path=conf.root_path + exp_name + '/dead_neural/',
                                                                                         balance=False,
                                                                                         regression_or_classification='regression',
                                                                                         batch_size=batch_size,
@@ -462,7 +469,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 
             ##train the predictor######################################################################################################
             predictor.fit(filter=filter, filter_layer=filter_layer, filter_label=dead_ratio)
-            predictor.save(path=conf.root_path + net_name)
+            predictor.save(path=conf.root_path + exp_name)
         if round <= round_for_train:
 
             dead_filter_index, module_list, neural_list, dead_ratio_tmp = evaluate.find_useless_filters_data_version(
@@ -473,15 +480,15 @@ def prune_inactive_neural_with_regressor_resnet(net,
                 dead_or_inactive='inactive',
                 dataset_name=dataset_name
                 )
-            if not os.path.exists(conf.root_path + net_name + '/dead_neural'):
-                os.makedirs(conf.root_path + net_name + '/dead_neural', exist_ok=True)
+            if not os.path.exists(conf.root_path + exp_name + '/dead_neural'):
+                os.makedirs(conf.root_path + exp_name + '/dead_neural', exist_ok=True)
 
             checkpoint={'prune_rate': prune_rate,'module_list': module_list,
                         'neural_list': neural_list, 'state_dict': net.state_dict(),
                         'batch_size': batch_size}
             checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
             torch.save(checkpoint,
-                       conf.root_path + net_name + '/dead_neural/round %d.tar' % round, )
+                       conf.root_path + exp_name + '/dead_neural/round %d.tar' % round, )
 
 
             dead_ratio += dead_ratio_tmp
@@ -543,6 +550,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
             old_net = copy.deepcopy(net)
             success = train.train(net=net,
                                   net_name=net_name,
+                                  exp_name=exp_name,
                                   num_epochs=num_epoch,
                                   target_accuracy=target_accuracy,
                                   learning_rate=learning_rate,
@@ -1729,7 +1737,8 @@ if __name__ == "__main__":
     measure_flops.measure_model(net, 'cifar100', print_flop=True)
 
     prune_inactive_neural_with_regressor(net=net,
-                                         net_name='vgg16bn_base_v+t_cifar100',
+                                         exp_name='vgg16bn_base_v+t_cifar100',
+                                         net_name='vgg16_bn',
                                          prune_rate=0.15,
                                          load_regressor=False,
                                          dataset_name='cifar100',

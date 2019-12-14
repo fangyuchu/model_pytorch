@@ -61,7 +61,9 @@ def restore_net(checkpoint):
     return net.to(device)
 
 
-# def conversion(dataset_name,net_name,checkpoint_path=''):
+# def conversion(dataset_name,net_name,checkpoint_path='',checkpoint=None):
+
+#转化之前的cifar上的resnet
 #     checkpoint=torch.load(checkpoint_path)
 #     # net=checkpoint.pop('net')
 #     net=resnet_cifar.resnet32()

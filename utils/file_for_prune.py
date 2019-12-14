@@ -7,47 +7,6 @@ from network import vgg,storage
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
-#
-# net=storage.restore_net(checkpoint).to(device)
-#
-# net.load_state_dict(checkpoint['state_dict'])
-# print(checkpoint['highest_accuracy'])
-#
-# measure_flops.measure_model(net, 'cifar10', print_flop=True)
-# prune_and_train.prune_inactive_neural_with_regressor(net=net,
-#                                                      net_name='test',
-#                                                      dataset_name='cifar10',
-#                                                      prune_rate=0.02,
-#                                                      load_regressor=False,
-#                                                      round_for_train=2,
-#                                                      round=1,
-#
-#                                                         max_training_iteration=2,
-#
-#
-#                                                      filter_preserve_ratio=0.1,
-#                                                      max_filters_pruned_for_one_time=0.3,
-#                                                      target_accuracy=0.931,
-#                                                      tar_acc_gradual_decent=True,
-#                                                      flop_expected=1e7,
-#                                                      batch_size=1600,
-#                                                      num_epoch=450,
-#                                                      checkpoint_step=1600,
-#                                                      use_random_data=False,
-#                                                      # optimizer=optim.Adam,
-#                                                      # learning_rate=1e-3,
-#                                                      # weight_decay=0
-#                                                      optimizer=optim.SGD,
-#                                                      learning_rate=0.001,
-#                                                      learning_rate_decay=True,
-#                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-#                                                      learning_rate_decay_factor=0.5,
-# )
-
-
-
-
 # checkpoint=torch.load('../data/baseline/resnet56_cifar100_0.71580.tar')
 # checkpoint=torch.load('/home/zengyao/fang/model_pytorch/model_saved/resnet56_cifar100_regressor3/checkpoint/flop=90655076,accuracy=0.71000.tar')
 # net=storage.restore_net(checkpoint).to(device)
@@ -55,7 +14,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # net.to(device)
 # measure_flops.measure_model(net,'cifar100')
 # prune_and_train.prune_inactive_neural_with_regressor_resnet(net=net,
-#                                                             net_name='resnet56_cifar100_regressor3',
+#                                                             exp_name='resnet56_cifar100_regressor3',
+#                                                               net_name='resnet56',
 #                                                             prune_rate=0.05,
 #                                                             load_regressor=True,
 #                                                             dataset_name='cifar100',
@@ -94,7 +54,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # a=[0.05 for i in range(13)]
 # a[12]=0.3
 # prune_and_train.prune_inactive_neural_with_regressor(net=net,
-#                                                      net_name='tmp',
+#                                                      exp_name='tmp',
+#                                                               net_name='vgg16_bn',
 #                                                      prune_rate=0.15,
 #                                                      load_regressor=False,
 #                                                      dataset_name='cifar100',
@@ -138,7 +99,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # # a[0]=a[2]=a[4]=a[6]=a[8]=a[10]=a[12]=0.3
 # # a[1]=a[3]=a[5]=a[7]=a[9]=a[11]=0.3
 # prune_and_train.prune_inactive_neural_with_regressor(net=net,
-#                                                      net_name='vgg16bn_tinyimagenet_prune',
+#                                                      exp_name='vgg16bn_tinyimagenet_prune',
+#                                                               net_name='vgg16_bn',
 #                                                      prune_rate=0.1,
 #                                                      load_regressor=True,
 #                                                      dataset_name='tiny_imagenet',
@@ -178,7 +140,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #
 #
 # prune_and_train.prune_inactive_neural_with_regressor(net=net,
-#                                                      net_name='vgg16bn_cifar10_inactiveFilter_tolerance',
+#                                                      exp_name='vgg16bn_cifar10_inactiveFilter_tolerance',
+#                                                               net_name='vgg16_bn',
 #                                                      dataset_name='cifar10',
 #                                                      prune_rate=0.02,
 #
@@ -221,7 +184,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # # a[0]=a[2]=a[4]=a[6]=a[8]=a[10]=a[12]=0.3
 # # a[1]=a[3]=a[5]=a[7]=a[9]=a[11]=0.3
 # prune_and_train.prune_inactive_neural_with_regressor(net=net,
-#                                                      net_name='vgg16bn_imagenet_prune',
+#                                                      exp_name='vgg16bn_imagenet_prune',
+#                                                               net_name='vgg16_bn',
 #                                                      prune_rate=0.1,
 #                                                      load_regressor=False,
 #                                                      dataset_name='imagenet',
@@ -268,7 +232,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # 
 # measure_flops.measure_model(net, 'cifar10', print_flop=True)
 # prune_and_train.prune_inactive_neural_with_regressor(net=net,
-#                                                      net_name='test',
+#                                                      exp_name='test',
+#                                                               net_name='vgg16_bn',
 #                                                      dataset_name='cifar10',
 #                                                      prune_rate=0.02,
 #                                                      load_regressor=False,
@@ -310,7 +275,8 @@ from framework import data_loader
 
 measure_flops.measure_model(net, 'cifar10', print_flop=True)
 prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                                     net_name='vgg16_realdata2',
+                                                     exp_name='vgg16_realdata2',
+                                                     net_name='vgg16_bn',
                                                      dataset_name='cifar10',
                                                      prune_rate=0.02,
                                                      load_regressor=False,

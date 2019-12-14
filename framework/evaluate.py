@@ -111,6 +111,7 @@ def evaluate_net(  net,
                    data_loader,
                    save_net,
                    net_name=None,
+                   exp_name='',
                    checkpoint_path=None,
                    sample_num=0,
                    target_accuracy=1,
@@ -168,7 +169,8 @@ def evaluate_net(  net,
         checkpoint={'highest_accuracy':accuracy,
                     'state_dict':net.state_dict(),
                     'sample_num':sample_num,
-                    'flop_num':flop_num}
+                    'flop_num':flop_num,
+                    'exp_name':exp_name}
         checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
         torch.save(checkpoint,'%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num,accuracy))
         print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
