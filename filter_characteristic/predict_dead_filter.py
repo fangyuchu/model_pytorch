@@ -16,7 +16,7 @@ from network import storage
 def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               balance=False,
               regression_or_classification='regression',
-              batch_size=None,
+              num_images=None,
               sample_num=None):
     #note that classification function is abandoned, the code involved might be wrong
     if regression_or_classification is 'regression':
@@ -47,8 +47,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                 # neural_dead_times=checkpoint['neural_dead_times']
                 neural_dead_times=8000
                 filter_dead_ratio=checkpoint['filter_dead_ratio']
-            if batch_size is None:
-                batch_size=checkpoint['batch_size']
+
 
             num_conv = 0  # num of conv layers in the network
             filter_num=list()
@@ -89,9 +88,9 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                                 living_filter.append(filter_weight[ind])
                             living_filter_layer += [i for j in range(len(living_filter_index))]
                         else:
-                            #compute sum(dead_times)/(batch_size*neural_num) as label for each filter
+                            #compute sum(dead_times)/(num_images*neural_num) as label for each filter
                             dead_times=np.sum(dead_times,axis=(1,2))
-                            prediction=dead_times/(neural_num*batch_size)
+                            prediction=dead_times/(neural_num*num_images)
                             for f in filter_weight:
                                 filter.append(f)
                             filter_label+=prediction.tolist()
@@ -513,8 +512,8 @@ if __name__ == "__main__":
     ratio=0.1
 
     #回归#################################################################################################################################################
-    filter_train,filter_label_train,filter_layer_train=read_data(batch_size=10000,regression_or_classification='regression',path='../data/最少样本测试/训练集')
-    filter_val,filter_label_val,filter_layer_val=read_data(sample_num=1000,batch_size=10000,regression_or_classification='regression',path='../data/最少样本测试/测试集')
+    filter_train,filter_label_train,filter_layer_train=read_data(num_images=10000,regression_or_classification='regression',path='../data/最少样本测试/训练集')
+    filter_val,filter_label_val,filter_layer_val=read_data(sample_num=1000,num_images=10000,regression_or_classification='regression',path='../data/最少样本测试/测试集')
 
     stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
     stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
@@ -693,8 +692,8 @@ if __name__ == "__main__":
 
     #分类#################################################################################################################################################
 
-    # df,lf,df_layer,lf_layer=read_data(batch_size=1600,regression_or_classification='classification',balance=False,path='../data/最少样本测试/训练集')
-    # df_val,lf_val,df_layer_val,lf_layer_val=read_data(batch_size=1600,balance=False,path='../data/最少样本测试/测试集')
+    # df,lf,df_layer,lf_layer=read_data(num_images=1600,regression_or_classification='classification',balance=False,path='../data/最少样本测试/训练集')
+    # df_val,lf_val,df_layer_val,lf_layer_val=read_data(num_images=1600,balance=False,path='../data/最少样本测试/测试集')
     #
     # #df,lf=read_data(balance=False,path='/home/victorfang/Desktop/dead_filter(normal_distribution)')
     #
