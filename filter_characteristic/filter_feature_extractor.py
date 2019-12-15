@@ -12,6 +12,9 @@ from datetime import datetime
 from framework import config as conf
 from random import shuffle
 
+import copy
+from framework import evaluate
+
 class extractor(nn.Module):
     def __init__(self,feature_len,gcn_rounds=2):
         super(extractor, self).__init__()
@@ -36,7 +39,7 @@ class extractor(nn.Module):
         for mod in net.modules():                                                   #mod is a copy
             if isinstance(mod,nn.Conv2d):
                 filter_num+=[mod.out_channels]
-                weight= transform_conv.conv_to_matrix(mod)
+                weight= transform_conv.conv_to_matrix(copy.deepcopy(mod))
                 u, s, v = torch.svd(weight)
                 singular_value_list+=[s[:self.feature_len]]
 
@@ -46,6 +49,7 @@ class extractor(nn.Module):
             stop = start+filter_num[i]
             features[start:stop]=torch.cat((crosslayer_features[i],singular_value_list[i].repeat(filter_num[i],1)),dim=1)
             start=stop
+
         return self.network(features)
 
 def load(self,path):
@@ -106,32 +110,46 @@ def read_data(path='/home/victorfang/model_pytorch/data/最少样本测试/训�
 def train_extractor(path,epoch=500,feature_len=27,gcn_rounds=2):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     extractor_model=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds).to(device)
+    # extractor_model=torch.nn.DataParallel(extractor_model)
     sample_list=read_data(path=path,batch_size=10000)
     optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-2,weight_decay=0)
+    # optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.SGD,learning_rate=1e-3,weight_decay=0)
+
     criterion=torch.nn.MSELoss()
-    for i in range(epoch):
-        total_loss=0
-        shuffle(sample_list)
-        for sample in sample_list:
-            net=sample['net']
-            filter_label=sample['filter_label']
-            label=torch.Tensor(filter_label).reshape((-1,1)).to(device)
-            optimizer.zero_grad()
-            output=extractor_model.forward(net)
-            loss=criterion(output,label)
-            loss.backward()
-            total_loss+=float(loss)
-            optimizer.step()
-
-        print('{} loss is {}'.format(datetime.now(), total_loss))
-
-    checkpoint={'feature_len':feature_len,
-                'gcn_rounds':gcn_rounds,
-                'state_dict':extractor_model.state_dict()}
     checkpoint_path = conf.root_path + 'filter_feature_extractor' + '/checkpoint'
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path, exist_ok=True)
-    torch.save(checkpoint,checkpoint)
+    order=[i for i in range(len(sample_list))]
+    for i in range(epoch):
+        total_loss=[0 for k in range(len(sample_list))]
+        shuffle(order)
+        # print(order)
+        for j in order:
+
+            sample=sample_list[j]
+            net=sample['net']
+
+            filter_label=sample['filter_label']
+            label=torch.Tensor(filter_label).reshape((-1,1)).to(device)
+            optimizer.zero_grad()
+
+            output=extractor_model.forward(net)
+
+            loss=criterion(output,label)
+            loss.backward()
+
+            total_loss[j]=float(loss)
+            optimizer.step()
+
+        print('{}  Epoch:{}. loss is {}. Sum:'.format(datetime.now(),i, total_loss),end='')
+        print(sum(total_loss))
+        if i%50==0 and i!=0:
+            checkpoint={'feature_len':feature_len,
+                        'gcn_rounds':gcn_rounds,
+                        'state_dict':extractor_model.state_dict()}
+
+            torch.save(checkpoint,os.path.join(checkpoint_path,str(i)+'.tar'))
+            print(i)
     
 
 

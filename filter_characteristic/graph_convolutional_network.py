@@ -3,6 +3,9 @@ import transform_conv
 import torch.nn as nn
 from network import vgg
 
+import copy
+from framework import evaluate
+
 
 class gcn(nn.Module):
     def __init__(self,in_features,out_features):
@@ -30,7 +33,8 @@ class gcn(nn.Module):
         weight_list=[]
         for mod in net.modules():                                                   #mod is a copy
             if isinstance(mod,nn.Conv2d):
-                weight_list+=[transform_conv.conv_to_matrix(mod)]                   #a list containing 2-d conv weight matrix
+                # weight_list+=[transform_conv.conv_to_matrix(mod)]                   #a list containing 2-d conv weight matrix
+                weight_list+=[transform_conv.conv_to_matrix(copy.deepcopy(mod))]      #a list containing 2-d conv weight matrix, parameters in original nets will not be updated
 
         while rounds>0:
             rounds-=1

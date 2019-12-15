@@ -16,6 +16,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net= vgg.vgg16_bn(pretrained=True)
 print()
 
+for mod in net.modules():
+    if isinstance(mod,torch.nn.Conv2d):
+        weight=mod.weight.detach()
+        c=torch.ones(5)
+        a=torch.sum(weight)+torch.sum(c)
+        b=a*2
+        b.backward()
+        mod.weight[0,0,0,0]=10000
+        print()
+
 
 
 
