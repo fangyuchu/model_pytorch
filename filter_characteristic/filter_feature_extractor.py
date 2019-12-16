@@ -32,8 +32,8 @@ class extractor(nn.Module):
             nn.Linear(128,1)
         )
         
-    def forward(self,net ):
-        crosslayer_features=self.gcn.forward(net=net,rounds=self.gcn_rounds)
+    def forward(self,net,net_name,dataset_name ):
+        crosslayer_features=self.gcn.forward(net=net,rounds=self.gcn_rounds,net_name=net_name,dataset_name=dataset_name)
 
         filter_num=[]
         singular_value_list=[]
@@ -178,28 +178,28 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_extractor('../data/最少样本测试/训练集',criterion=weighted_MSELoss())
+    # train_extractor('../data/最少样本测试/训练集',criterion=weighted_MSELoss())
 
 
-    # path='../data/model_saved/filter_feature_extractor/checkpoint/weighted_MSELoss/500.tar'
-    # extractor_model=load(path).to(device)
-    # sample_list=read_data(path='../data/最少样本测试/训练集',num_images=10240)
-    # criterion=torch.nn.L1Loss()
-    # for sample in sample_list:
-    #     net = sample['net']
-    #
-    #     filter_label = sample['filter_label']
-    #     label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
-    #
-    #     output = extractor_model.forward(net)
-    #
-    #     loss = criterion(output, label)
-    #
-    #     predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
-    #
-    #     print(float(loss))
-    #     print()
-    # print()
+    path='../data/model_saved/filter_feature_extractor/checkpoint/weighted_MSELoss/1000.tar'
+    extractor_model=load(path).to(device)
+    sample_list=read_data(path='../data/最少样本测试/测试集',num_images=10240)
+    criterion=torch.nn.L1Loss()
+    for sample in sample_list:
+        net = sample['net']
+
+        filter_label = sample['filter_label']
+        label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
+
+        output = extractor_model.forward(net,net_name='vgg16_bn',dataset_name='cifar10')
+
+        loss = criterion(output, label)
+
+        predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
+
+        print(float(loss))
+        print()
+    print()
 
 
     # read_data(num_images=10000)

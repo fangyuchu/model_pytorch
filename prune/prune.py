@@ -240,11 +240,6 @@ def prune_conv_layer(model, layer_index, filter_index):
     next_conv=None                                                          #如果有的话：获取要删的那层后一层的conv，用于删除对应通道
     i=0
 
-    #todo:用引用可以直接改，可行
-    # model.layer1.block0=torch.nn.Sequential(nn.Linear(512 * 7 * 7, 4096),
-    #         nn.ReLU(True),
-    #         nn.Dropout(),)
-
     for name, mod in model.named_modules():
         if conv is not None:
             if isinstance(mod, torch.nn.modules.conv.Conv2d):            #要删的filter后一层的conv
