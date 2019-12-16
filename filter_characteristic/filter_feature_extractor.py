@@ -59,7 +59,7 @@ class weighted_MSELoss(torch.nn.MSELoss):
 
     def forward(self, input, target):
         ret = (input - target) ** 2
-        ret = ret * (1 / target)
+        ret = ret * target
         if self.reduction != 'none':
             ret = torch.mean(ret) if self.reduction == 'mean' else torch.sum(ret)
         return ret
@@ -169,31 +169,28 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_extractor('../data/最少样本测试/训练集',criterion=torch.nn.L1Loss())
+    # train_extractor('../data/最少样本测试/训练集',criterion=torch.nn.L1Loss())
 
 
-    # test_net=vgg.vgg16_bn(pretrained=False,dataset_name='cifar10').to(device)
-    # path='../data/model_saved/filter_feature_extractor/checkpoint/l1norm/600.tar'
-    # extractor_model=load(path).to(device)
-    # sample_list=read_data(path='../data/最少样本测试/训练集',num_images=10000)
-    # criterion=weighted_MSELoss()
-    # for sample in sample_list:
-    #     net = sample['net']
-    #     if net.features[0].weight.shape[0]!=64:
-    #         continue
-    #     filter_label = sample['filter_label']
-    #     label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
-    #
-    #     output = extractor_model.forward(test_net)
-    #
-    #     loss = criterion(output, label)
-    #
-    #     from filter_characteristic import predict_dead_filter
-    #     predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
-    #
-    #     print(float(loss))
-    #     print()
+    path='../data/model_saved/filter_feature_extractor/checkpoint/weighted_MSELoss/500.tar'
+    extractor_model=load(path).to(device)
+    sample_list=read_data(path='../data/最少样本测试/训练集',num_images=10240)
+    criterion=torch.nn.L1Loss()
+    for sample in sample_list:
+        net = sample['net']
 
+        filter_label = sample['filter_label']
+        label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
+
+        output = extractor_model.forward(net)
+
+        loss = criterion(output, label)
+
+        predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
+
+        print(float(loss))
+        print()
+    print()
 
 
     # read_data(num_images=10000)
