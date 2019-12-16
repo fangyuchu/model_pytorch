@@ -72,6 +72,11 @@ class weighted_MSELoss(torch.nn.MSELoss):
 
 
 def load(path):
+    '''
+    load feature extractor from checkpoint in path
+    :param path:
+    :return:
+    '''
     checkpoint=torch.load(path)
     feature_len=checkpoint['feature_len']
     gcn_rounds=checkpoint['gcn_rounds']
