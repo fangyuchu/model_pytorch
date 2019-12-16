@@ -134,7 +134,7 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
     optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-2,weight_decay=0)
     # optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.SGD,learning_rate=1e-3,weight_decay=0)
 
-    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint',str(criterion))
+    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint',criterion.__class__.__name__)
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path, exist_ok=True)
     order=[i for i in range(len(sample_list))]
