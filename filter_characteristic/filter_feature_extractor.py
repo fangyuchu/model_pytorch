@@ -4,16 +4,17 @@ import torch.nn as nn
 import transform_conv
 from network import vgg
 import network.vgg as vgg
-import os
 import numpy as np
 from network import storage
 from framework import train
 from datetime import datetime
 from framework import config as conf
 from random import shuffle
-
 import copy
-from framework import evaluate
+from filter_characteristic import predict_dead_filter
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 
 class extractor(nn.Module):
     def __init__(self,feature_len,gcn_rounds=2):
@@ -121,6 +122,7 @@ def read_data(path='../data/最少样本测试/训练集',
     return sample
 
 def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.nn.MSELoss()):
+    print(criterion)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     extractor_model=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds).to(device)
     # extractor_model=torch.nn.DataParallel(extractor_model)
@@ -128,7 +130,7 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
     optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-2,weight_decay=0)
     # optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.SGD,learning_rate=1e-3,weight_decay=0)
 
-    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint/weighted_mse/')
+    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint/L1Loss/')
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path, exist_ok=True)
     order=[i for i in range(len(sample_list))]
@@ -167,7 +169,7 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_extractor('../data/最少样本测试/训练集',criterion=weighted_MSELoss())
+    train_extractor('../data/最少样本测试/训练集',criterion=torch.nn.L1Loss())
 
 
     # test_net=vgg.vgg16_bn(pretrained=False,dataset_name='cifar10').to(device)
