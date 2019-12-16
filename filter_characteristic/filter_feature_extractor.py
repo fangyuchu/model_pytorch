@@ -58,8 +58,12 @@ class weighted_MSELoss(torch.nn.MSELoss):
         super(weighted_MSELoss,self).__init__()
 
     def forward(self, input, target):
+        device=input.device
         ret = (input - target) ** 2
-        ret = ret * target
+        weight=torch.zeros(target.shape).to(device)
+        weight[target<0.5]=0.5
+        weight[target>=0.5]=target[target>=0.5]
+        ret = ret * weight
         if self.reduction != 'none':
             ret = torch.mean(ret) if self.reduction == 'mean' else torch.sum(ret)
         return ret
@@ -130,7 +134,7 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
     optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-2,weight_decay=0)
     # optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.SGD,learning_rate=1e-3,weight_decay=0)
 
-    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint/L1Loss/')
+    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint',str(criterion))
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path, exist_ok=True)
     order=[i for i in range(len(sample_list))]
@@ -169,28 +173,28 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # train_extractor('../data/最少样本测试/训练集',criterion=torch.nn.L1Loss())
+    train_extractor('../data/最少样本测试/训练集',criterion=weighted_MSELoss())
 
 
-    path='../data/model_saved/filter_feature_extractor/checkpoint/weighted_MSELoss/500.tar'
-    extractor_model=load(path).to(device)
-    sample_list=read_data(path='../data/最少样本测试/训练集',num_images=10240)
-    criterion=torch.nn.L1Loss()
-    for sample in sample_list:
-        net = sample['net']
-
-        filter_label = sample['filter_label']
-        label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
-
-        output = extractor_model.forward(net)
-
-        loss = criterion(output, label)
-
-        predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
-
-        print(float(loss))
-        print()
-    print()
+    # path='../data/model_saved/filter_feature_extractor/checkpoint/weighted_MSELoss/500.tar'
+    # extractor_model=load(path).to(device)
+    # sample_list=read_data(path='../data/最少样本测试/训练集',num_images=10240)
+    # criterion=torch.nn.L1Loss()
+    # for sample in sample_list:
+    #     net = sample['net']
+    #
+    #     filter_label = sample['filter_label']
+    #     label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
+    #
+    #     output = extractor_model.forward(net)
+    #
+    #     loss = criterion(output, label)
+    #
+    #     predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
+    #
+    #     print(float(loss))
+    #     print()
+    # print()
 
 
     # read_data(num_images=10000)
