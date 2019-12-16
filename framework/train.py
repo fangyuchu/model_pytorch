@@ -31,6 +31,9 @@ def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learni
     # for param_group in optimizer.param_groups:
     #     param_group['lr'] = lr
 
+def set_learning_rate(optimizer,lr):
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
 
 def prepare_optimizer(
         net,

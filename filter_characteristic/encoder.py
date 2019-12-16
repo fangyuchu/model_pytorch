@@ -280,6 +280,7 @@ root='/home/victorfang/PycharmProjects/model_pytorch/data/model_params/'
 #                 np.save(root+'bias/'+net_name+','+str(i),bias)
 
 if __name__ == "__main__":
+
     # name='../data/auto_encoder_pad-1_144d.tar'
     # checkpoint=torch.load(name)
     # checkpoint_new={'state_dict':checkpoint['state_dict'],'sample_num':checkpoint['sample_num']}

@@ -52,6 +52,20 @@ class extractor(nn.Module):
 
         return self.network(features)
 
+class weighted_MSELoss(torch.nn.MSELoss):
+    def __init__(self):
+        super(weighted_MSELoss,self).__init__()
+
+    def forward(self, input, target):
+        ret = (input - target) ** 2
+        ret = ret * (1 / target)
+        if self.reduction != 'none':
+            ret = torch.mean(ret) if self.reduction == 'mean' else torch.sum(ret)
+        return ret
+
+
+
+
 def load(path):
     checkpoint=torch.load(path)
     feature_len=checkpoint['feature_len']
@@ -60,7 +74,7 @@ def load(path):
     net.load_state_dict(checkpoint['state_dict'])
     return net
 
-def read_data(path='/home/victorfang/model_pytorch/data/最少样本测试/训练集',
+def read_data(path='../data/最少样本测试/训练集',
               num_images=None):
     sample=list()
     file_list = os.listdir(path)
@@ -106,18 +120,15 @@ def read_data(path='/home/victorfang/model_pytorch/data/最少样本测试/训�
 
     return sample
 
-def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2):
+def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.nn.MSELoss()):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     extractor_model=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds).to(device)
     # extractor_model=torch.nn.DataParallel(extractor_model)
-    sample_list=read_data(path=path,num_images=10000)
+    sample_list=read_data(path=path,num_images=10240)
     optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-2,weight_decay=0)
     # optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.SGD,learning_rate=1e-3,weight_decay=0)
 
-    # criterion=torch.nn.MSELoss()
-    criterion=torch.nn.L1Loss()
-
-    checkpoint_path = conf.root_path + 'filter_feature_extractor' + '/checkpoint/l1norm/'
+    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint/weighted_mse/')
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path, exist_ok=True)
     order=[i for i in range(len(sample_list))]
@@ -156,30 +167,30 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2):
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # train_extractor('/home/victorfang/model_pytorch/data/最少样本测试/训练集')
+    train_extractor('../data/最少样本测试/训练集',criterion=weighted_MSELoss())
 
 
-    test_net=vgg.vgg16_bn(pretrained=False,dataset_name='cifar10').to(device)
-    path='/home/victorfang/model_pytorch/data/model_saved/filter_feature_extractor/checkpoint/l1norm/600.tar'
-    extractor_model=load(path).to(device)
-    sample_list=read_data(path='/home/victorfang/model_pytorch/data/最少样本测试/训练集',num_images=10000)
-    criterion=torch.nn.MSELoss()
-    for sample in sample_list:
-        net = sample['net']
-        if net.features[0].weight.shape[0]!=64:
-            continue
-        filter_label = sample['filter_label']
-        label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
-
-        output = extractor_model.forward(test_net)
-
-        loss = criterion(output, label)
-
-        from filter_characteristic import predict_dead_filter
-        predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
-
-        print(float(loss))
-        print()
+    # test_net=vgg.vgg16_bn(pretrained=False,dataset_name='cifar10').to(device)
+    # path='../data/model_saved/filter_feature_extractor/checkpoint/l1norm/600.tar'
+    # extractor_model=load(path).to(device)
+    # sample_list=read_data(path='../data/最少样本测试/训练集',num_images=10000)
+    # criterion=weighted_MSELoss()
+    # for sample in sample_list:
+    #     net = sample['net']
+    #     if net.features[0].weight.shape[0]!=64:
+    #         continue
+    #     filter_label = sample['filter_label']
+    #     label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
+    #
+    #     output = extractor_model.forward(test_net)
+    #
+    #     loss = criterion(output, label)
+    #
+    #     from filter_characteristic import predict_dead_filter
+    #     predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
+    #
+    #     print(float(loss))
+    #     print()
 
 
 
