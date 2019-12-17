@@ -8,6 +8,8 @@ def replace_layers(module,old_mod,new_mod):
             return new_mod[i]
     return module
 
+
+
 def create_module_list(module,key='',prefix=''):
     module_dict=getattr(module,'_modules')
     if not module_dict:                                 #module_dict is empty, which means this module is the last node.

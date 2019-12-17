@@ -237,6 +237,7 @@ def find_useless_filters_regressor_version(net,
 
 def find_useless_filters_data_version(net,
                                       batch_size,
+                                      percent_of_inactive_filter,
                                       dataset_name='cifar10',
                                       use_random_data=False,
                                       module_list=None,
@@ -244,7 +245,6 @@ def find_useless_filters_data_version(net,
                                       dead_or_inactive='inactive',
                                       neural_dead_times=None,
                                       filter_dead_ratio=None,
-                                      percent_of_inactive_filter=None,
                                       # max_data_to_test=10000,
                                       max_data_to_test=10000,
                       ):
@@ -314,7 +314,7 @@ def find_useless_filters_data_version(net,
     filter_num = list()
     relu_layer=list()   #denote the layer for ReLU
     for mod in net.modules():
-        if isinstance(mod, torch.nn.modules.conv.Conv2d):
+        if isinstance(mod, torch.nn.Conv2d):
             num_conv += 1
             filter_num.append(mod.out_channels)
         if isinstance(mod,nn.ReLU):

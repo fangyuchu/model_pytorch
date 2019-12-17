@@ -1,6 +1,8 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
+import os
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6"
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
@@ -255,8 +257,14 @@ def resnet152(pretrained=False, **kwargs):
 
 if __name__ == "__main__":
     import torch
+    from prune import prune
+    #todo:用数据剪resnet50几轮创造训练集
+    #todo:检查完了find_useless_filters_data_version,它会返回所有卷积层中的useless filter
+    #todo:下一步：检查剪掉卷积核的那些代码，考虑重新写
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net=resnet50(pretrained=True).to(device)
+    net=torch.nn.DataParallel(net)
+    a=prune.create_module_list(net)
     from framework import evaluate,data_loader
     evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=16,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
     print()
