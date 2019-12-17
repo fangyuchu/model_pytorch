@@ -61,15 +61,50 @@ class BasicBlock(nn.Module):
 class Bottleneck(nn.Module):
     expansion = 4
 
+    # def __init__(self, inplanes, planes, stride=1, downsample=None):
+    #     super(Bottleneck, self).__init__()
+    #     self.conv1 = conv1x1(inplanes, planes)
+    #     self.bn1 = nn.BatchNorm2d(planes)
+    #     self.conv2 = conv3x3(planes, planes, stride)
+    #     self.bn2 = nn.BatchNorm2d(planes)
+    #     self.conv3 = conv1x1(planes, planes * self.expansion)
+    #     self.bn3 = nn.BatchNorm2d(planes * self.expansion)
+    #     self.relu = nn.ReLU(inplace=True)
+    #     self.downsample = downsample
+    #     self.stride = stride
+    #
+    # def forward(self, x):
+    #     identity = x
+    #
+    #     out = self.conv1(x)
+    #     out = self.bn1(out)
+    #     out = self.relu(out)
+    #
+    #     out = self.conv2(out)
+    #     out = self.bn2(out)
+    #     out = self.relu(out)
+    #
+    #     out = self.conv3(out)
+    #     out = self.bn3(out)
+    #
+    #     if self.downsample is not None:
+    #         identity = self.downsample(x)
+    #
+    #     out += identity
+    #     out = self.relu(out)
+    #
+    #     return out
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(Bottleneck, self).__init__()
         self.conv1 = conv1x1(inplanes, planes)
         self.bn1 = nn.BatchNorm2d(planes)
+        self.relu1=nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes, stride)
         self.bn2 = nn.BatchNorm2d(planes)
+        self.relu2=nn.ReLU(inplace=True)
         self.conv3 = conv1x1(planes, planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu3 = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
@@ -78,11 +113,11 @@ class Bottleneck(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = self.relu1(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = self.relu(out)
+        out = self.relu2(out)
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -91,7 +126,7 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        out = self.relu(out)
+        out = self.relu3(out)
 
         return out
 
@@ -217,3 +252,11 @@ def resnet152(pretrained=False, **kwargs):
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
     return model
+
+if __name__ == "__main__":
+    import torch
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    net=resnet50(pretrained=True).to(device)
+    from framework import evaluate,data_loader
+    evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=16,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
+    print()
