@@ -13,7 +13,7 @@ from random import shuffle
 import copy
 from filter_characteristic import predict_dead_filter
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 class extractor(nn.Module):

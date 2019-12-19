@@ -2,7 +2,7 @@ import numpy as np
 
 #training params
 num_epochs=10                       #times for the use of all training data
-batch_size=1600                       #number of images for one batch
+batch_size=512                       #number of images for one batch
 learning_rate=0.1
 learning_rate_decay_factor=0.5     #decay factor for learning rate decay
 weight_decay=5e-4                   # weight decay (L2 penalty)

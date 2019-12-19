@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 import numpy as np
 from framework import data_loader, measure_flops, config as conf
-from prune import prune_and_train
+# from prune import prune_and_train
 import torch.optim as optim
 import math
 import generate_random_data
@@ -295,17 +295,20 @@ def find_useless_filters_data_version(net,
             elif dataset_name is 'tiny_imagenet':
                 train_set_size=conf.tiny_imagenet['train_set_size']
             train_loader = data_loader.create_validation_loader(
-                                                                batch_size=batch_size,
-                                                                num_workers=6,
+                                                                batch_size=16,
+                                                                num_workers=8,
                                                                 dataset_name=dataset_name+'_trainset',
                                                                 shuffle=True,
                                                                      )
 
-            num_test_images = min(train_set_size, math.ceil(max_data_to_test / batch_size) * batch_size)
+            num_test_images = min(train_set_size, math.ceil(max_data_to_test / 16) * 16)
             if neural_dead_times is None and dead_or_inactive is 'inactive':
                 neural_dead_times=num_test_images
 
-            net_test=copy.deepcopy(net)
+            if isinstance(net,torch.nn.DataParallel):
+                net_test=copy.deepcopy(net._modules['module'])                      #use one gpu
+            else:
+                net_test=copy.deepcopy(net)
             module_list,neural_list=check_ReLU_alive(net=net_test,data_loader=train_loader,
                                                      neural_dead_times=neural_dead_times,max_data_to_test=max_data_to_test)
             del net_test
@@ -313,8 +316,8 @@ def find_useless_filters_data_version(net,
     num_conv = 0  # num of conv layers in the net
     filter_num = list()
     relu_layer=list()   #denote the layer for ReLU
-    for mod in net.modules():
-        if isinstance(mod, torch.nn.Conv2d):
+    for name,mod in net.named_modules():
+        if isinstance(mod, torch.nn.Conv2d) and 'downsample' not in name:
             num_conv += 1
             filter_num.append(mod.out_channels)
         if isinstance(mod,nn.ReLU):

@@ -89,7 +89,10 @@ def measure_model_mine(net,dataset_name='imagenet'):
 
 
 def measure_model(net, dataset_name='imagenet',print_flop=True):
-    model=copy.deepcopy(net)                    #防止把原模型做了改变
+    if isinstance(net,torch.nn.DataParallel):                   #防止把原模型做了改变
+        model=copy.deepcopy(net._modules['module'])
+    else:
+        model=copy.deepcopy(net)
 
     if dataset_name is 'imagenet'or dataset_name is 'tiny_imagenet':
         shape=(1,3,224,224)
