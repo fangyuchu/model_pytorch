@@ -29,20 +29,21 @@ class NetWithMask(nn.Module):
             else:
                 raise Exception('Only support resnet for ImageNet.')
         self.net.to(device)
-
-        self.mask=[torch.ones(3).to(device)]                                 #for rgb channels
+        self.mask=[nn.Parameter(torch.ones(3).to(device),requires_grad=False)]                                 #for rgb channels
         for name,mod in self.net.named_modules():
             if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
-                self.mask+=[torch.ones(mod.out_channels).to(device)]
+                self.mask+=[nn.Parameter(torch.ones(mod.out_channels).to(device),requires_grad=False)]
                 _modules = get_module(model=self.net, name=name)
                 _modules[name.split('.')[-1]] = Conv2dMask(mod,mask=self.mask[-1],front_mask=self.mask[-2]).to(device)             #replace conv
+
+
 
     def forward(self, input):
         return self.net(input)
 
     def mask_filters(self,layer_index,filter_index):
         '''
-
+        prune the network in a masking way
         :param layer_index: index of conv layer that need to prune filters, start with 0
         :param filter_index: index of filters to be pruned
         :return:
@@ -50,12 +51,16 @@ class NetWithMask(nn.Module):
         self.mask[layer_index+1][filter_index]=0                    #first element in mask is [1,1,1] for rgb
 
     def reset_mask(self):
+        '''
+        set all mask to 1
+        :return:
+        '''
         for mask in self.mask[1:]:
             mask[:]=1
 
     def prune(self):
         '''
-
+        return a copy of the pruned network based on mask
         :return: an actual pruned network
         '''
         net=deepcopy(self.net)
@@ -88,8 +93,9 @@ class Conv2dMask(nn.Conv2d):
 
     def forward(self, input):
         #mask the pruned filter and channel
-        masked_weight=self.weight * self.mask.reshape((-1,1,1,1)) * self.front_mask.reshape((1, -1, 1, 1))
-        out = F.conv2d(input, masked_weight, self.bias, self.stride,
+        masked_weight=self.weight * self.mask.detach().reshape((-1,1,1,1)) * self.front_mask.detach().reshape((1, -1, 1, 1))
+        masked_bias=self.bias * self.mask.detach()
+        out = F.conv2d(input, masked_weight, masked_bias, self.stride,
                        self.padding, self.dilation, self.groups)
 
         return out

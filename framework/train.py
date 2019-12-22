@@ -27,11 +27,7 @@ def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learni
             param_group['lr'] = param_group['lr']*learning_rate_decay_factor
             lr=param_group['lr']
         print('{} learning rate at present is {}'.format(datetime.now(), lr))
-    # lr = learning_rate *learning_rate_decay_factor ** int(sample_num / decay_steps)
-    # if sample_num%decay_steps==0:
-    #     print('{} learning rate at present is {}'.format(datetime.now(),lr))
-    # for param_group in optimizer.param_groups:
-    #     param_group['lr'] = lr
+
 
 def set_learning_rate(optimizer,lr):
     for param_group in optimizer.param_groups:
@@ -53,7 +49,7 @@ def prepare_optimizer(
             if sub_string in name:
                 value.requires_grad = False
                 hit=True
-                print('Module: \"'+name+'\" will not be updated')
+                # print('Module: \"'+name+'\" will not be updated')
                 break
         if hit is False:
             value.requires_grad=True

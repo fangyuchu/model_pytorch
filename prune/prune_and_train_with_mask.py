@@ -1,4 +1,4 @@
-from network import net_with_mask,storage
+from network import net_with_mask,storage,vgg
 from framework import train,evaluate,data_loader,config as conf
 from framework.measure_flops import measure_model
 import logger
@@ -140,7 +140,7 @@ def prune_inactive_neural_with_feature_extractor(net,
     else:
         net_entity=net
 
-    flop_original_net = measure_model(net_entity.prune(), dataset_name)
+    flop_original_net=flop_net_before_prune = measure_model(net_entity.prune(), dataset_name)
 
     original_accuracy = evaluate.evaluate_net(net=net,
                                               data_loader=validation_loader,
@@ -182,7 +182,6 @@ def prune_inactive_neural_with_feature_extractor(net,
 
         #todo:round>round_for_train,use filter feature extractor
 
-        net_compressed = False
         '''卷积核剪枝'''
         for i in conv_list:
             #todo 待考虑
@@ -197,21 +196,21 @@ def prune_inactive_neural_with_feature_extractor(net,
             if filter_num[i] - len(dead_filter_index[i]) < filter_num_lower_bound[i]:
                 dead_filter_index[i] = dead_filter_index[i][:filter_num[i] - filter_num_lower_bound[i]]
 
-            if len(dead_filter_index[i]) > 0:
-                net_compressed = True
             print('layer {}: has {} filters, prunes {} filters, remains {} filters.'.
                   format(i, filter_num[i], len(dead_filter_index[i]),filter_num[i]-len(dead_filter_index[i])))
             net_entity.mask_filters(i,dead_filter_index[i])
 
+        flop_net_after_prune = measure_model(net_entity.prune(), dataset_name)
+        net_compressed= (flop_net_after_prune != flop_net_before_prune)
         if net_compressed is False:
             round -= 1
             print('{} round {} did not prune any filters. Restart.'.format(datetime.now(), round + 1))
+            prune_rate += 0.02
             continue
 
-        flop_pruned_net = measure_model(net_entity.prune(), dataset_name)
 
         if tar_acc_gradual_decent is True:  # decent the target_accuracy
-            flop_reduced = flop_original_net - flop_pruned_net
+            flop_reduced = flop_original_net - flop_net_after_prune
             target_accuracy = original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected)
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
@@ -234,11 +233,13 @@ def prune_inactive_neural_with_feature_extractor(net,
                                   weight_decay=weight_decay,
                                   learning_rate_decay_epoch=learning_rate_decay_epoch,
                                   test_net=True,
-                                  top_acc=top_acc
+                                  top_acc=top_acc,
+                                  no_grad=['mask']
                                   )
             if success:
                 prune_rate+=0.02
                 round += 1
+                flop_net_before_prune=flop_net_after_prune
             else:
                 net = old_net
                 max_training_round -= 1
@@ -253,12 +254,20 @@ if __name__ == "__main__":
     print(torch.cuda.is_available())
 
     net = net_with_mask.NetWithMask(dataset_name='cifar10', net_name='vgg16_bn')
-    net=nn.DataParallel(net)
+    net=nn.DataParallel(net,device_ids=[0,1])
+
+    evaluate.evaluate_net(net=net,
+                          data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=4,dataset_name='cifar10'),
+                          save_net=False,
+                          dataset_name='cifar10',
+                          top_acc=1
+                          )
+
     prune_inactive_neural_with_feature_extractor(net=net,
                                                  net_name='vgg16_bn',
                                                  exp_name='test_mask_net',
                                                  target_accuracy=0.93,
-                                                 initial_prune_rate=0.05,
+                                                 initial_prune_rate=0.03,
                                                  round_for_train=100,
                                                  tar_acc_gradual_decent=True,
                                                  flop_expected=4e7,
@@ -269,11 +278,11 @@ if __name__ == "__main__":
                                                  num_epoch=450,
                                                  filter_preserve_ratio=0.3,
                                                  optimizer=optim.SGD,
-                                                 learning_rate=0.01,
+                                                 learning_rate=0.001,
                                                  learning_rate_decay=True,
                                                  learning_rate_decay_factor=0.5,
                                                  weight_decay=5e-4,
-                                                 learning_rate_decay_epoch=[10,50,100,150,200,250,300,350,400],
+                                                 learning_rate_decay_epoch=[50,100,150,200,250,300,350,400],
                                                  max_training_round=1,
                                                  round=1,
                                                  top_acc=1,
