@@ -5,7 +5,8 @@ import logger
 from torch import nn
 from torch import optim
 import torch
-import os,sys,datetime,math
+import os,sys,math
+from datetime import datetime
 from copy import deepcopy
 def get_information_for_pruned_conv(net,net_name,filter_preserve_ratio):
     conv_list=[]                    #layer of the conv to prune
@@ -30,20 +31,20 @@ def prune_inactive_neural_with_feature_extractor(net,
                                                 net_name,
                                                 exp_name,
                                                 target_accuracy,
-                                                prune_rate,
+                                                initial_prune_rate,
                                                 round_for_train=2,
                                                 tar_acc_gradual_decent=False,
                                                 flop_expected=None,
                                                 dataset_name='imagenet',
                                                 batch_size=conf.batch_size,
                                                 num_workers=conf.num_workers,
-                                                optimizer=optim.Adam,
                                                 learning_rate=0.01,
                                                 evaluate_step=1200,
                                                 num_epoch=450,
                                                 filter_preserve_ratio=0.3,
                                                 # max_filters_pruned_for_one_time=0.5,
-                                                learning_rate_decay=False,
+                                                 optimizer=optim.Adam,
+                                                 learning_rate_decay=False,
                                                 learning_rate_decay_factor=conf.learning_rate_decay_factor,
                                                 weight_decay=conf.weight_decay,
                                                 learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
@@ -59,7 +60,7 @@ def prune_inactive_neural_with_feature_extractor(net,
        :param net_name:
        :param exp_name:
        :param target_accuracy:
-       :param prune_rate:
+       :param initial_prune_rate:
        :param round_for_train:
        :param tar_acc_gradual_decent:
        :param flop_expected:
@@ -94,7 +95,7 @@ def prune_inactive_neural_with_feature_extractor(net,
     print('net_name:', net_name)
     print('exp_name:', exp_name)
     print('target_accuracy:', target_accuracy)
-    print('prune_rate:', prune_rate)
+    print('initial_prune_rate:', initial_prune_rate)
     print('round_for_train:', round_for_train)
     print('tar_acc_gradual_decent:', tar_acc_gradual_decent)
     print('flop_expected:', flop_expected)
@@ -134,7 +135,12 @@ def prune_inactive_neural_with_feature_extractor(net,
         dataset_name=dataset_name,
     )
 
-    flop_original_net = measure_model(net.prune(), dataset_name)
+    if isinstance(net,nn.DataParallel):
+        net_entity=net.module
+    else:
+        net_entity=net
+
+    flop_original_net = measure_model(net_entity.prune(), dataset_name)
 
     original_accuracy = evaluate.evaluate_net(net=net,
                                               data_loader=validation_loader,
@@ -146,16 +152,15 @@ def prune_inactive_neural_with_feature_extractor(net,
         flop_drop_expected = flop_original_net - flop_expected
         acc_drop_tolerance = original_accuracy - target_accuracy
 
-    conv_list, filter_num, filter_num_lower_bound=get_information_for_pruned_conv(net,net_name,filter_preserve_ratio)
-
+    conv_list, filter_num, filter_num_lower_bound=get_information_for_pruned_conv(net_entity,net_name,filter_preserve_ratio)
+    prune_rate=initial_prune_rate
     while True:
         #todo 待考虑
-        round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
-
+        print('{} current prune_rate:{}'.format(datetime.now(),prune_rate))
         if round <= round_for_train:
             dead_filter_index, module_list, neural_list, dead_ratio_tmp = evaluate.find_useless_filters_data_version(
-                net=net,
+                net=net_entity,
                 batch_size=16,                                                                                                  #this function need to run on sigle gpu
                 percent_of_inactive_filter=prune_rate,
                 dead_or_inactive='inactive',
@@ -167,9 +172,9 @@ def prune_inactive_neural_with_feature_extractor(net,
                 os.makedirs(os.path.join(checkpoint_path, 'dead_neural'), exist_ok=True)
 
             checkpoint = {'prune_rate': prune_rate, 'module_list': module_list,
-                          'neural_list': neural_list, 'state_dict': net.state_dict(),
+                          'neural_list': neural_list, 'state_dict': net_entity.state_dict(),
                           'num_test_images':num_test_images}
-            checkpoint.update(storage.get_net_information(net, dataset_name, net_name))
+            checkpoint.update(storage.get_net_information(net_entity, dataset_name, net_name))
             torch.save(checkpoint,
                        os.path.join(checkpoint_path, 'dead_neural/round %d.tar' % round)
                        )
@@ -194,15 +199,16 @@ def prune_inactive_neural_with_feature_extractor(net,
 
             if len(dead_filter_index[i]) > 0:
                 net_compressed = True
-            print('layer {}: has {} filters, prunes {} filters.'.format(i, filter_num[i], len(dead_filter_index[i])))
-            net.mask_filters(i,dead_filter_index[i])
+            print('layer {}: has {} filters, prunes {} filters, remains {} filters.'.
+                  format(i, filter_num[i], len(dead_filter_index[i]),filter_num[i]-len(dead_filter_index[i])))
+            net_entity.mask_filters(i,dead_filter_index[i])
 
         if net_compressed is False:
             round -= 1
             print('{} round {} did not prune any filters. Restart.'.format(datetime.now(), round + 1))
             continue
 
-        flop_pruned_net = measure_model(net.prune(), dataset_name)
+        flop_pruned_net = measure_model(net_entity.prune(), dataset_name)
 
         if tar_acc_gradual_decent is True:  # decent the target_accuracy
             flop_reduced = flop_original_net - flop_pruned_net
@@ -229,15 +235,47 @@ def prune_inactive_neural_with_feature_extractor(net,
                                   learning_rate_decay_epoch=learning_rate_decay_epoch,
                                   test_net=True,
                                   top_acc=top_acc
-                                          ** kwargs
                                   )
-            if not success:
+            if success:
+                prune_rate+=0.02
+                round += 1
+            else:
                 net = old_net
                 max_training_round -= 1
                 if max_training_round == 0:
-                    print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
-                    return
+                    prune_rate-=0.02
+                    if prune_rate<=0:
+                        print('{} failed to prune the net, pruning stop.'.format(datetime.now()))
+                        return
 
 
 if __name__ == "__main__":
-    net = net_with_mask.NetWithMask(dataset_name='imagenet', net_name='resnet50')
+    print(torch.cuda.is_available())
+
+    net = net_with_mask.NetWithMask(dataset_name='cifar10', net_name='vgg16_bn')
+    net=nn.DataParallel(net)
+    prune_inactive_neural_with_feature_extractor(net=net,
+                                                 net_name='vgg16_bn',
+                                                 exp_name='test_mask_net',
+                                                 target_accuracy=0.93,
+                                                 initial_prune_rate=0.05,
+                                                 round_for_train=100,
+                                                 tar_acc_gradual_decent=True,
+                                                 flop_expected=4e7,
+                                                 dataset_name='cifar10',
+                                                 batch_size=512,
+                                                 num_workers=8,
+                                                 evaluate_step=3000,
+                                                 num_epoch=450,
+                                                 filter_preserve_ratio=0.3,
+                                                 optimizer=optim.SGD,
+                                                 learning_rate=0.01,
+                                                 learning_rate_decay=True,
+                                                 learning_rate_decay_factor=0.5,
+                                                 weight_decay=5e-4,
+                                                 learning_rate_decay_epoch=[10,50,100,150,200,250,300,350,400],
+                                                 max_training_round=1,
+                                                 round=1,
+                                                 top_acc=1,
+                                                 max_data_to_test=10000
+                                                 )

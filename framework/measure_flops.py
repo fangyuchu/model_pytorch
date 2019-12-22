@@ -8,7 +8,7 @@ count_ops = 0
 def measure_layer(layer, x, multi_add=1):
     type_name = str(layer)[:str(layer).find('(')].strip()
     #print(type_name)
-    if type_name in ['Conv2d']:
+    if isinstance(layer,nn.Conv2d):
         out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) //
                     layer.stride[0] + 1)
         out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) //

@@ -8,7 +8,7 @@ from framework import data_loader
 from network import create_net
 from network import vgg
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -350,38 +350,43 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
 #                                                      learning_rate_decay_factor=0.5,
 # )
+print(torch.cuda.is_available())
+checkpoint = torch.load('/home/victorfang/PycharmProjects/model_pytorch/data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 
-net = vgg.vgg16_bn(pretrained=True, dataset_name='imagenet').to(device)
+net=storage.restore_net(checkpoint).to(device)
 
-net = torch.nn.DataParallel(net)
+print(checkpoint['highest_accuracy'])
+
+measure_flops.measure_model(net, 'cifar10', print_flop=True)
+
 
 prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                     net_name='vgg16_bn',
-                                     exp_name='vgg16_imagenet_pureData',
-                                     prune_rate=0.1,
-                                     round_for_train=10,
-                                     tar_acc_gradual_decent=True,
-                                     batch_size=512,
-                                     num_workers=8,
+                                                     exp_name='test',
+                                                              net_name='vgg16_bn',
+                                                     dataset_name='cifar10',
+                                                     prune_rate=0.1,
 
-                                     # optimizer=optim.Adam,
-                                     # learning_rate=0.0001,
-                                     # weight_decay=5e-4,
+                                                     load_regressor=False,
+                                                     round_for_train=2,
+                                                     round=1,
 
-                                     optimizer=optim.SGD,
-                                     learning_rate=0.01,
-                                     weight_decay=5e-4,
-                                     momentum=0.9,
-                                     learning_rate_decay=True,
-                                     learning_rate_decay_factor=10,
-                                     learning_rate_decay_epoch=[5, 10, 15],
+                                                        max_training_round=2,
 
-                                     num_epoch=20,
-                                     max_filters_pruned_for_one_time=0.2,
 
-                                     max_training_round=2,
-                                     flop_expected=5e9,
-                                                     top_acc=5,
-                                     target_accuracy=0.91476,
-
-                                     )
+                                                     filter_preserve_ratio=0.1,
+                                                     max_filters_pruned_for_one_time=0.3,
+                                                     target_accuracy=0.931,
+                                                     tar_acc_gradual_decent=True,
+                                                     flop_expected=1e7,
+                                                     batch_size=1600,
+                                                     num_epoch=450,
+                                                     evaluate_step=1600,
+                                                     use_random_data=False,
+                                                     # optimizer=optim.Adam,
+                                                     # learning_rate=1e-3,
+                                                     # weight_decay=0
+                                                     optimizer=optim.SGD,
+                                                     learning_rate=0.001,
+                                                     learning_rate_decay=True,
+                                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                                                     learning_rate_decay_factor=0.5,)
