@@ -23,7 +23,7 @@ def get_net_information(net,dataset_name,net_name):
     checkpoint['structure']=structure
     return checkpoint
 
-def restore_net(checkpoint):
+def restore_net(checkpoint,pretrained=True):
     structure=checkpoint['structure']
     dataset_name=checkpoint['dataset_name']
     net_name=checkpoint['net_name']
@@ -44,13 +44,12 @@ def restore_net(checkpoint):
 
     #prune the network according to checkpoint['structure']
     num_layer=0
-    for mod in net.modules():
-        if isinstance(mod,nn.Conv2d):
-            index=[i for i in range(mod.out_channels-structure[num_layer-1])]
+    for name,mod in net.named_modules():
+        if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+            index=[i for i in range(mod.out_channels-structure[num_layer])]
             if 'vgg' in net_name:
                 net= prune_module.prune_conv_layer(model=net, layer_index=num_layer, filter_index=index)
             elif 'resnet' in net_name:
-                print(num_layer)
                 net=prune_module.prune_conv_layer_resnet(net=net,
                                                          layer_index=num_layer,
                                                          filter_index=index,
@@ -58,8 +57,16 @@ def restore_net(checkpoint):
             num_layer+=1
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    net.to(device)
 
-    return net.to(device)
+    if pretrained:
+        try:
+            net.load_state_dict(checkpoint['state_dict'])
+        except RuntimeError:
+            net=nn.DataParallel(net)
+            net.load_state_dict(checkpoint['state_dict'])
+            net=net._modules['module']
+    return net
 
 
 # def conversion(dataset_name,net_name,checkpoint_path='',checkpoint=None):

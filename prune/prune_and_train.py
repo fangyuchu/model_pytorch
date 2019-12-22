@@ -13,7 +13,7 @@ from filter_characteristic import predict_dead_filter
 from network import resnet_cifar, resnet_tinyimagenet,storage,resnet
 
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7"
 
 #
                 
@@ -38,7 +38,7 @@ def prune_inactive_neural_with_regressor(net,
                                          num_workers=conf.num_workers,
                                          optimizer=optim.Adam,
                                          learning_rate=0.01,
-                                         checkpoint_step=1000,
+                                         evaluate_step=1000,
                                          num_epoch=450,
                                          filter_preserve_ratio=0.3,
                                          max_filters_pruned_for_one_time=0.5,
@@ -47,7 +47,7 @@ def prune_inactive_neural_with_regressor(net,
                                          weight_decay=conf.weight_decay,
                                          learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
                                          top_acc=1,
-                                         max_training_iteration=99999,
+                                         max_training_round=99999,
                                          round=1,
                                          **kwargs
                                      ):
@@ -70,7 +70,7 @@ def prune_inactive_neural_with_regressor(net,
     :param num_workers:
     :param optimizer:
     :param learning_rate:
-    :param checkpoint_step:
+    :param evaluate_step:
     :param num_epoch:
     :param filter_preserve_ratio:
     :param max_filters_pruned_for_one_time: If a float provided, it should be slightly larger than prune_rate. If a list object provided, it
@@ -84,11 +84,11 @@ def prune_inactive_neural_with_regressor(net,
     :return:
     '''
     # save the output to log
-    print('save log in:' + conf.root_path + exp_name + '/log.txt')
-    if not os.path.exists(conf.root_path + exp_name):
-        os.makedirs(conf.root_path + exp_name, exist_ok=True)
-    sys.stdout = logger.Logger(conf.root_path + exp_name + '/log.txt', sys.stdout)
-    sys.stderr = logger.Logger(conf.root_path + exp_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
+    print('save log in:' + os.path.join(conf.root_path,'model_saved',exp_name,'log.txt'))
+    if not os.path.exists(os.path.join(conf.root_path,'model_saved',exp_name)):
+        os.makedirs(os.path.join(conf.root_path,'model_saved',exp_name), exist_ok=True)
+    sys.stdout = logger.Logger(os.path.join(conf.root_path,'model_saved',exp_name,'log.txt'), sys.stdout)
+    sys.stderr = logger.Logger(os.path.join(conf.root_path,'model_saved',exp_name,'log.txt'), sys.stderr)  # redirect std err, if necessary
 
     print(
         'net:{}\n' 
@@ -108,7 +108,7 @@ def prune_inactive_neural_with_regressor(net,
         'num_workers:{}\n' 
         'optimizer:{}\n' 
         'learning_rate:{}\n' 
-        'checkpoint_step:{}\n' 
+        'evaluate_step:{}\n' 
         'num_epoch:{}\n' 
         'filter_preserve_ratio:{}\n' 
         'max_filters_pruned_for_one_time:{}\n' 
@@ -117,12 +117,12 @@ def prune_inactive_neural_with_regressor(net,
         'weight_decay:{}\n' 
         'learning_rate_decay_epoch:{}\n'
         'top_acc:{}\n'
-        'max_training_iteration:{}\n'
+        'max_training_round:{}\n'
         'round:{}\n'
           .format(net, net_name,exp_name, target_accuracy, prune_rate,predictor_name,load_regressor,round_for_train,tar_acc_gradual_decent,
                   flop_expected,dataset_name,use_random_data,validation_loader,batch_size,num_workers,optimizer,learning_rate,
-                  checkpoint_step,num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
-                  weight_decay,learning_rate_decay_epoch,top_acc,max_training_iteration,round))
+                  evaluate_step,num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
+                  weight_decay,learning_rate_decay_epoch,top_acc,max_training_round,round))
     print(kwargs)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -165,12 +165,12 @@ def prune_inactive_neural_with_regressor(net,
     dead_ratio=list()
     predictor = predict_dead_filter.predictor(name=predictor_name)
     if load_regressor is True:
-        regressor_exists=predictor.load(path=conf.root_path + exp_name)
+        regressor_exists=predictor.load(path=os.path.join(conf.root_path,'model_saved' , exp_name))
         if regressor_exists is True:
             round_for_train = -1
         else:                                                   #load data from previous rounds of pruning
             print('Can\' find saved regressor. Load data from previous round.')
-            filter_tmp, dead_ratio_tmp, filter_layer_tmp= predict_dead_filter.read_data(path=conf.root_path + exp_name + '/dead_neural/',
+            filter_tmp, dead_ratio_tmp, filter_layer_tmp= predict_dead_filter.read_data(path=os.path.join(conf.root_path,'model_saved' , exp_name , 'dead_neural/'),
                                                                                         balance=False,
                                                                                         regression_or_classification='regression',
                                                                                         batch_size=batch_size,
@@ -191,7 +191,7 @@ def prune_inactive_neural_with_regressor(net,
 
             ##train the predictor######################################################################################################
             predictor.fit(filter=filter,filter_layer=filter_layer,filter_label=dead_ratio)
-            predictor.save(path=conf.root_path + exp_name)
+            predictor.save(path=os.path.join(conf.root_path,'model_saved' , exp_name))
         if round<=round_for_train:
 
             dead_filter_index, module_list, neural_list, dead_ratio_tmp = evaluate.find_useless_filters_data_version(net=net,
@@ -200,14 +200,15 @@ def prune_inactive_neural_with_regressor(net,
                                                                                                                      percent_of_inactive_filter=prune_rate,
                                                                                                                      dead_or_inactive='inactive',
                                                                                                                      dataset_name=dataset_name)
-            if not os.path.exists(conf.root_path + exp_name + '/dead_neural'):
-                os.makedirs(conf.root_path + exp_name + '/dead_neural', exist_ok=True)
+            if not os.path.exists(os.path.join(conf.root_path,'model_saved' , exp_name , 'dead_neural')):
+                os.makedirs(os.path.join(conf.root_path,'model_saved' , exp_name , 'dead_neural'), exist_ok=True)
             checkpoint={'prune_rate': prune_rate,'module_list': module_list,
                         'neural_list': neural_list, 'state_dict': net.state_dict(),
                         'batch_size': batch_size}
             checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
             torch.save(checkpoint,
-                       conf.root_path + exp_name + '/dead_neural/round %d.tar' % round, )
+                       os.path.join(conf.root_path,'model_saved',exp_name,'dead_neural/round %d.tar' % round)
+                       )
 
             dead_ratio+=dead_ratio_tmp
             # save filters for training the regressor
@@ -274,7 +275,7 @@ def prune_inactive_neural_with_regressor(net,
                                   target_accuracy=target_accuracy,
                                   learning_rate=learning_rate,
                                   load_net=False,
-                                  checkpoint_step=checkpoint_step,
+                                  evaluate_step=evaluate_step,
                                   dataset_name=dataset_name,
                                   optimizer=optimizer,
                                   batch_size=batch_size,
@@ -288,8 +289,8 @@ def prune_inactive_neural_with_regressor(net,
                                   )
             if not success:
                 net = old_net.to(device)
-                max_training_iteration -= 1
-                if max_training_iteration == 0:
+                max_training_round -= 1
+                if max_training_round == 0:
                     print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
                     return
 
@@ -311,7 +312,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                                 num_workers=conf.num_workers,
                                                 optimizer=optim.Adam,
                                                 learning_rate=0.01,
-                                                checkpoint_step=1000,
+                                                evaluate_step=1200,
                                                 num_epoch=450,
                                                 filter_preserve_ratio=0.3,
                                                 max_filters_pruned_for_one_time=0.5,
@@ -319,8 +320,9 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                                 learning_rate_decay_factor=conf.learning_rate_decay_factor,
                                                 weight_decay=conf.weight_decay,
                                                 learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-                                                max_training_iteration=9999,
+                                                max_training_round=9999,
                                                 round=1,
+                                                top_acc=1,
                                                 **kwargs
                                  ):
     '''
@@ -342,7 +344,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     :param num_workers:
     :param optimizer:
     :param learning_rate:
-    :param checkpoint_step:
+    :param evaluate_step:
     :param num_epoch:
     :param filter_preserve_ratio:
     :param max_filters_pruned_for_one_time:
@@ -350,17 +352,18 @@ def prune_inactive_neural_with_regressor_resnet(net,
     :param learning_rate_decay_factor:
     :param weight_decay:
     :param learning_rate_decay_epoch:
-    :param max_training_iteration:if the net can't reach target accuracy in max_training_iteration , the program stop.
+    :param max_training_round:if the net can't reach target accuracy in max_training_round , the program stop.
+    :param top_acc:
     :param kwargs:
     :return:
     '''
 
     # save the output to log
-    print('save log in:' + conf.root_path + exp_name + '/log.txt')
-    if not os.path.exists(conf.root_path + exp_name):
-        os.makedirs(conf.root_path + exp_name, exist_ok=True)
-    sys.stdout = logger.Logger(conf.root_path + exp_name + '/log.txt', sys.stdout)
-    sys.stderr = logger.Logger(conf.root_path + exp_name + '/log.txt', sys.stderr)  # redirect std err, if necessary
+    print('save log in:' + os.path.join(conf.root_path,'model_saved' , exp_name , 'log.txt'))
+    if not os.path.exists(os.path.join(conf.root_path,'model_saved' , exp_name)):
+        os.makedirs(os.path.join(conf.root_path,'model_saved' , exp_name), exist_ok=True)
+    sys.stdout = logger.Logger(os.path.join(conf.root_path,'model_saved' , exp_name , 'log.txt'), sys.stdout)
+    sys.stderr = logger.Logger(os.path.join(conf.root_path,'model_saved' , exp_name , 'log.txt'), sys.stderr)  # redirect std err, if necessary
 
     print('net:',net)
     print('net_name:',net_name)
@@ -379,7 +382,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     print('num_workers:',num_workers)
     print('optimizer:',optimizer)
     print('learning_rate:',learning_rate)
-    print('checkpoint_step:',checkpoint_step)
+    print('evaluate_step:',evaluate_step)
     print('num_epoch:',num_epoch)
     print('filter_preserve_ratio:',filter_preserve_ratio)
     print('max_filters_pruned_for_one_time:',max_filters_pruned_for_one_time)
@@ -387,7 +390,8 @@ def prune_inactive_neural_with_regressor_resnet(net,
     print('learning_rate_decay_factor:',learning_rate_decay_factor)
     print('weight_decay:',weight_decay)
     print('learning_rate_decay_epoch:',learning_rate_decay_epoch)
-    print('max_training_iteration:',max_training_iteration)
+    print('max_training_round:',max_training_round)
+    print('top_acc:',top_acc)
     print('round:',round)
 
     print(kwargs)
@@ -411,6 +415,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                               data_loader=validation_loader,
                                               save_net=False,
                                               dataset_name=dataset_name,
+                                              top_acc=top_acc
                                               )
     if tar_acc_gradual_decent is True:
         flop_drop_expected = flop_original_net - flop_expected
@@ -430,8 +435,6 @@ def prune_inactive_neural_with_regressor_resnet(net,
             if 'layer'in name and 'conv3' not in name:
                 conv_list.append(i)                                                         #layer that need to be pruned
 
-    print(i)
-
     modules_list=prune_module.create_module_list(net)  # 创建一个list保存每一个module的名字
 
     filter_layer = list()
@@ -439,12 +442,12 @@ def prune_inactive_neural_with_regressor_resnet(net,
     dead_ratio=list()
     predictor = predict_dead_filter.predictor(name=predictor_name)
     if load_regressor is True:
-        regressor_exists=predictor.load(path=conf.root_path + exp_name)
+        regressor_exists=predictor.load(path=os.path.join(conf.root_path,'model_saved' , exp_name))
         if regressor_exists is True:
             round_for_train = -1
         else:                                                   #load data from previous rounds of pruning
             print('Can\'t find saved regressor. Load data from previous round.')
-            filter_tmp, dead_ratio_tmp, filter_layer_tmp= predict_dead_filter.read_data(path=conf.root_path + exp_name + '/dead_neural/',
+            filter_tmp, dead_ratio_tmp, filter_layer_tmp= predict_dead_filter.read_data(path=os.path.join(conf.root_path,'model_saved' , exp_name , 'dead_neural'),
                                                                                         balance=False,
                                                                                         regression_or_classification='regression',
                                                                                         batch_size=batch_size,
@@ -460,10 +463,9 @@ def prune_inactive_neural_with_regressor_resnet(net,
 
         if round == round_for_train + 1:
             # use filters from (round_for_train)rounds to train the regressor
-
             ##train the predictor######################################################################################################
             predictor.fit(filter=filter, filter_layer=filter_layer, filter_label=dead_ratio)
-            predictor.save(path=conf.root_path + exp_name)
+            predictor.save(path=os.path.join(conf.root_path,'model_saved' , exp_name))
         if round <= round_for_train:
             dead_filter_index, module_list, neural_list, dead_ratio_tmp = evaluate.find_useless_filters_data_version(
                 net=net,
@@ -472,17 +474,18 @@ def prune_inactive_neural_with_regressor_resnet(net,
                 percent_of_inactive_filter=prune_rate,
                 dead_or_inactive='inactive',
                 dataset_name=dataset_name,
-                max_data_to_test=10000
+                max_data_to_test=1000
                 )
-            if not os.path.exists(conf.root_path + exp_name + '/dead_neural'):
-                os.makedirs(conf.root_path + exp_name + '/dead_neural', exist_ok=True)
+            if not os.path.exists(os.path.join(conf.root_path,'model_saved',exp_name,'dead_neural')):
+                os.makedirs(os.path.join(conf.root_path,'model_saved',exp_name,'dead_neural'), exist_ok=True)
 
             checkpoint={'prune_rate': prune_rate,'module_list': module_list,
                         'neural_list': neural_list, 'state_dict': net.state_dict(),
                         'batch_size': batch_size}
             checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
             torch.save(checkpoint,
-                       conf.root_path + exp_name + '/dead_neural/round %d.tar' % round, )
+                       os.path.join(conf.root_path,'model_saved',exp_name,'dead_neural/round %d.tar' % round)
+                        )
 
 
             dead_ratio += dead_ratio_tmp
@@ -549,7 +552,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                   target_accuracy=target_accuracy,
                                   learning_rate=learning_rate,
                                   load_net=False,
-                                  checkpoint_step=checkpoint_step,
+                                  evaluate_step=evaluate_step,
                                   dataset_name=dataset_name,
                                   optimizer=optimizer,
                                   batch_size=batch_size,
@@ -558,12 +561,13 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                   weight_decay=weight_decay,
                                   learning_rate_decay_epoch=learning_rate_decay_epoch,
                                   test_net=True,
+                                  top_acc=top_acc
                                   **kwargs
                                   )
             if not success:
                 net = old_net
-                max_training_iteration-=1
-                if max_training_iteration==0:
+                max_training_round-=1
+                if max_training_round==0:
                     print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
                     return
 
@@ -587,7 +591,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                                 num_workers=conf.num_workers,
 #                                                 optimizer=optim.Adam,
 #                                                 learning_rate=0.01,
-#                                                 checkpoint_step=1000,
+#                                                 evaluate_step=1000,
 #                                                 num_epoch=450,
 #                                                 filter_preserve_ratio=0.3,
 #                                                 max_filters_pruned_for_one_time=0.5,
@@ -595,7 +599,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                                 learning_rate_decay_factor=conf.learning_rate_decay_factor,
 #                                                 weight_decay=conf.weight_decay,
 #                                                 learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
-#                                                 max_training_iteration=9999,
+#                                                 max_training_round=9999,
 #                                                 round=1,
 #                                                 **kwargs
 #                                  ):
@@ -618,7 +622,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     :param num_workers:
 #     :param optimizer:
 #     :param learning_rate:
-#     :param checkpoint_step:
+#     :param evaluate_step:
 #     :param num_epoch:
 #     :param filter_preserve_ratio:
 #     :param max_filters_pruned_for_one_time:
@@ -626,7 +630,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     :param learning_rate_decay_factor:
 #     :param weight_decay:
 #     :param learning_rate_decay_epoch:
-#     :param max_training_iteration:if the net can't reach target accuracy in max_training_iteration , the program stop.
+#     :param max_training_round:if the net can't reach target accuracy in max_training_round , the program stop.
 #     :param kwargs:
 #     :return:
 #     '''
@@ -655,7 +659,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     print('num_workers:',num_workers)
 #     print('optimizer:',optimizer)
 #     print('learning_rate:',learning_rate)
-#     print('checkpoint_step:',checkpoint_step)
+#     print('evaluate_step:',evaluate_step)
 #     print('num_epoch:',num_epoch)
 #     print('filter_preserve_ratio:',filter_preserve_ratio)
 #     print('max_filters_pruned_for_one_time:',max_filters_pruned_for_one_time)
@@ -663,7 +667,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     print('learning_rate_decay_factor:',learning_rate_decay_factor)
 #     print('weight_decay:',weight_decay)
 #     print('learning_rate_decay_epoch:',learning_rate_decay_epoch)
-#     print('max_training_iteration:',max_training_iteration)
+#     print('max_training_round:',max_training_round)
 #     print('round:',round)
 #
 #     print(kwargs)
@@ -834,7 +838,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                   target_accuracy=target_accuracy,
 #                                   learning_rate=learning_rate,
 #                                   load_net=False,
-#                                   checkpoint_step=checkpoint_step,
+#                                   evaluate_step=evaluate_step,
 #                                   dataset_name=dataset_name,
 #                                   optimizer=optimizer,
 #                                   batch_size=batch_size,
@@ -847,8 +851,8 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                   )
 #             if not success:
 #                 net = old_net
-#                 max_training_iteration-=1
-#                 if max_training_iteration==0:
+#                 max_training_round-=1
+#                 if max_training_round==0:
 #                     print('{} net can\'t reach target accuracy, pruning stop.'.format(datetime.now()))
 #                     return
 
@@ -876,7 +880,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                      num_workers=conf.num_workers,
 #                                      optimizer=optim.Adam,
 #                                      learning_rate=0.01,
-#                                      checkpoint_step=1000,
+#                                      evaluate_step=1000,
 #                                      num_epoch=350,
 #                                      filter_preserve_ratio=0.3,
 #                                      min_filters_pruned_for_one_time=0.05,
@@ -907,7 +911,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     :param num_workers:
 #     :param optimizer:
 #     :param learning_rate:
-#     :param checkpoint_step:
+#     :param evaluate_step:
 #     :param num_epoch:
 #     :param filter_preserve_ratio:
 #     :param min_filters_pruned_for_one_time:
@@ -943,7 +947,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
 #           'learning_rate:{}\n'
-#           'checkpoint_step:{}\n'
+#           'evaluate_step:{}\n'
 #           'num_epoch:{}\n'
 #           'filter_preserve_ratio:{}\n'
 #           'max_filters_pruned_for_one_time:{}\n'
@@ -957,7 +961,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                   tar_acc_gradual_decent,
 #                   flop_expected, filter_dead_ratio_decay,
 #                   neural_dead_times_decay, dataset_name, validation_loader, batch_size, num_workers, optimizer,
-#                   learning_rate, checkpoint_step,
+#                   learning_rate, evaluate_step,
 #                   num_epoch, filter_preserve_ratio, max_filters_pruned_for_one_time,min_filters_pruned_for_one_time, learning_rate_decay,
 #                   learning_rate_decay_factor,
 #                   weight_decay, learning_rate_decay_epoch))
@@ -1078,7 +1082,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #         #                           target_accuracy=target_accuracy,
 #         #                           learning_rate=learning_rate,
 #         #                           load_net=False,
-#         #                           checkpoint_step=checkpoint_step,
+#         #                           evaluate_step=evaluate_step,
 #         #                           dataset_name=dataset_name,
 #         #                           optimizer=optimizer,
 #         #                           batch_size=batch_size,
@@ -1112,7 +1116,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                       num_workers=conf.num_workers,
 #                       optimizer=optim.Adam,
 #                       learning_rate=0.01,
-#                       checkpoint_step=1000,
+#                       evaluate_step=1000,
 #                       num_epoch=350,
 #                       filter_preserve_ratio=0.3,
 #                       max_filters_pruned_for_one_time=0.5,
@@ -1140,7 +1144,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     :param num_workers:
 #     :param optimizer:
 #     :param learning_rate:
-#     :param checkpoint_step:
+#     :param evaluate_step:
 #     :param num_epoch:
 #     :param filter_preserve_ratio:
 #     :param max_filters_pruned_for_one_time:
@@ -1173,7 +1177,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
 #           'learning_rate:{}\n'
-#           'checkpoint_step:{}\n'
+#           'evaluate_step:{}\n'
 #           'num_epoch:{}\n'
 #           'filter_preserve_ratio:{}\n'
 #           'max_filters_pruned_for_one_time:{}\n'
@@ -1183,7 +1187,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           'learning_rate_decay_epoch:{}'
 #           .format(net,net_name,use_random_data,neural_dead_times,filter_dead_ratio,target_accuracy,tar_acc_gradual_decent,
 #                   flop_expected,filter_dead_ratio_decay,
-#                   neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
+#                   neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,evaluate_step,
 #                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
 #                   weight_decay,learning_rate_decay_epoch))
 #     print(kwargs)
@@ -1285,7 +1289,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                  target_accuracy=target_accuracy,
 #                                  learning_rate=learning_rate,
 #                                  load_net=False,
-#                                  checkpoint_step=checkpoint_step,
+#                                  evaluate_step=evaluate_step,
 #                                  dataset_name=dataset_name,
 #                                  optimizer=optimizer,
 #                                  batch_size=batch_size,
@@ -1352,7 +1356,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                             target_accuracy=0.7,
 #                             learning_rate=2e-5,
 #                             load_net=False,
-#                             checkpoint_step=1000
+#                             evaluate_step=1000
 #                             )
 #         break
 #         iteration += 1
@@ -1378,7 +1382,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                  num_workers=conf.num_workers,
 #                  optimizer=optim.Adam,
 #                  learning_rate=0.01,
-#                  checkpoint_step=1000,
+#                  evaluate_step=1000,
 #                  num_epoch=350,
 #                  filter_preserve_ratio=0.3,
 #                  min_filters_pruned_for_one_time=0.05,
@@ -1417,7 +1421,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
 #           'learning_rate:{}\n'
-#           'checkpoint_step:{}\n'
+#           'evaluate_step:{}\n'
 #           'num_epoch:{}\n'
 #           'filter_preserve_ratio:{}\n'
 #           'max_filters_pruned_for_one_time:{}\n'
@@ -1432,7 +1436,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                                 flop_expected, filter_dead_ratio_decay,
 #                                                 neural_dead_times_decay, dataset_name, validation_loader, batch_size,
 #                                                 num_workers, optimizer,
-#                                                 learning_rate, checkpoint_step,
+#                                                 learning_rate, evaluate_step,
 #                                                 num_epoch, filter_preserve_ratio, max_filters_pruned_for_one_time,
 #                                                 min_filters_pruned_for_one_time, learning_rate_decay,
 #                                                 learning_rate_decay_factor,
@@ -1566,7 +1570,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #         #                           target_accuracy=target_accuracy,
 #         #                           learning_rate=learning_rate,
 #         #                           load_net=False,
-#         #                           checkpoint_step=checkpoint_step,
+#         #                           evaluate_step=evaluate_step,
 #         #                           dataset_name=dataset_name,
 #         #                           optimizer=optimizer,
 #         #                           batch_size=batch_size,
@@ -1652,7 +1656,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                       num_workers=conf.num_workers,
 #                       optimizer=optim.Adam,
 #                       learning_rate=0.01,
-#                       checkpoint_step=1000,
+#                       evaluate_step=1000,
 #                       num_epoch=350,
 #                       filter_preserve_ratio=0.3,
 #                       max_filters_pruned_for_one_time=0.5,
@@ -1677,7 +1681,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     :param num_workers:
 #     :param optimizer:
 #     :param learning_rate:
-#     :param checkpoint_step:
+#     :param evaluate_step:
 #     :param num_epoch:
 #     :param filter_preserve_ratio:
 #     :param max_filters_pruned_for_one_time:
@@ -1707,7 +1711,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
 #           'learning_rate:{}\n'
-#           'checkpoint_step:{}\n'
+#           'evaluate_step:{}\n'
 #           'num_epoch:{}\n'
 #           'filter_preserve_ratio:{}\n'
 #           'max_filters_pruned_for_one_time:{}\n'
@@ -1717,7 +1721,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           'learning_rate_decay_epoch:{}'
 #           .format(net,net_name,use_random_data,prune_rate,target_accuracy,tar_acc_gradual_decent,
 #                   flop_expected,
-#                   dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,checkpoint_step,
+#                   dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,evaluate_step,
 #                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
 #                   weight_decay,learning_rate_decay_epoch))
 #     print(kwargs)
@@ -1820,7 +1824,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                  target_accuracy=target_accuracy,
 #                                  learning_rate=learning_rate,
 #                                  load_net=False,
-#                                  checkpoint_step=checkpoint_step,
+#                                  evaluate_step=evaluate_step,
 #                                  dataset_name=dataset_name,
 #                                  optimizer=optimizer,
 #                                  batch_size=batch_size,
@@ -1850,7 +1854,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                            num_workers=conf.num_workers,
 #                            optimizer=optim.Adam,
 #                            learning_rate=0.01,
-#                            checkpoint_step=1000,
+#                            evaluate_step=1000,
 #                            num_epoch=450,
 #                            learning_rate_decay=False,
 #                            learning_rate_decay_factor=conf.learning_rate_decay_factor,
@@ -1873,7 +1877,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #     :param num_workers:
 #     :param optimizer:
 #     :param learning_rate:
-#     :param checkpoint_step:
+#     :param evaluate_step:
 #     :param num_epoch:
 #     :param learning_rate_decay:
 #     :param learning_rate_decay_factor:
@@ -1901,7 +1905,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
 #           'learning_rate:{}\n'
-#           'checkpoint_step:{}\n'
+#           'evaluate_step:{}\n'
 #           'num_epoch:{}\n'
 #           'learning_rate_decay:{}\n'
 #           'learning_rate_decay_factor:{}\n'
@@ -1910,7 +1914,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #           .format(net, net_name,   target_accuracy,
 #                   round_of_prune,final_filter_num,tar_acc_gradual_decent,flop_expected,validation_loader,
 #                   dataset_name, batch_size, num_workers, optimizer,
-#                   learning_rate, checkpoint_step,
+#                   learning_rate, evaluate_step,
 #                   num_epoch, learning_rate_decay,
 #                   learning_rate_decay_factor,
 #                   weight_decay, learning_rate_decay_epoch))
@@ -1978,7 +1982,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
 #                                   target_accuracy=target_accuracy,
 #                                   learning_rate=learning_rate,
 #                                   load_net=False,
-#                                   checkpoint_step=checkpoint_step,
+#                                   evaluate_step=evaluate_step,
 #                                   dataset_name=dataset_name,
 #                                   optimizer=optimizer,
 #                                   batch_size=batch_size,
@@ -2033,7 +2037,7 @@ if __name__ == "__main__":
     #                                      flop_expected=1.7e8,
     #                                      batch_size=1600,
     #                                      num_epoch=450,
-    #                                      checkpoint_step=3000,
+    #                                      evaluate_step=3000,
     #                                      use_random_data=False,
     #                                      round_for_train=2,
     #                                      # optimizer=optim.Adam,
@@ -2045,7 +2049,7 @@ if __name__ == "__main__":
     #                                      learning_rate_decay=True,
     #                                      learning_rate_decay_epoch=[20, 100, 150, 250, 300, 350, 400],
     #                                      learning_rate_decay_factor=0.5,
-    #                                      max_training_iteration=2
+    #                                      max_training_round=2
     #                                      )
 
     # for original baseline
@@ -2061,7 +2065,7 @@ if __name__ == "__main__":
     #                                             flop_expected=4e7,
     #                                             batch_size=1600,
     #                                             num_epoch=450,
-    #                                             checkpoint_step=3000,
+    #                                             evaluate_step=3000,
     #                                             use_random_data=False,
     #                                             round_for_train=2,
     #                                             # optimizer=optim.Adam,
@@ -2106,7 +2110,7 @@ if __name__ == "__main__":
     #                          target_accuracy=0.933,
     #                          batch_size=1600,
     #                          num_epoch=450,
-    #                          checkpoint_step=1600,
+    #                          evaluate_step=1600,
     #
     #
     #                          optimizer=optim.SGD,
@@ -2129,7 +2133,7 @@ if __name__ == "__main__":
     #                       flop_expected=5e7,
     #                       batch_size=1600,
     #                       num_epoch=300,
-    #                       checkpoint_step=1600,
+    #                       evaluate_step=1600,
     #                       use_random_data=True,
     #                       # optimizer=optim.Adam,
     #                       # learning_rate=1e-3,
@@ -2143,13 +2147,40 @@ if __name__ == "__main__":
 
 
     net=resnet.resnet50(pretrained=True).to(device)
+    checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_pureData/checkpoint/flop=3326272945,accuracy=0.73972.tar')
+    net = storage.restore_net(checkpoint, pretrained=True)
 
     net=torch.nn.DataParallel(net)
 
     prune_inactive_neural_with_regressor_resnet(net=net,
                                                 net_name='resnet50',
-                                                exp_name='test',
-                                                target_accuracy=0.93,
-                                                prune_rate=0.1,
-                                                round_for_train=10
+                                                exp_name='resnet50_pureData',
+                                                prune_rate=0.05,
+                                                round_for_train=10,
+                                                tar_acc_gradual_decent=True,
+                                                batch_size=512,
+                                                num_workers=8,
+
+                                                # optimizer=optim.Adam,
+                                                # learning_rate=0.0001,
+                                                # weight_decay=5e-4,
+
+                                                optimizer=optim.SGD,
+                                                learning_rate=0.001,
+                                                weight_decay=5e-4,
+                                                momentum=0.9,
+                                                learning_rate_decay=True,
+                                                learning_rate_decay_factor=10,
+                                                learning_rate_decay_epoch=[5,10,15],
+
+
+                                                num_epoch=20,
+                                                max_filters_pruned_for_one_time=0.2,
+
+                                                max_training_round=2,
+                                                flop_expected=2e9,
+                                                target_accuracy=0.7,
+
+                                                round=7
+
                                                 )

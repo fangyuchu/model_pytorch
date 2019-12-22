@@ -68,7 +68,7 @@ if __name__ == "__main__":
     target_accuracy = 0.931
     batch_size = 300
     num_epoch = 300
-    checkpoint_step = 1600
+    evaluate_step = 1600
 
 
     num_conv = 0  # num of conv layers in the network

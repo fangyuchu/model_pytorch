@@ -75,15 +75,15 @@ def create_train_loader(
     return data_loader
 
 def create_validation_loader(
-                    batch_size,
-                    num_workers,
-                    dataset_path=None,
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
-                    scale=0.875,
-                    dataset_name='',
-                    default_image_size=224,
-                    shuffle=False
+        batch_size,
+        num_workers,
+        dataset_name,
+        dataset_path=None,
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+        scale=0.875,
+        default_image_size=224,
+        shuffle=False
 ):
     if 'cifar10' in dataset_name and 'cifar100' not in dataset_name:
         if dataset_path is None:

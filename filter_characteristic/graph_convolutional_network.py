@@ -21,11 +21,54 @@ class gcn(nn.Module):
             nn.Dropout(),
             nn.Linear(128,out_features)
         )
+        self.normalization = nn.BatchNorm1d(num_features=in_features,)
     def forward(self, net,net_name,dataset_name, rounds=2):
         if 'vgg' in net_name:
             return self.forward_vgg(net,rounds)
         elif 'resnet' in net_name:
-            return self.forward_resnet(net,rounds)
+            test=self.forward_resnet(net,rounds)
+            return test
+
+    def forward_vgg(self, net, rounds):
+        '''
+
+        :param net:
+        :param rounds:
+        :return: extracted-features representing the cross layer relationship for each filter
+        '''
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        net=copy.deepcopy(net)
+        conv_list=[]
+        filter_num=[]
+        for mod in net.modules():
+            if isinstance(mod,nn.Conv2d):
+                filter_num += [mod.out_channels]
+                conv_list+=[mod]
+        while rounds>0:
+            rounds-=1
+            mean = torch.zeros(3, 1).to(net.features[0].weight.device)                      #initialize mean for first layer
+            self.aggregate_convs(conv_list,mean)
+
+        weight_list=[]
+        for mod in net.modules():
+            if isinstance(mod,nn.Conv2d):
+                weight_list+=[conv_to_matrix(mod)]
+
+        gcn_feature_in=[]
+        for i in range(len(weight_list)):
+            gcn_feature_in+=[pca(weight_list[i],dim=self.in_features)]              #reduce the dimension of all filters to same value
+
+        features=torch.zeros((sum(filter_num),self.in_features)).to(device)
+        start=0
+        for i in range(len(filter_num)):
+            stop = start+filter_num[i]
+            features[start:stop]=gcn_feature_in[i]
+            start=stop
+
+        features = self.normalization(features)
+        gcn_feature_out=self.network(features)
+
+        return gcn_feature_out                                                      #each object represents one conv
 
     def forward_resnet(self,net,rounds):
         net=copy.deepcopy(net)
@@ -41,8 +84,8 @@ class gcn(nn.Module):
                     _,information_at_last=self.aggregate_bottleneck(mod,information_at_last)
 
         weight_list=[]
-        for mod in net.modules():
-            if isinstance(mod,nn.Conv2d):
+        for name,mod in net.named_modules():
+            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
                 weight_list+=[conv_to_matrix(mod)]
 
         gcn_feature_in = []
@@ -50,11 +93,14 @@ class gcn(nn.Module):
             gcn_feature_in += [
                 pca(weight_list[i], dim=self.in_features)]  # reduce the dimension of all filters to same value
 
-        gcn_feature_out = []
-        for i in range(len(gcn_feature_in)):
-            gcn_feature_out += [self.network(gcn_feature_in[i])]  # foward propagate
+        features=gcn_feature_in[0]
+        for i in range(1,len(gcn_feature_in)):
+            features=torch.cat((features,gcn_feature_in[i]),dim=0)
 
-        return gcn_feature_out  # each object represents one conv
+        features=self.normalization(features)
+        output=self.network(features)
+
+        return output  # each object represents one conv
 
     def aggregate_bottleneck(self,bottleneck,information_in_front):
         '''
@@ -71,7 +117,7 @@ class gcn(nn.Module):
                 if 'downsample' in name:
                     weight_dowmsample = conv_to_matrix(mod)
                     continue
-                conv_list+=[mod]      #a list containing 2-d conv weight matrix, parameters in original nets will not be updated
+                conv_list+=[mod]      #a list containing 2-d conv weight matrix
 
         _,information_at_last=self.aggregate_convs(conv_list,information_in_front)
 
@@ -106,37 +152,7 @@ class gcn(nn.Module):
         information_at_last=mean
         return conv_list,information_at_last                    #information from the last conv
 
-    def forward_vgg(self, net, rounds):
-        '''
 
-        :param net:
-        :param rounds:
-        :return: extracted-features representing the cross layer relationship for each filter
-        '''
-        net=copy.deepcopy(net)
-        conv_list=[]
-        for mod in net.modules():
-            if isinstance(mod,nn.Conv2d):
-                conv_list+=[mod]
-        while rounds>0:
-            rounds-=1
-            mean = torch.zeros(3, 1).to(net.features[0].weight.device)                      #initialize mean for first layer
-            self.aggregate_convs(conv_list,mean)
-
-        weight_list=[]
-        for mod in net.modules():
-            if isinstance(mod,nn.Conv2d):
-                weight_list+=[conv_to_matrix(mod)]
-
-        gcn_feature_in=[]
-        for i in range(len(weight_list)):
-            gcn_feature_in+=[pca(weight_list[i],dim=self.in_features)]              #reduce the dimension of all filters to same value
-
-        gcn_feature_out=[]
-        for i in range(len(gcn_feature_in)):
-            gcn_feature_out+=[self.network(gcn_feature_in[i])]                      #foward propagate
-
-        return gcn_feature_out                                                      #each object represents one conv
 
 
 
@@ -153,6 +169,11 @@ def pca(tensor_2d,dim):
     projection_matrix=v[:,:dim]
     return torch.matmul(tensor_2d,projection_matrix)
 
+def normalize(tensor):
+    mean=tensor.mean(dim=0)
+    std=tensor.std(dim=0)
+    tensor=(tensor-mean)/std
+    return tensor
 
 
 

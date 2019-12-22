@@ -3,7 +3,12 @@ import torch.optim as optim
 from framework import measure_flops
 from prune import prune_and_train
 from network import vgg,storage
-# print(torch.cuda.device(0))
+from framework import evaluate
+from framework import data_loader
+from network import create_net
+from network import vgg
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -26,7 +31,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                             flop_expected=4e7,
 #                                                             batch_size=128,
 #                                                             num_epoch=250,
-#                                                             checkpoint_step=3000,
+#                                                             evaluate_step=3000,
 #                                                             use_random_data=False,
 #                                                             round_for_train=3,
 #                                                             round=5,
@@ -66,7 +71,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      flop_expected=1e8,
 #                                                      batch_size=128,
 #                                                      num_epoch=250,
-#                                                      checkpoint_step=8000,
+#                                                      evaluate_step=8000,
 #                                                      use_random_data=False,
 #                                                      round_for_train=2,
 #                                                      round=1,
@@ -113,7 +118,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      batch_size=24,
 #
 #                                                      num_epoch=40,
-#                                                      checkpoint_step=1000,
+#                                                      evaluate_step=1000,
 #                                                      use_random_data=False,
 #                                                      round_for_train=2,
 #                                                      round=5,
@@ -149,7 +154,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      round_for_train=2,
 #                                                      round=2,
 #
-#                                                         max_training_iteration=2,
+#                                                         max_training_round=2,
 #
 #
 #                                                      filter_preserve_ratio=0.1,
@@ -159,7 +164,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      flop_expected=1e7,
 #                                                      batch_size=1600,
 #                                                      num_epoch=450,
-#                                                      checkpoint_step=1600,
+#                                                      evaluate_step=1600,
 #                                                      use_random_data=False,
 #                                                      # optimizer=optim.Adam,
 #                                                      # learning_rate=1e-3,
@@ -200,7 +205,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      batch_size=256,
 #
 #                                                      num_epoch=20,
-#                                                      checkpoint_step=4000,
+#                                                      evaluate_step=4000,
 #                                                      use_random_data=False,
 #                                                      round_for_train=2,
 #                                                      round=1,
@@ -239,7 +244,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      load_regressor=False,
 #                                                      round_for_train=2,
 #                                                      round=1,
-#                                                      max_training_iteration=2,
+#                                                      max_training_round=2,
 #                                                      filter_preserve_ratio=0.1,
 #                                                      max_filters_pruned_for_one_time=0.3,
 #                                                      target_accuracy=0.931,
@@ -247,7 +252,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      flop_expected=1e7,
 #                                                      batch_size=512,
 #                                                      num_epoch=450,
-#                                                      checkpoint_step=1600,
+#                                                      evaluate_step=1600,
 #                                                      use_random_data=False,
 #                                                      # optimizer=optim.Adam,
 #                                                      # learning_rate=1e-3,
@@ -261,46 +266,122 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      )
 
 #用图片抽样剪，获取regressor的训练数据
-from network import create_net
-from network import vgg
-print(torch.cuda.is_available())
-checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
 
-net=storage.restore_net(checkpoint)
-net.load_state_dict(checkpoint['state_dict'])
-net=torch.nn.DataParallel(net)
-from framework import evaluate
-from framework import data_loader
-# evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
+# print(torch.cuda.is_available())
+# checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+#
+# net=storage.restore_net(checkpoint)
+# net.load_state_dict(checkpoint['state_dict'])
+# net=torch.nn.DataParallel(net)
+# from framework import evaluate
+# from framework import data_loader
+# # evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
+#
+# measure_flops.measure_model(net, 'cifar10', print_flop=True)
+# prune_and_train.prune_inactive_neural_with_regressor(net=net,
+#                                                      exp_name='vgg16_realdata2',
+#                                                      net_name='vgg16_bn',
+#                                                      dataset_name='cifar10',
+#                                                      prune_rate=0.02,
+#                                                      load_regressor=False,
+#                                                      round_for_train=10,
+#                                                      round=1,
+#
+#                                                         max_training_round=2,
+#
+#
+#                                                      filter_preserve_ratio=0.1,
+#                                                      max_filters_pruned_for_one_time=0.3,
+#                                                      target_accuracy=0.931,
+#                                                      tar_acc_gradual_decent=True,
+#                                                      flop_expected=1e7,
+#                                                      batch_size=512,
+#                                                      num_epoch=450,
+#                                                      evaluate_step=1600,
+#                                                      use_random_data=False,
+#                                                      # optimizer=optim.Adam,
+#                                                      # learning_rate=1e-3,
+#                                                      # weight_decay=0
+#                                                      optimizer=optim.SGD,
+#                                                      learning_rate=0.01,
+#                                                      learning_rate_decay=True,
+#                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+#                                                      learning_rate_decay_factor=0.5,
+# )
 
-measure_flops.measure_model(net, 'cifar10', print_flop=True)
+
+# print(torch.cuda.is_available())
+# checkpoint=torch.load('../data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+#
+# net=storage.restore_net(checkpoint)
+# net.load_state_dict(checkpoint['state_dict'])
+# net=torch.nn.DataParallel(net)
+#
+# # evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
+#
+# measure_flops.measure_model(net, 'cifar10', print_flop=True)
+# prune_and_train.prune_inactive_neural_with_regressor(net=net,
+#                                                      exp_name='vgg16_realdata2',
+#                                                      net_name='vgg16_bn',
+#                                                      dataset_name='cifar10',
+#                                                      prune_rate=0.02,
+#                                                      load_regressor=False,
+#                                                      round_for_train=10,
+#                                                      round=1,
+#
+#                                                         max_training_round=2,
+#
+#
+#                                                      filter_preserve_ratio=0.1,
+#                                                      max_filters_pruned_for_one_time=0.3,
+#                                                      target_accuracy=0.931,
+#                                                      tar_acc_gradual_decent=True,
+#                                                      flop_expected=1e7,
+#                                                      batch_size=512,
+#                                                      num_epoch=450,
+#                                                      evaluate_step=1600,
+#                                                      use_random_data=False,
+#                                                      # optimizer=optim.Adam,
+#                                                      # learning_rate=1e-3,
+#                                                      # weight_decay=0
+#                                                      optimizer=optim.SGD,
+#                                                      learning_rate=0.01,
+#                                                      learning_rate_decay=True,
+#                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+#                                                      learning_rate_decay_factor=0.5,
+# )
+
+net = vgg.vgg16_bn(pretrained=True, dataset_name='imagenet').to(device)
+
+net = torch.nn.DataParallel(net)
+
 prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                                     exp_name='vgg16_realdata2',
-                                                     net_name='vgg16_bn',
-                                                     dataset_name='cifar10',
-                                                     prune_rate=0.02,
-                                                     load_regressor=False,
-                                                     round_for_train=10,
-                                                     round=1,
+                                     net_name='vgg16_bn',
+                                     exp_name='vgg16_imagenet_pureData',
+                                     prune_rate=0.1,
+                                     round_for_train=10,
+                                     tar_acc_gradual_decent=True,
+                                     batch_size=512,
+                                     num_workers=8,
 
-                                                        max_training_iteration=2,
+                                     # optimizer=optim.Adam,
+                                     # learning_rate=0.0001,
+                                     # weight_decay=5e-4,
 
+                                     optimizer=optim.SGD,
+                                     learning_rate=0.01,
+                                     weight_decay=5e-4,
+                                     momentum=0.9,
+                                     learning_rate_decay=True,
+                                     learning_rate_decay_factor=10,
+                                     learning_rate_decay_epoch=[5, 10, 15],
 
-                                                     filter_preserve_ratio=0.1,
-                                                     max_filters_pruned_for_one_time=0.3,
-                                                     target_accuracy=0.931,
-                                                     tar_acc_gradual_decent=True,
-                                                     flop_expected=1e7,
-                                                     batch_size=512,
-                                                     num_epoch=450,
-                                                     checkpoint_step=1600,
-                                                     use_random_data=False,
-                                                     # optimizer=optim.Adam,
-                                                     # learning_rate=1e-3,
-                                                     # weight_decay=0
-                                                     optimizer=optim.SGD,
-                                                     learning_rate=0.01,
-                                                     learning_rate_decay=True,
-                                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-                                                     learning_rate_decay_factor=0.5,
-)
+                                     num_epoch=20,
+                                     max_filters_pruned_for_one_time=0.2,
+
+                                     max_training_round=2,
+                                     flop_expected=5e9,
+                                                     top_acc=5,
+                                     target_accuracy=0.91476,
+
+                                     )

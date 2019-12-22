@@ -20,6 +20,8 @@ from network import storage
 def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
     """Sets the learning rate to the initial LR decayed by learning_rate_decay_factor every decay_steps"""
     current_epoch=ceil(sample_num/train_set_size)
+    if learning_rate_decay_factor>1:
+        learning_rate_decay_factor=1/learning_rate_decay_factor             #to prevent the mistake
     if current_epoch in learning_rate_decay_epoch and sample_num-(train_set_size*(current_epoch-1))<=batch_size:
         for param_group in optimizer.param_groups:
             param_group['lr'] = param_group['lr']*learning_rate_decay_factor
@@ -76,7 +78,7 @@ def train(
         learning_rate=conf.learning_rate,
         num_epochs=conf.num_epochs,
         batch_size=conf.batch_size,
-        checkpoint_step=conf.checkpoint_step,
+        evaluate_step=conf.evaluate_step,
         load_net=True,
         test_net=False,
         root_path=conf.root_path,
@@ -107,7 +109,7 @@ def train(
     :param learning_rate_decay_epoch: list[int], the specific epoch that the learning rate will decay.
     :param num_epochs: max number of epochs for training
     :param batch_size:
-    :param checkpoint_step: how often will the net be tested on validation set. At least one test every epoch is guaranteed
+    :param evaluate_step: how often will the net be tested on validation set. At least one test every epoch is guaranteed
     :param load_net: boolean, whether loading net from previous checkpoint. The newest checkpoint will be selected.
     :param test_net:boolean, if true, the net will be tested before training.
     :param root_path:
@@ -181,7 +183,7 @@ def train(
 
 
     if checkpoint_path is None:
-        checkpoint_path=root_path+exp_name+'/checkpoint'
+        checkpoint_path=os.path.join(root_path,'model_saved',exp_name,'checkpoint')
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path,exist_ok=True)
 
@@ -219,9 +221,9 @@ def train(
             print('{} net reached target accuracy.'.format(datetime.now()))
             return success
 
-    #ensure the net will be evaluated despite the inappropriate checkpoint_step
-    if checkpoint_step>math.ceil(train_set_size/batch_size)-1:
-        checkpoint_step=math.ceil(train_set_size/batch_size)-1
+    #ensure the net will be evaluated despite the inappropriate evaluate_step
+    if evaluate_step>math.ceil(train_set_size / batch_size)-1:
+        evaluate_step= math.ceil(train_set_size / batch_size) - 1
 
 
     optimizer=prepare_optimizer(net,optimizer,no_grad,momentum,learning_rate,weight_decay)
@@ -269,12 +271,12 @@ def train(
             loss.backward()
             optimizer.step()
 
-            if step%800==0:
+            if step%400==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
 
 
 
-            if step % checkpoint_step == 0 and step != 0:
+            if step % evaluate_step == 0 and step != 0:
                 net_test = copy.deepcopy(net)
                 accuracy= evaluate.evaluate_net(net_test, validation_loader,
                                                 save_net=True,
@@ -470,7 +472,7 @@ if __name__ == "__main__":
     #           num_epochs=1000,
     #           train_loader=train_loader,
     #           validation_loader=validation_loader,
-    #           checkpoint_step=1000,
+    #           evaluate_step=1000,
     #           )
 
 

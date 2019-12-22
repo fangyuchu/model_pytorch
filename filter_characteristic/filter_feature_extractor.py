@@ -13,13 +13,13 @@ from random import shuffle
 import copy
 from filter_characteristic import predict_dead_filter
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 
 class extractor(nn.Module):
     def __init__(self,feature_len,gcn_rounds=2):
         super(extractor, self).__init__()
-        self.gcn=gcn(in_features=27,out_features=feature_len)
+        self.gcn=gcn(in_features=feature_len,out_features=feature_len)
         self.feature_len=feature_len
         self.gcn_rounds=gcn_rounds
         self.network=nn.Sequential(
@@ -31,26 +31,28 @@ class extractor(nn.Module):
             nn.Dropout(),
             nn.Linear(128,1)
         )
+        self.normalization=nn.BatchNorm1d(num_features=feature_len*2)
         
     def forward(self,net,net_name,dataset_name ):
+        device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         crosslayer_features=self.gcn.forward(net=net,rounds=self.gcn_rounds,net_name=net_name,dataset_name=dataset_name)
 
         filter_num=[]
         singular_value_list=[]
-        for mod in net.modules():                                                   #mod is a copy
-            if isinstance(mod,nn.Conv2d):
+        for name,mod in net.named_modules():                                                   #mod is a copy
+            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
                 filter_num+=[mod.out_channels]
                 weight= transform_conv.conv_to_matrix(copy.deepcopy(mod))
                 u, s, v = torch.svd(weight)
                 singular_value_list+=[s[:self.feature_len]]
-
-        features=torch.zeros((sum(filter_num),self.feature_len*2)).cuda()
+        features=torch.zeros((sum(filter_num),self.feature_len*2)).to(device)
         start=0
         for i in range(len(filter_num)):
             stop = start+filter_num[i]
-            features[start:stop]=torch.cat((crosslayer_features[i],singular_value_list[i].repeat(filter_num[i],1)),dim=1)
+            features[start:stop]=torch.cat((crosslayer_features[start:stop],singular_value_list[i].repeat(filter_num[i],1)),dim=1)
             start=stop
 
+        features=self.normalization(features)
         return self.network(features)
 
 class weighted_MSELoss(torch.nn.MSELoss):
@@ -61,8 +63,8 @@ class weighted_MSELoss(torch.nn.MSELoss):
         device=input.device
         ret = (input - target) ** 2
         weight=torch.zeros(target.shape).to(device)
-        weight[target<0.5]=0.5
-        weight[target>=0.5]=target[target>=0.5]
+        weight[target<0.3]=0.3
+        weight[target>=0.3]=target[target>=0.3]
         ret = ret * weight
         if self.reduction != 'none':
             ret = torch.mean(ret) if self.reduction == 'mean' else torch.sum(ret)
@@ -84,15 +86,15 @@ def load(path):
     net.load_state_dict(checkpoint['state_dict'])
     return net
 
-def read_data(path='../data/最少样本测试/训练集',
+def read_data(path,
               num_images=None):
     sample=list()
     file_list = os.listdir(path)
     for file_name in file_list:
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
-            net=storage.restore_net(checkpoint)
-            net.load_state_dict(checkpoint['state_dict'])
+            net=storage.restore_net(checkpoint,pretrained=True)
+
             neural_list=checkpoint['neural_list']
             try:
                 module_list=checkpoint['module_list']
@@ -126,29 +128,27 @@ def read_data(path='../data/最少样本测试/训练集',
                         prediction=dead_times/(neural_num*num_images)
                         filter_label+=prediction.tolist()
                         filter_layer+=[layers[i] for j in range(filter_weight[i].shape[0])]
-            sample.append({'net':net,'filter_label':filter_label,'filter_layer':filter_layer})
+            sample.append({'net':net,'filter_label':filter_label,'filter_layer':filter_layer,
+                           'net_name':checkpoint['net_name'],'dataset_name':checkpoint['dataset_name']})
 
     return sample
 
-def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.nn.MSELoss()):
+def train_extractor(path,net_name,dataset_name,num_images,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.nn.MSELoss(),special=''):
     print(criterion)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     extractor_model=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds).to(device)
-    # extractor_model=torch.nn.DataParallel(extractor_model)
-    sample_list=read_data(path=path,num_images=10240)
-    optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-2,weight_decay=0)
+    sample_list=read_data(path=path,num_images=num_images)
+    optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-1,weight_decay=0)
     # optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.SGD,learning_rate=1e-3,weight_decay=0)
 
-    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint',criterion.__class__.__name__)
+    checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint',net_name,special+criterion.__class__.__name__)
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path, exist_ok=True)
     order=[i for i in range(len(sample_list))]
     for i in range(epoch):
         total_loss=[0 for k in range(len(sample_list))]
         shuffle(order)
-        # print(order)
         for j in order:
-
             sample=sample_list[j]
             net=sample['net']
 
@@ -156,7 +156,7 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
             label=torch.Tensor(filter_label).reshape((-1,1)).to(device)
             optimizer.zero_grad()
 
-            output=extractor_model.forward(net)
+            output=extractor_model.forward(net,net_name,dataset_name)
 
             loss=criterion(output,label)
             loss.backward()
@@ -178,28 +178,61 @@ def train_extractor(path,epoch=1001,feature_len=27,gcn_rounds=2,criterion=torch.
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # train_extractor('../data/最少样本测试/训练集',criterion=weighted_MSELoss())
+
+    # train_extractor(path='/home/victorfang/model_pytorch/data/model_saved/random_net',
+    #                 criterion=nn.MSELoss(),special='random_net',net_name='vgg16_bn',dataset_name='cifar10')
+
+    # train_extractor(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet50/train',
+    #                 criterion=nn.MSELoss(),
+    #                 net_name='resnet50',
+    #                 dataset_name='imagenet',
+    #                 feature_len=50,
+    #                 num_images=1024,
+    #                 special='normalization_learningrate0.1')
+
+    train_extractor(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet50/train',
+                    criterion=weighted_MSELoss(),
+                    net_name='resnet50',
+                    dataset_name='imagenet',
+                    feature_len=50,
+                    num_images=1024,
+                    special='normalization_learningrate0.1')
+
+    # train_extractor(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',
+    #                 criterion=nn.MSELoss(),
+    #                 net_name='vgg16_bn',
+    #                 dataset_name='cifar10',
+    #                 feature_len=27,
+    #                 num_images=10240,
+    #                 special='normalization_')
 
 
-    path='../data/model_saved/filter_feature_extractor/checkpoint/weighted_MSELoss/1000.tar'
-    extractor_model=load(path).to(device)
-    sample_list=read_data(path='../data/最少样本测试/测试集',num_images=10240)
-    criterion=torch.nn.L1Loss()
-    for sample in sample_list:
-        net = sample['net']
-
-        filter_label = sample['filter_label']
-        label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
-
-        output = extractor_model.forward(net,net_name='vgg16_bn',dataset_name='cifar10')
-
-        loss = criterion(output, label)
-
-        predict_dead_filter.filter_inactive_rate_ndcg(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.3)
-
-        print(float(loss))
-        print()
-    print()
+    # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/resnet50/MSELoss/700.tar'
+    # # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn_cifar10/weighted_MSELoss/950.tar'
+    # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/resnet50/normalization_MSELoss/250.tar'
+    # extractor_model=load(path).to(device)
+    #
+    # extractor_model.eval()
+    # sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet50/test',num_images=1024)
+    # # sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',num_images=10240)
+    #
+    # criterion=torch.nn.L1Loss()
+    # for sample in sample_list:
+    #     net = sample['net']
+    #
+    #     filter_label = sample['filter_label']
+    #     label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
+    #
+    #     extractor_model.gcn_rounds=1
+    #     output = extractor_model.forward(net,net_name=sample['net_name'],dataset_name=sample['dataset_name'])
+    #
+    #     loss = criterion(output, label)
+    #
+    #     predict_dead_filter.performance_evaluation(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.1)
+    #
+    #     print(float(loss))
+    #     print()
+    # print()
 
 
     # read_data(num_images=10000)
