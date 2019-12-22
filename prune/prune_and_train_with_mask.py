@@ -8,6 +8,8 @@ import torch
 import os,sys,math
 from datetime import datetime
 from copy import deepcopy
+# os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+
 def get_information_for_pruned_conv(net,net_name,filter_preserve_ratio):
     conv_list=[]                    #layer of the conv to prune
     filter_num_lower_bound = []  # 最低filter数量
@@ -41,6 +43,7 @@ def prune_inactive_neural_with_feature_extractor(net,
                                                 learning_rate=0.01,
                                                 evaluate_step=1200,
                                                 num_epoch=450,
+                                                 num_epoch_after_finetune=20,
                                                 filter_preserve_ratio=0.3,
                                                 # max_filters_pruned_for_one_time=0.5,
                                                  optimizer=optim.Adam,
@@ -71,6 +74,7 @@ def prune_inactive_neural_with_feature_extractor(net,
        :param learning_rate:
        :param evaluate_step:
        :param num_epoch:
+       :param num_epoch_after_finetune: epoch to train after fine-tune the pruned net
        :param filter_preserve_ratio:
        :param max_filters_pruned_for_one_time:
        :param learning_rate_decay:
@@ -106,6 +110,7 @@ def prune_inactive_neural_with_feature_extractor(net,
     print('learning_rate:', learning_rate)
     print('evaluate_step:', evaluate_step)
     print('num_epoch:', num_epoch)
+    print('num_epoch_after_finetune:',num_epoch_after_finetune)
     print('filter_preserve_ratio:', filter_preserve_ratio)
     # print('max_filters_pruned_for_one_time:', max_filters_pruned_for_one_time)
     print('learning_rate_decay:', learning_rate_decay)
@@ -155,9 +160,10 @@ def prune_inactive_neural_with_feature_extractor(net,
     conv_list, filter_num, filter_num_lower_bound=get_information_for_pruned_conv(net_entity,net_name,filter_preserve_ratio)
     prune_rate=initial_prune_rate
     while True:
-        #todo 待考虑
         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
         print('{} current prune_rate:{}'.format(datetime.now(),prune_rate))
+        #todo 待考虑
+        net_entity.reset_mask()
         if round <= round_for_train:
             dead_filter_index, module_list, neural_list, dead_ratio_tmp = evaluate.find_useless_filters_data_version(
                 net=net_entity,
@@ -240,11 +246,30 @@ def prune_inactive_neural_with_feature_extractor(net,
                 prune_rate+=0.02
                 round += 1
                 flop_before_prune=flop_after_prune
+                net_entity.reset_mask()
+                train.train(net=net,
+                            net_name=net_name,
+                            exp_name=exp_name,
+                            num_epochs=num_epoch_after_finetune,
+                            learning_rate=learning_rate,
+                            load_net=False,
+                            evaluate_step=evaluate_step,
+                            dataset_name=dataset_name,
+                            optimizer=optimizer,
+                            batch_size=batch_size,
+                            # learning_rate_decay=learning_rate_decay,
+                            # learning_rate_decay_factor=learning_rate_decay_factor,
+                            # weight_decay=weight_decay,
+                            # learning_rate_decay_epoch=learning_rate_decay_epoch,
+                            test_net=True,
+                            top_acc=top_acc,
+                            no_grad=['mask']
+                            )
             else:
                 net = old_net
                 max_training_round -= 1
                 if max_training_round == 0:
-                    prune_rate-=0.02
+                    prune_rate-=0.01
                     if prune_rate<=0:
                         print('{} failed to prune the net, pruning stop.'.format(datetime.now()))
                         return
@@ -255,6 +280,7 @@ if __name__ == "__main__":
 
     net = net_with_mask.NetWithMask(dataset_name='cifar10', net_name='vgg16_bn')
     net=nn.DataParallel(net,device_ids=[0,1])
+    # net = nn.DataParallel(net)
 
     evaluate.evaluate_net(net=net,
                           data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=4,dataset_name='cifar10'),
@@ -265,9 +291,11 @@ if __name__ == "__main__":
 
     prune_inactive_neural_with_feature_extractor(net=net,
                                                  net_name='vgg16_bn',
-                                                 exp_name='test_mask_net',
+                                                 # exp_name='test_mask_net',
+                                                 exp_name='test',
+
                                                  target_accuracy=0.93,
-                                                 initial_prune_rate=0.03,
+                                                 initial_prune_rate=0.05,
                                                  round_for_train=100,
                                                  tar_acc_gradual_decent=True,
                                                  flop_expected=4e7,

@@ -227,10 +227,6 @@ def find_useless_filters_regressor_version(net,
         if num_selected_filters>num_filters_to_select:
             break
 
-
-    # for i in range(num_conv):
-    #     useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer == i)])
-
     return useless_filter_index
 
     
@@ -303,7 +299,7 @@ def find_useless_filters_data_version(net,
 
             num_test_images = min(train_set_size, math.ceil(max_data_to_test / batch_size) * batch_size)
             if neural_dead_times is None and dead_or_inactive is 'inactive':
-                neural_dead_times=num_test_images
+                neural_dead_times=0.8*num_test_images
 
             if isinstance(net,torch.nn.DataParallel):
                 net_test=copy.deepcopy(net._modules['module'])                      #use one gpu
@@ -400,82 +396,6 @@ def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None,max_data_t
     del relu_list,neural_list
     return relu_list_temp,neural_list_temp
 
-def check_conv_alive_layerwise(net,neural_dead_times,batch_size):
-    '''
-    generate random data as input for each conv layer to test the dead neural
-    :param net:
-    :param neural_dead_times:
-    :param data:
-    :param data_loader:
-    :param use_random_data:
-    :return:
-    '''
-    handle = list()
-    global conv_list                                                        #list containing relu module
-    global neural_list
-    global input_shape_list,output_shape_list
-    global mean_list,std_list
-    conv_list=list()
-    neural_list=dict()
-    input_shape_list=list()
-    output_shape_list=list()
-    mean_list=[[0.485, 0.456, 0.406]]                                       #mean list initiated with mean value in layer one
-    std_list=[[0.229, 0.224, 0.225]]
-
-    module_block_list=list()                                                      #2-d list
-
-    #register a hook for ReLU
-    num_conv=-1
-    new_block=False
-    for mod in net.modules():
-        if new_block is True:
-            module_block_list[num_conv].append(mod)
-        if isinstance(mod, torch.nn.Conv2d):
-            num_conv+=1
-            module_block_list.append([mod])
-            conv_list.append(mod)
-            new_block=True
-            handle.append(mod.register_forward_hook(record_input_output_size))
-        if isinstance(mod,torch.nn.ReLU):
-            new_block=False
-        if isinstance(mod,torch.nn.BatchNorm2d):
-            handle.append(mod.register_forward_hook(record_mean_std_layerwise))
-    num_conv+=1
-
-    data=generate_random_data.random_normal(num=1,dataset_name='cifar10')
-    net.eval()
-    net(data)
-
-    #close the hook
-    for h in handle:
-        h.remove()
-
-    for i in range(num_conv):
-        if i == 0:
-            data_foward=generate_random_data.random_normal(num=batch_size,size=input_shape_list[i],mean=mean_list[i],std=std_list[i],is_image=True)
-        else:
-            data_foward=generate_random_data.random_normal(num=batch_size,size=input_shape_list[i],mean=mean_list[i],std=std_list[i],is_image=False)
-
-        for mod in module_block_list[i]:
-            data_foward=mod(data_foward)
-        cal_dead_times(module=conv_list[i],input=None,output=data_foward)
-
-    cal_dead_neural_rate(neural_dead_times)
-    neural_list_temp = neural_list
-    conv_list_temp = conv_list
-    del conv_list, neural_list
-    return conv_list_temp, neural_list_temp
-
-def record_input_output_size(module, input, output):
-    input_shape_list.append(input[0].shape[1:])
-    output_shape_list.append(output.shape[1:])
-
-def record_mean_std_layerwise(module,input,output):
-    mean_list.append(module.running_mean.cpu().numpy())
-    std_list.append(np.sqrt(module.running_var.cpu().numpy()))
-
-
-
 def cal_dead_times(module, input, output):
     if isinstance(module,torch.nn.ReLU):
         if module not in relu_list:
@@ -501,6 +421,81 @@ def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
     dead_neural_rate=100*float(dead_num)/neural_num
     print("{} {:.3f}% of nodes are dead".format(datetime.now(),dead_neural_rate))
     return dead_neural_rate
+
+# def check_conv_alive_layerwise(net,neural_dead_times,batch_size):
+#     '''
+#     generate random data as input for each conv layer to test the dead neural
+#     :param net:
+#     :param neural_dead_times:
+#     :param data:
+#     :param data_loader:
+#     :param use_random_data:
+#     :return:
+#     '''
+#     handle = list()
+#     global conv_list                                                        #list containing relu module
+#     global neural_list
+#     global input_shape_list,output_shape_list
+#     global mean_list,std_list
+#     conv_list=list()
+#     neural_list=dict()
+#     input_shape_list=list()
+#     output_shape_list=list()
+#     mean_list=[[0.485, 0.456, 0.406]]                                       #mean list initiated with mean value in layer one
+#     std_list=[[0.229, 0.224, 0.225]]
+#
+#     module_block_list=list()                                                      #2-d list
+#
+#     #register a hook for ReLU
+#     num_conv=-1
+#     new_block=False
+#     for mod in net.modules():
+#         if new_block is True:
+#             module_block_list[num_conv].append(mod)
+#         if isinstance(mod, torch.nn.Conv2d):
+#             num_conv+=1
+#             module_block_list.append([mod])
+#             conv_list.append(mod)
+#             new_block=True
+#             handle.append(mod.register_forward_hook(record_input_output_size))
+#         if isinstance(mod,torch.nn.ReLU):
+#             new_block=False
+#         if isinstance(mod,torch.nn.BatchNorm2d):
+#             handle.append(mod.register_forward_hook(record_mean_std_layerwise))
+#     num_conv+=1
+#
+#     data=generate_random_data.random_normal(num=1,dataset_name='cifar10')
+#     net.eval()
+#     net(data)
+#
+#     #close the hook
+#     for h in handle:
+#         h.remove()
+#
+#     for i in range(num_conv):
+#         if i == 0:
+#             data_foward=generate_random_data.random_normal(num=batch_size,size=input_shape_list[i],mean=mean_list[i],std=std_list[i],is_image=True)
+#         else:
+#             data_foward=generate_random_data.random_normal(num=batch_size,size=input_shape_list[i],mean=mean_list[i],std=std_list[i],is_image=False)
+#
+#         for mod in module_block_list[i]:
+#             data_foward=mod(data_foward)
+#         cal_dead_times(module=conv_list[i],input=None,output=data_foward)
+#
+#     cal_dead_neural_rate(neural_dead_times)
+#     neural_list_temp = neural_list
+#     conv_list_temp = conv_list
+#     del conv_list, neural_list
+#     return conv_list_temp, neural_list_temp
+
+# def record_input_output_size(module, input, output):
+#     input_shape_list.append(input[0].shape[1:])
+#     output_shape_list.append(output.shape[1:])
+#
+# def record_mean_std_layerwise(module,input,output):
+#     mean_list.append(module.running_mean.cpu().numpy())
+#     std_list.append(np.sqrt(module.running_var.cpu().numpy()))
+
 
 #def predict_dead_filters_classifier_version(net,
 #                                          predictor,
