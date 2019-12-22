@@ -140,7 +140,7 @@ def prune_inactive_neural_with_feature_extractor(net,
     else:
         net_entity=net
 
-    flop_original_net=flop_net_before_prune = measure_model(net_entity.prune(), dataset_name)
+    flop_original_net=flop_before_prune = measure_model(net_entity.prune(), dataset_name)
 
     original_accuracy = evaluate.evaluate_net(net=net,
                                               data_loader=validation_loader,
@@ -200,8 +200,8 @@ def prune_inactive_neural_with_feature_extractor(net,
                   format(i, filter_num[i], len(dead_filter_index[i]),filter_num[i]-len(dead_filter_index[i])))
             net_entity.mask_filters(i,dead_filter_index[i])
 
-        flop_net_after_prune = measure_model(net_entity.prune(), dataset_name)
-        net_compressed= (flop_net_after_prune != flop_net_before_prune)
+        flop_after_prune = measure_model(net_entity.prune(), dataset_name)
+        net_compressed= (flop_after_prune != flop_before_prune)
         if net_compressed is False:
             round -= 1
             print('{} round {} did not prune any filters. Restart.'.format(datetime.now(), round + 1))
@@ -210,7 +210,7 @@ def prune_inactive_neural_with_feature_extractor(net,
 
 
         if tar_acc_gradual_decent is True:  # decent the target_accuracy
-            flop_reduced = flop_original_net - flop_net_after_prune
+            flop_reduced = flop_original_net - flop_after_prune
             target_accuracy = original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected)
             print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
 
@@ -239,7 +239,7 @@ def prune_inactive_neural_with_feature_extractor(net,
             if success:
                 prune_rate+=0.02
                 round += 1
-                flop_net_before_prune=flop_net_after_prune
+                flop_before_prune=flop_after_prune
             else:
                 net = old_net
                 max_training_round -= 1
