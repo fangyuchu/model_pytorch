@@ -295,13 +295,13 @@ def find_useless_filters_data_version(net,
             elif dataset_name is 'tiny_imagenet':
                 train_set_size=conf.tiny_imagenet['train_set_size']
             train_loader = data_loader.create_validation_loader(
-                                                                batch_size=16,
+                                                                batch_size=batch_size,
                                                                 num_workers=8,
                                                                 dataset_name=dataset_name+'_trainset',
                                                                 shuffle=True,
                                                                      )
 
-            num_test_images = min(train_set_size, math.ceil(max_data_to_test / 16) * 16)
+            num_test_images = min(train_set_size, math.ceil(max_data_to_test / batch_size) * batch_size)
             if neural_dead_times is None and dead_or_inactive is 'inactive':
                 neural_dead_times=num_test_images
 

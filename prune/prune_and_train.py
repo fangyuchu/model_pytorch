@@ -424,7 +424,6 @@ def prune_inactive_neural_with_regressor_resnet(net,
     '''计算Conv的层数'''
     conv_list = []  # List，保存要剪枝的Conv层索引，下标从0开始
     i = -1  # Conv总数
-    index_in_block = -1
     filter_num_lower_bound = list()  # 最低filter数量
     filter_num = list()
     for name,mod in net.named_modules():
@@ -435,7 +434,6 @@ def prune_inactive_neural_with_regressor_resnet(net,
             if 'layer'in name and 'conv3' not in name:
                 conv_list.append(i)                                                         #layer that need to be pruned
 
-    modules_list=prune_module.create_module_list(net)  # 创建一个list保存每一个module的名字
 
     filter_layer = list()
     filter=list()
@@ -528,7 +526,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
             net = prune_module.prune_conv_layer_resnet(net=net,
                                                        layer_index=i ,
                                                        filter_index=dead_filter_index[i],
-                                                       modules_list=modules_list)
+                                                       )
 
         if net_compressed is False:
             round -= 1

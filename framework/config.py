@@ -14,7 +14,7 @@ def get_root_path():
     path=os.path.join(*path)
     return path
 
-root_path=get_root_path()
+root_path=get_root_path()       #./model_pytorch/data
 
 
 

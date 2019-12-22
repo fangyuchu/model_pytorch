@@ -32,10 +32,10 @@ def restore_net(checkpoint,pretrained=True):
     if 'vgg' in net_name:
         net = getattr(globals()['vgg'], net_name)(pretrained=False,dataset_name=dataset_name)
     elif 'resnet' in net_name:
-        if 'cifar10' == dataset_name:
-            net = getattr(globals()['resnet_cifar'], net_name)()
-        elif 'imagenet' == dataset_name:
+        if 'imagenet' == dataset_name:
             net = getattr(globals()['resnet'], net_name)(pretrained=False)
+        # elif 'cifar10' == dataset_name:
+        #     net = getattr(globals()['resnet_cifar'], net_name)()
         else:
             raise Exception('Please input right dataset_name.')
         modules_list = prune_module.create_module_list(net)  # 创建一个list保存每一个module的名字

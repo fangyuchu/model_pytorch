@@ -202,13 +202,16 @@ def prune_conv_layer(model, layer_index, filter_index):
 
     return model
 
-def prune_conv_layer_resnet(net, layer_index, filter_index, modules_list):
+def prune_conv_layer_resnet(net, layer_index, filter_index):
     """
     :param net:
     :param layer_index: 要删的卷基层的索引,从0开始
     :param filter_index: 要删layer_index层中的哪个filter
     :return:
     """
+    modules_list=create_module_list(net)  # 创建一个list保存每一个module的名字
+
+
     if len(filter_index)==0:  #no filter need to be pruned
         return net
     conv_to_prune = None  # 获取要删filter的那层conv
