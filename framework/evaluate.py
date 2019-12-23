@@ -353,7 +353,9 @@ def find_useless_filters_data_version(net,
     if dead_or_inactive is 'dead':
         return useless_filter_index, module_list, neural_list
     elif dead_or_inactive is 'inactive':
-        inactive_rank=np.argsort(-np.array(dead_ratio))[:int(percent_of_inactive_filter*len(dead_ratio))]                #arg for top percent_of_inactive_filter*100% of inactive filters
+        #todo：这里改成每次数量不够，cutoff就多加一点
+        cutoff_rank=int(percent_of_inactive_filter*len(dead_ratio))
+        inactive_rank=np.argsort(-np.array(dead_ratio))[:cutoff_rank]                #arg for top percent_of_inactive_filter*100% of inactive filters
         inactive_filter_index=np.array(filter_index)[inactive_rank]
         inactive_filter_layer=np.array(filter_layer)[inactive_rank]
         for i in range(num_conv):
