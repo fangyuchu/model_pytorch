@@ -8,7 +8,7 @@ import torch
 import os,sys,math
 from datetime import datetime
 from copy import deepcopy
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
 
 def get_information_for_pruned_conv(net,net_name,filter_preserve_ratio):
     conv_list=[]                    #layer of the conv to prune
@@ -34,7 +34,8 @@ def prune_inactive_neural_with_feature_extractor(net,
                                                 exp_name,
                                                 target_accuracy,
                                                 initial_prune_rate,
-                                                round_for_train=2,
+                                                 delta_prune_rate=0.02,
+                                                 round_for_train=2,
                                                 tar_acc_gradual_decent=False,
                                                 flop_expected=None,
                                                 dataset_name='imagenet',
@@ -64,6 +65,7 @@ def prune_inactive_neural_with_feature_extractor(net,
        :param exp_name:
        :param target_accuracy:
        :param initial_prune_rate:
+       :param delta_prune_rate: increase/decrease of prune_rate after each round
        :param round_for_train:
        :param tar_acc_gradual_decent:
        :param flop_expected:
@@ -100,6 +102,7 @@ def prune_inactive_neural_with_feature_extractor(net,
     print('exp_name:', exp_name)
     print('target_accuracy:', target_accuracy)
     print('initial_prune_rate:', initial_prune_rate)
+    print('delta_prune_rate:',delta_prune_rate)
     print('round_for_train:', round_for_train)
     print('tar_acc_gradual_decent:', tar_acc_gradual_decent)
     print('flop_expected:', flop_expected)
@@ -184,7 +187,9 @@ def prune_inactive_neural_with_feature_extractor(net,
             torch.save(checkpoint,
                        os.path.join(checkpoint_path, 'dead_neural/round %d.tar' % round)
                        )
-
+        else :
+            print('hahaha')
+            return
 
         #todo:round>round_for_train,use filter feature extractor
 
@@ -243,7 +248,7 @@ def prune_inactive_neural_with_feature_extractor(net,
                                   no_grad=['mask']
                                   )
             if success:
-                prune_rate+=0.02
+                prune_rate+= delta_prune_rate
                 round += 1
                 flop_before_prune=flop_after_prune
                 net_entity.reset_mask()
@@ -257,29 +262,31 @@ def prune_inactive_neural_with_feature_extractor(net,
                             dataset_name=dataset_name,
                             optimizer=optimizer,
                             batch_size=batch_size,
-                            # learning_rate_decay=learning_rate_decay,
-                            # learning_rate_decay_factor=learning_rate_decay_factor,
-                            # weight_decay=weight_decay,
-                            # learning_rate_decay_epoch=learning_rate_decay_epoch,
                             test_net=True,
                             top_acc=top_acc,
                             no_grad=['mask']
                             )
             else:
                 net = old_net
+                if isinstance(net, nn.DataParallel):
+                    net_entity = net.module
+                else:
+                    net_entity = net
+                net_entity.reset_mask()
                 max_training_round -= 1
                 if max_training_round == 0:
-                    prune_rate-=0.01
+                    prune_rate-=delta_prune_rate/2
                     if prune_rate<=0:
                         print('{} failed to prune the net, pruning stop.'.format(datetime.now()))
                         return
+                    break
 
 
 if __name__ == "__main__":
     print(torch.cuda.is_available())
 
     net = net_with_mask.NetWithMask(dataset_name='cifar10', net_name='vgg16_bn')
-    net=nn.DataParallel(net,device_ids=[0,1])
+    net=nn.DataParallel(net)
     # net = nn.DataParallel(net)
 
     evaluate.evaluate_net(net=net,
@@ -292,10 +299,11 @@ if __name__ == "__main__":
     prune_inactive_neural_with_feature_extractor(net=net,
                                                  net_name='vgg16_bn',
                                                  # exp_name='test_mask_net',
-                                                 exp_name='test',
+                                                 exp_name='test_net_mask_2',
 
                                                  target_accuracy=0.93,
-                                                 initial_prune_rate=0.05,
+                                                 initial_prune_rate=0.1,
+                                                 delta_prune_rate=0.04,
                                                  round_for_train=100,
                                                  tar_acc_gradual_decent=True,
                                                  flop_expected=4e7,
