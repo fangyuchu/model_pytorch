@@ -1,6 +1,6 @@
 from network import vgg,resnet
 from framework import config as conf
-from prune.prune_module import get_module,prune_conv_layer,prune_conv_layer_resnet
+from prune.prune_module import get_module,prune_conv_layer_vgg,prune_conv_layer_resnet
 from torch import nn
 import torch
 import torch.nn.functional as F
@@ -69,7 +69,7 @@ class NetWithMask(nn.Module):
             mask = mask.detach().cpu().numpy()
             filter_index = np.argwhere(mask==0).reshape(-1).tolist()
             if 'vgg' in self.net_name:
-                prune_conv_layer(net,layer,filter_index)
+                prune_conv_layer_vgg(net,layer,filter_index)
             elif 'resnet' in self.net_name:
                 prune_conv_layer_resnet(net,layer,filter_index)
             else:

@@ -60,9 +60,9 @@ if __name__ == "__main__":
     relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=80, data=a)
 
     neural_dead_times = 80
-    filter_dead_ratio = 0.9
+    filter_FIRE = 0.9
     neural_dead_times_decay = 0.95
-    filter_dead_ratio_decay = 0.98
+    filter_FIRE_decay = 0.98
     filter_preserve_ratio = 0.1
     max_filters_pruned_for_one_time = 0.3
     target_accuracy = 0.931
@@ -72,8 +72,8 @@ if __name__ == "__main__":
 
 
     num_conv = 0  # num of conv layers in the network
-    filter_num_lower_bound=list()
-    filter_num=list()
+    filter_num_lower_bound=[]
+    filter_num=[]
     for mod in net.features:
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
@@ -86,7 +86,7 @@ if __name__ == "__main__":
         success=False
         round+=1
         print('{} start round {} of filter pruning.'.format(datetime.now(),round))
-        print('{} current filter_dead_ratio:{},neural_dead_times:{}'.format(datetime.now(),filter_dead_ratio,neural_dead_times))
+        print('{} current filter_FIRE:{},neural_dead_times:{}'.format(datetime.now(),filter_FIRE,neural_dead_times))
 
         net_compressed=False
         for i in range(num_conv):
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                     dead_relu_list[dead_relu_list<neural_dead_times]=0
                     dead_relu_list[dead_relu_list>=neural_dead_times]=1
                     dead_relu_list=np.sum(dead_relu_list,axis=(1,2))            #count the number of dead neural for one filter
-                    dead_filter_index=np.where(dead_relu_list>=neural_num*filter_dead_ratio)[0].tolist()
+                    dead_filter_index=np.where(dead_relu_list>=neural_num*filter_FIRE)[0].tolist()
                     #ensure the number of filters pruned will not be too large for one time
                     if filter_num[i]*max_filters_pruned_for_one_time<len(dead_filter_index):
                         dead_filter_index = dead_filter_index[:int(filter_num[i] *max_filters_pruned_for_one_time)]

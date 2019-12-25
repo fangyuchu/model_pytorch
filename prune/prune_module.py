@@ -8,21 +8,21 @@ def replace_layers(module,old_mod,new_mod):
             return new_mod[i]
     return module
 
-def create_module_list(module,key='',prefix=''):
+def create_module_name_list(module, key='', prefix=''):
     module_dict=getattr(module,'_modules')
     if not module_dict:                                 #module_dict is empty, which means this module is the last node.
         if prefix =='':
             return [key]
         else:
             return [prefix+'.'+key]
-    modules_list=list()
+    modules_list=[]
     if key != '':                                               #module is not network
         if prefix =='':
             prefix=key
         else:
             prefix=prefix+'.'+key
     for k in module_dict:
-        modules_list+=create_module_list(module_dict[k],k,prefix)
+        modules_list+=create_module_name_list(module_dict[k], k, prefix)
     return modules_list
 
 def string_to_module(net, string):
@@ -52,7 +52,13 @@ def get_module(model,name):
 
     return getattr(mod,'_modules')
 
-def prune_conv_layer(model, layer_index, filter_index):
+def prune_conv(net,net_name,layer_index,filter_index):
+    if 'vgg' in net_name:
+        return prune_conv_layer_vgg(net,layer_index,filter_index)
+    elif 'resnet' in net_name:
+        return prune_conv_layer_resnet(net,layer_index,filter_index)
+
+def prune_conv_layer_vgg(model, layer_index, filter_index):
     ''' layer_index:要删的卷基层的索引
         filter_index:要删layer_index层中的哪个filter
     '''
@@ -209,7 +215,7 @@ def prune_conv_layer_resnet(net, layer_index, filter_index):
     :param filter_index: 要删layer_index层中的哪个filter
     :return:
     """
-    modules_list=create_module_list(net)  # 创建一个list保存每一个module的名字
+    module_name_list=create_module_name_list(net)  # 创建一个list保存每一个module的名字
 
 
     if len(filter_index)==0:  #no filter need to be pruned
@@ -222,7 +228,7 @@ def prune_conv_layer_resnet(net, layer_index, filter_index):
     conv_name = ""
     next_conv_name = ""
     batch_norm_name = ""
-    for string in modules_list:
+    for string in module_name_list:
         if conv_name != "":
             if "conv" in string:
                 next_conv_name = string
@@ -404,7 +410,7 @@ def prune_conv_layer_resnet(net, layer_index, filter_index):
 #         filter_norm=np.square(filter_norm)
 #         filter_norm=np.sum(filter_norm,axis=1)
 #     filter_min_norm_index=np.argsort(filter_norm)
-#     model=prune_conv_layer(model,layer_index,filter_min_norm_index[:num_to_prune])
+#     model=prune_conv_layer_vgg(model,layer_index,filter_min_norm_index[:num_to_prune])
 #
 #     return model
 
@@ -413,4 +419,4 @@ def prune_conv_layer_resnet(net, layer_index, filter_index):
 if __name__ == "__main__":
     model= vgg.vgg16_bn(pretrained=True)
     # select_and_prune_filter(model,layer_index=3,num_to_prune=2,ord=2)
-    # prune_conv_layer(model,layer_index=3,filter_index=1)
+    # prune_conv_layer_vgg(model,layer_index=3,filter_index=1)

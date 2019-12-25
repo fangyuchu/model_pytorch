@@ -28,7 +28,7 @@ def dead_neural_rate():
     relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=10000, data_loader=val_loader)
     # ndt_list=[i for i in range(35000,51000,1000)]
     ndt_list=[i for i in range(6000,11000,1000)]
-    dead_rate=list()
+    dead_rate=[]
     for ndt in ndt_list:
         print(ndt)
         dead_rate.append(evaluate.cal_dead_neural_rate(neural_dead_times=ndt, neural_list_temp=neural_list))
@@ -76,9 +76,9 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
             if isinstance(mod, torch.nn.modules.conv.Conv2d):
                 num_conv += 1
 
-        neural_dead_list=list()                                         #神经元死亡次数的列表
-        filter_dead_list=list()                                         #卷积核死亡比率的列表
-        dead_ratio=list()
+        neural_dead_list=[]                                         #神经元死亡次数的列表
+        filter_dead_list=[]                                         #卷积核死亡比率的列表
+        FIRE=[]
         for i in range(num_conv):
             for relu_key in list(neural_list.keys()):
                 if relu_list[i] is relu_key:  # find the neural_list_statistics in layer i+1
@@ -90,7 +90,7 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
 
                     # compute sum(dead_times)/(batch_size*neural_num) as label for each filter
                     dead_times = np.sum(dead_times, axis=(1, 2))
-                    dead_ratio += (dead_times / (neural_num * sample_num)).tolist()
+                    FIRE += (dead_times / (neural_num * sample_num)).tolist()
 
                     # # judge dead filter by neural_dead_times and dead_filter_ratio
                     # dead_times[dead_times < neural_dead_times] = 0
@@ -99,7 +99,7 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
                     # dead_times = dead_times / neural_num
                     # filter_dead_list+=dead_times.tolist()
                     break
-        active_ratio=1-np.array(dead_ratio)
+        active_ratio=1-np.array(FIRE)
         active_filter_list =1- np.array(filter_dead_list)
         neural_activated_list=(sample_num-np.array(neural_dead_list))/sample_num
 
@@ -134,7 +134,7 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
 
     #pdf_of_dead_neurons
     plt.figure()
-    hist_list = list()
+    hist_list = []
     for nal in [nal_vgg,nal_resnet,nal_imagenet]:
         hist, bins = np.histogram(nal, bins=[0.1 * i for i in range(11)])
         hist_list.append(100*hist / np.sum(hist))
@@ -156,7 +156,7 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
 
     #pdf_of_inactive_filter
     plt.figure()
-    hist_list=list()
+    hist_list=[]
     for active_ratio in [afl_vgg,afl_resnet,afl_imagenet]:
         hist, bins = np.histogram(active_ratio, bins=[0.1 * i for i in range(11)])
         hist_list.append( 100*hist / np.sum(hist))
@@ -201,9 +201,9 @@ def plot_dead_filter_num_with_different_fdt():
     neural_dead_times=8000
     # neural_dead_times=40000
     fdt_list=[0.001*i for i in range(1,1001)]
-    dead_filter_num=list()
+    dead_filter_num=[]
     for fdt in fdt_list:
-        dead_filter_num.append(dead_filter_statistics(net=net,neural_list=neural_list,neural_dead_times=neural_dead_times,filter_dead_ratio=fdt,relu_list=relu_list))
+        dead_filter_num.append(dead_filter_statistics(net=net,neural_list=neural_list,neural_dead_times=neural_dead_times,filter_FIRE=fdt,relu_list=relu_list))
         if fdt==0.8:
             print()
     plt.figure()
@@ -214,12 +214,12 @@ def plot_dead_filter_num_with_different_fdt():
     plt.legend()
     plt.show()
 
-def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_dead_ratio):
+def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_FIRE):
 
 
 
-    dead_filter_num=list()                                                                      #num of dead filters in each layer
-    filter_num=list()                                                                           #num of filters in each layer
+    dead_filter_num=[]                                                                      #num of dead filters in each layer
+    filter_num=[]                                                                           #num of filters in each layer
     num_conv = 0  # num of conv layers in the net
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
@@ -235,14 +235,14 @@ def dead_filter_statistics(net,relu_list,neural_list,neural_dead_times,filter_de
                 dead_relu_list[dead_relu_list < neural_dead_times] = 0
                 dead_relu_list[dead_relu_list >= neural_dead_times] = 1
                 dead_relu_list = np.sum(dead_relu_list, axis=(1, 2))  # count the number of dead neural for one filter
-                dead_filter_index = np.where(dead_relu_list >= neural_num * filter_dead_ratio)[0].tolist()
+                dead_filter_index = np.where(dead_relu_list >= neural_num * filter_FIRE)[0].tolist()
                 dead_filter_num.append(len(dead_filter_index))
                 filter_num.append(len(neural_list[relu_key]))
 
     dead_filter_num_sum=np.sum(dead_filter_num)
     return dead_filter_num_sum
     # plt.figure()
-    # plt.title('statistics of dead filter\nneural_dead_time={},filter_dead_ratio={}'.format(neural_dead_times,filter_dead_ratio))
+    # plt.title('statistics of dead filter\nneural_dead_time={},filter_FIRE={}'.format(neural_dead_times,filter_FIRE))
     # plt.bar(range(len(filter_num)),filter_num,label='filter')
     # plt.bar(range(len(dead_filter_num)),dead_filter_num,label='dead filter')
     # plt.xlabel('layer')
@@ -277,8 +277,8 @@ def speed_up_pruned_net():
     device_list=[torch.device('cuda')]#
     # device_list=[torch.device('cpu')]
     for num_worker in num_workers:
-        time_original = list()
-        time_pruned = list()
+        time_original = []
+        time_pruned = []
         for d in device_list:
             for bs in batch_size:
                 net_original.to(d)
@@ -329,8 +329,8 @@ def speed_up_regressor():
 
     file_list=os.listdir(path)
     file_list.sort()
-    regressor_time=list()
-    real_data_time=list()
+    regressor_time=[]
+    real_data_time=[]
     for file in file_list:
         print(file)
         checkpoint_path=os.path.join(path,file)

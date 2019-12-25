@@ -189,9 +189,9 @@ def find_useless_filters_regressor_version(net,
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             num_conv += 1
     max_num_filters_pruned_layerwise=[0 for i in range(num_conv)]                                             #upperbound of number of filters to prune
-    filter_layer=list()                                                                 #list containing layer of the filters corresponding to filter_index
-    filter = list()
-    filter_index=list()                                                                 #index of filters in their own conv
+    filter_layer=[]                                                                 #list containing layer of the filters corresponding to filter_index
+    filter = []
+    filter_index=[]                                                                 #index of filters in their own conv
     num_conv = 0
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
@@ -209,14 +209,14 @@ def find_useless_filters_regressor_version(net,
             else:
                 max_num_filters_pruned_layerwise[num_conv-1]=int(conv_weight.shape[0]*max_filters_pruned_for_one_time)
 
-    dead_ratio=predictor.predict(filter=filter,filter_layer=filter_layer)
+    FIRE=predictor.predict(filter=filter,filter_layer=filter_layer)
 
-    inactive_rank = np.argsort(-np.array(dead_ratio))                         # arg for most inactive filters
+    inactive_rank = np.argsort(-np.array(FIRE))                         # arg for most inactive filters
     inactive_filter_index = np.array(filter_index)[inactive_rank]
     inactive_filter_layer = np.array(filter_layer)[inactive_rank]
     useless_filter_index=[[] for i in range(num_conv)]
     num_selected_filters=0
-    num_filters_to_select=percent_of_inactive_filter*len(dead_ratio)
+    num_filters_to_select=percent_of_inactive_filter*len(FIRE)
 
     for i in range(inactive_filter_index.shape[0]) :
         layer=inactive_filter_layer[i]
@@ -240,8 +240,9 @@ def find_useless_filters_data_version(net,
                                       neural_list=None,
                                       dead_or_inactive='inactive',
                                       neural_dead_times=None,
-                                      filter_dead_ratio=None,
+                                      filter_FIRE=None,
                                       # max_data_to_test=10000,
+                                      num_filters_to_prune_at_most=None,
                                       max_data_to_test=10000,
                       ):
     '''
@@ -255,15 +256,15 @@ def find_useless_filters_data_version(net,
     :param dead_or_inactive:
     param for dead filter
     :param neural_dead_times:
-    :param filter_dead_ratio:
-    param for inactive filter
+    :param filter_FIRE:
     :param percent_of_inactive_filter:
-    :param use at most (max_data_to_test) images to calculate the inactive rate
+    :param max_data_to_test: use at most (max_data_to_test) images to calculate the inactive rate
+    :param num_filters_to_prune_at_most: list containing the minimum number of filters in each layer
     :return:
     '''
     if dead_or_inactive is 'dead':
-        if neural_dead_times is None or filter_dead_ratio is None:
-            print('neural_dead_times and filter_dead_ratio are required to find dead filters.')
+        if neural_dead_times is None or filter_FIRE is None:
+            print('neural_dead_times and filter_FIRE are required to find dead filters.')
             raise AttributeError
     elif dead_or_inactive is 'inactive':
         if percent_of_inactive_filter is None:
@@ -310,67 +311,106 @@ def find_useless_filters_data_version(net,
             del net_test
             del train_loader
     num_conv = 0  # num of conv layers in the net
-    filter_num = list()
-    relu_layer=list()   #denote the layer for ReLU
+    filter_num = []
     for name,mod in net.named_modules():
         if isinstance(mod, torch.nn.Conv2d) and 'downsample' not in name:
             num_conv += 1
             filter_num.append(mod.out_channels)
-        if isinstance(mod,nn.ReLU):
-            relu_layer.append(num_conv-1)                       #the last few may be relu in fc
-    relu_layer = list(set(relu_layer))                          #delete relu in fc
 
-    useless_filter_index=list()
+
+    useless_filter_index=[[] for i in range(num_conv)]
     if dead_or_inactive is 'inactive':
-        filter_index=list()                                 #index of the filter in its layer
-        filter_layer=list()                                 #which layer the filter is in
-        dead_ratio=list()
-    for i in range(len(relu_layer)):#the number of relu after conv  range(len(module_list)):
+        # filter_index=[]                                 #index of the filter in its layer
+        # filter_layer=[]                                 #which layer the filter is in
+        FIRE=[]
+    for i in range(len(module_list)):#the number of relu after conv  range(len(module_list)):
         for module_key in list(neural_list.keys()):
             if module_list[i] is module_key:  # find the neural_list_statistics in layer i+1
                 dead_times = copy.deepcopy(neural_list[module_key])
                 neural_num = dead_times.shape[1] * dead_times.shape[2]  # neural num for one filter
 
                 if dead_or_inactive is 'dead':
+                    print('warning!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! may be wrong!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     # judge dead filter by neural_dead_times and dead_filter_ratio
                     dead_times[dead_times < neural_dead_times] = 0
                     dead_times[dead_times >= neural_dead_times] = 1
                     dead_times = np.sum(dead_times, axis=(1, 2))  # count the number of dead neural for one filter
     
-                    df_num=np.where(dead_times >= neural_num * filter_dead_ratio)[0].shape[0]                    #number of dead filters
+                    df_num=np.where(dead_times >= neural_num * filter_FIRE)[0].shape[0]                    #number of dead filters
                     df_index=np.argsort(-dead_times)[:df_num].tolist()                                           #dead filters' indices. sorted by the times that they died.
                     useless_filter_index.append(df_index)
                 elif dead_or_inactive is 'inactive':
                     # compute sum(dead_times)/(batch_size*neural_num) as label for each filter
                     dead_times = np.sum(dead_times, axis=(1, 2))
                     # if use_random_data is True:
-                    #     dead_ratio += (dead_times / (neural_num * batch_size)).tolist()
+                    #     FIRE += (dead_times / (neural_num * batch_size)).tolist()
                     # else:
-                    dead_ratio += (dead_times / (neural_num * num_test_images)).tolist()
-                    filter_layer += [relu_layer[i] for j in range(dead_times.shape[0])]
-                    filter_index+=[j for j in range(dead_times.shape[0])]
+                    FIRE += (dead_times / (neural_num * num_test_images)).tolist()
+                    # filter_layer += [i for j in range(dead_times.shape[0])]
+                    # filter_index+=[j for j in range(dead_times.shape[0])]
 
     if dead_or_inactive is 'dead':
         return useless_filter_index, module_list, neural_list
     elif dead_or_inactive is 'inactive':
-        #todo：这里改成每次数量不够，cutoff就多加一点
-        cutoff_rank=int(percent_of_inactive_filter*len(dead_ratio))
-        inactive_rank=np.argsort(-np.array(dead_ratio))[:cutoff_rank]                #arg for top percent_of_inactive_filter*100% of inactive filters
-        inactive_filter_index=np.array(filter_index)[inactive_rank]
-        inactive_filter_layer=np.array(filter_layer)[inactive_rank]
+        useless_filter_index=sort_inactive_filters(net,percent_of_inactive_filter,FIRE,num_filters_to_prune_at_most)
+        # cutoff_rank_increase=-1
+        # delta=0
+        # while cutoff_rank_increase!=delta:
+        #     cutoff_rank_increase = delta
+        #     delta = 0
+        #     cutoff_rank=int(percent_of_inactive_filter*len(FIRE))+cutoff_rank_increase
+        #     inactive_rank=np.argsort(-np.array(FIRE))[:cutoff_rank]                #arg for top (percent_of_inactive_filter)*100% of inactive filters
+        #     inactive_filter_index=np.array(filter_index)[inactive_rank]                     #index of top (percent_of_inactive_filter)*100% inactive filters
+        #     inactive_filter_layer=np.array(filter_layer)[inactive_rank]
+        #     for i in range(num_conv):
+        #         index = inactive_filter_index[np.where(inactive_filter_layer == i)]     #index of inactive filters in layer i
+        #         if num_filters_to_prune_at_most is not None:
+        #             if len(index)>num_filters_to_prune_at_most[i]:
+        #                 delta+=len(index)-num_filters_to_prune_at_most[i]           #number of inactive filters excluded because of the restriction
+        #                 index=index[:num_filters_to_prune_at_most[i]]
+        #         useless_filter_index[i]=index
+
+        return useless_filter_index,module_list,neural_list,FIRE
+
+def sort_inactive_filters(net,
+                          percent_of_inactive_filter,
+                          FIRE,
+                          num_filters_to_prune_at_most
+                          ):
+    num_conv=0
+    filter_index=[]                                 #index of the filter in its layer
+    filter_layer=[]                                 #which layer the filter is in
+    for name,mod in net.named_modules():
+        if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+            filter_layer +=[num_conv for i in range(mod.out_channels)]
+            filter_index+=[i for i in range(mod.out_channels)]
+            num_conv+=1
+
+    useless_filter_index=[[] for i in range(num_conv)]
+    cutoff_rank_increase = -1
+    delta = 0
+    while cutoff_rank_increase != delta:
+        cutoff_rank_increase = delta
+        delta = 0
+        cutoff_rank = int(percent_of_inactive_filter * len(FIRE)) + cutoff_rank_increase
+        inactive_rank = np.argsort(-np.array(FIRE))[:cutoff_rank]  # arg for top (percent_of_inactive_filter)*100% of inactive filters
+        inactive_filter_index = np.array(filter_index)[inactive_rank]  # index of top (percent_of_inactive_filter)*100% inactive filters
+        inactive_filter_layer = np.array(filter_layer)[inactive_rank]
         for i in range(num_conv):
-            if i in relu_layer:
-                useless_filter_index.append(inactive_filter_index[np.where(inactive_filter_layer==i)])
-            else:
-                useless_filter_index.append([])
-        return useless_filter_index,module_list,neural_list,dead_ratio
+            index = inactive_filter_index[np.where(inactive_filter_layer == i)]  # index of inactive filters in layer i
+            if num_filters_to_prune_at_most is not None:
+                if len(index) > num_filters_to_prune_at_most[i]:
+                    delta += len(index) - num_filters_to_prune_at_most[i]  # number of inactive filters excluded because of the restriction
+                    index = index[:num_filters_to_prune_at_most[i]]
+            useless_filter_index[i] = index
+    return useless_filter_index
 
 
 def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None,max_data_to_test=10000):
-    handle = list()
+    handle = []
     global relu_list                                                        #list containing relu module
     global neural_list
-    relu_list=list()
+    relu_list=[]
     neural_list=dict()
 
 
@@ -399,9 +439,10 @@ def check_ReLU_alive(net,neural_dead_times,data=None,data_loader=None,max_data_t
     return relu_list_temp,neural_list_temp
 
 def cal_dead_times(module, input, output):
-    if isinstance(module,torch.nn.ReLU):
-        if module not in relu_list:
-            relu_list.append(module)
+    if len(output.shape) !=4:                                           #ReLU for fc
+        return
+    if module not in relu_list:
+        relu_list.append(module)
     if module not in neural_list.keys():
         neural_list[module]=np.zeros(output.shape[1:],dtype=np.int)
 
@@ -434,19 +475,19 @@ def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
 #     :param use_random_data:
 #     :return:
 #     '''
-#     handle = list()
+#     handle = []
 #     global conv_list                                                        #list containing relu module
 #     global neural_list
 #     global input_shape_list,output_shape_list
 #     global mean_list,std_list
-#     conv_list=list()
+#     conv_list=[]
 #     neural_list=dict()
-#     input_shape_list=list()
-#     output_shape_list=list()
+#     input_shape_list=[]
+#     output_shape_list=[]
 #     mean_list=[[0.485, 0.456, 0.406]]                                       #mean list initiated with mean value in layer one
 #     std_list=[[0.229, 0.224, 0.225]]
 #
-#     module_block_list=list()                                                      #2-d list
+#     module_block_list=[]                                                      #2-d list
 #
 #     #register a hook for ReLU
 #     num_conv=-1
@@ -519,13 +560,13 @@ def cal_dead_neural_rate(neural_dead_times,neural_list_temp=None):
 #     :return:
 #     '''
 #
-#     # dead_filter_index_data,_,_=find_useless_filters_data_version(net=net,filter_dead_ratio=0.9,batch_size=1200,neural_dead_times=1200)
+#     # dead_filter_index_data,_,_=find_useless_filters_data_version(net=net,filter_FIRE=0.9,batch_size=1200,neural_dead_times=1200)
 #
-#     dead_filter_index=list()
-#     df_num_max=list()                           #max number of filter num
-#     df_num_min=list()                           #min number of filter num
-#     filter_num=list()                           #filter num in each layer
-#     weight=list()
+#     dead_filter_index=[]
+#     df_num_max=[]                           #max number of filter num
+#     df_num_min=[]                           #min number of filter num
+#     filter_num=[]                           #filter num in each layer
+#     weight=[]
 #     num_conv=0
 #     for mod in net.features:
 #         if isinstance(mod, torch.nn.modules.conv.Conv2d):

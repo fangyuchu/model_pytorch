@@ -38,7 +38,6 @@ def restore_net(checkpoint,pretrained=True):
         #     net = getattr(globals()['resnet_cifar'], net_name)()
         else:
             raise Exception('Please input right dataset_name.')
-        modules_list = prune_module.create_module_list(net)  # 创建一个list保存每一个module的名字
     else:
         raise Exception('Unsupported net type:'+net_name)
 
@@ -48,12 +47,12 @@ def restore_net(checkpoint,pretrained=True):
         if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
             index=[i for i in range(mod.out_channels-structure[num_layer])]
             if 'vgg' in net_name:
-                net= prune_module.prune_conv_layer(model=net, layer_index=num_layer, filter_index=index)
+                net= prune_module.prune_conv_layer_vgg(model=net, layer_index=num_layer, filter_index=index)
             elif 'resnet' in net_name:
                 net=prune_module.prune_conv_layer_resnet(net=net,
                                                          layer_index=num_layer,
                                                          filter_index=index,
-                                                         modules_list=modules_list)
+                                                         )
             num_layer+=1
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

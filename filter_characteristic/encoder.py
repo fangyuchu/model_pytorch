@@ -156,7 +156,7 @@ def read_from_checkpoint(path):
         file_list=[path]                                #single net
     else:
         file_list=os.listdir(path)
-    filters = list()
+    filters = []
     for file_name in file_list:
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
@@ -166,7 +166,7 @@ def read_from_checkpoint(path):
     return filters
 
 def get_filters(net):
-    filters=list()
+    filters=[]
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
             for f in mod.weight.data.cpu().numpy():

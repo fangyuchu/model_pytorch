@@ -264,7 +264,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net=resnet50(pretrained=True).to(device)
     net=torch.nn.DataParallel(net)
-    a=prune_module.create_module_list(net)
+    a=prune_module.create_module_name_list(net)
     from framework import evaluate,data_loader
     evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=16,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
     print()

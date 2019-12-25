@@ -20,14 +20,14 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               sample_num=None):
     #note that classification function is abandoned, the code involved might be wrong
     if regression_or_classification is 'regression':
-        filter=list()
-        filter_layer=list()
-        filter_label=list()
+        filter=[]
+        filter_layer=[]
+        filter_label=[]
     elif regression_or_classification is 'classification':
-        dead_filter = list()
-        dead_filter_layer = list()
-        living_filter = list()
-        living_filter_layer = list()
+        dead_filter = []
+        dead_filter_layer = []
+        living_filter = []
+        living_filter_layer = []
     else:
         raise AttributeError
 
@@ -46,13 +46,13 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
             if regression_or_classification is 'classification':
                 # neural_dead_times=checkpoint['neural_dead_times']
                 neural_dead_times=8000
-                filter_dead_ratio=checkpoint['filter_dead_ratio']
+                filter_FIRE=checkpoint['filter_FIRE']
 
 
             num_conv = 0  # num of conv layers in the network
-            filter_num=list()
-            filters=list()
-            layers=list()
+            filter_num=[]
+            filters=[]
+            layers=[]
             for mod in net.modules():
                 if isinstance(mod, torch.nn.modules.conv.Conv2d):
                     num_conv += 1
@@ -78,7 +78,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                             dead_times[dead_times<neural_dead_times]=0
                             dead_times[dead_times>=neural_dead_times]=1
                             dead_times=np.sum(dead_times,axis=(1,2))            #count the number of dead neural for one filter
-                            dead_filter_index=np.where(dead_times>neural_num*filter_dead_ratio)[0].tolist()
+                            dead_filter_index=np.where(dead_times>neural_num*filter_FIRE)[0].tolist()
                             living_filter_index=[i for i in range(filter_num[i]) if i not in dead_filter_index]
 
                             for ind in dead_filter_index:
@@ -311,8 +311,8 @@ def read_from_checkpoint(path):
         file_list=[path]                                #single network
     else:
         file_list=os.listdir(path)
-    filters = list()
-    layers=list()
+    filters = []
+    layers=[]
     for file_name in file_list:
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
@@ -324,8 +324,8 @@ def read_from_checkpoint(path):
     return filters,layers
 
 def get_filters(net):
-    filters=list()
-    layers=list()
+    filters=[]
+    layers=[]
     num_conv=0
     for mod in net.modules():
         if isinstance(mod, torch.nn.modules.conv.Conv2d):
