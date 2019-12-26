@@ -91,6 +91,7 @@ def read_data(path,
               num_images=None):
     sample=[]
     file_list = os.listdir(path)
+    file_list.sort()
     for file_name in file_list:
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
@@ -158,6 +159,7 @@ def train_extractor(train_data_dir,
     for i in range(epoch):
         total_loss=[0 for k in range(len(sample_list))]
         shuffle(order)
+
         for j in order:
             sample=sample_list[j]
             net=sample['net']
@@ -165,7 +167,7 @@ def train_extractor(train_data_dir,
             filter_label=sample['filter_label']
             label=torch.Tensor(filter_label).reshape((-1,1)).to(device)
             optimizer.zero_grad()
-
+            extractor_model.train()
             output=extractor_model.forward(net,net_name,dataset_name)
 
             loss=criterion(output,label)
@@ -177,6 +179,33 @@ def train_extractor(train_data_dir,
         print('{}  Epoch:{}. loss is {}. Sum:'.format(datetime.now(),i, total_loss),end='')
         print(sum(total_loss))
         if i%50==0 and i!=0:
+
+
+            # ########################################################################
+            # sample_list_test = read_data(
+            #     path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',
+            #     num_images=10000)
+            #
+            # criterion_test = torch.nn.L1Loss()
+            # for sample_test in sample_list_test:
+            #     extractor_model.eval()
+            #     net_test = sample_test['net']
+            #
+            #     filter_label_test = sample_test['filter_label']
+            #     label_test = torch.Tensor(filter_label_test).reshape((-1, 1)).to(device)
+            #
+            #     output_test = extractor_model.forward(net_test, net_name=sample_test['net_name'], dataset_name=sample_test['dataset_name'])
+            #
+            #     loss_test = criterion_test(output_test, label_test)
+            #
+            #     predict_dead_filter.performance_evaluation(np.array(filter_label_test),
+            #                                                output_test.data.detach().cpu().numpy().reshape(-1), 0.1)
+            #
+            #     print(float(loss_test))
+            # ########################################################################
+
+
+
             checkpoint={'feature_len':feature_len,
                         'gcn_rounds':gcn_rounds,
                         'state_dict':extractor_model.state_dict()}
@@ -212,7 +241,7 @@ if __name__ == "__main__":
     #     feature_len=50,
     #     num_images=1024,
     #     special='normalization_learningrate0.1')
-
+    #
     # train_extractor(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',
     #                 criterion=nn.MSELoss(),
     #                 net_name='vgg16_bn',
@@ -221,40 +250,42 @@ if __name__ == "__main__":
     #                 num_images=10240,
     #                 special='normalization_')
 
-    # train_extractor(
-    #     train_data_dir='/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/dead_neural',
-    #     criterion=nn.MSELoss(),
-    #     net_name='vgg16_bn',
-    #     dataset_name='cifar10',
-    #     feature_len=15,
-    #     num_images=10000,
-    #     special='normalization_learningrate0.01_no_sigmoid_no_bias_15features')
+    train_extractor(
+        train_data_dir='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',
+        criterion=nn.MSELoss(),
+        net_name='vgg16_bn',
+        dataset_name='cifar10',
+        feature_len=15,
+        num_images=10000,
+        special='normalization_learningrate0.01_no_sigmoid_no_bias_15features_expdata',
+        epoch=700
+    )
 
 
-    path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn/normalization_learningrate0.01_no_sigmoid_no_bias_15featuresMSELoss/700.tar'
-    # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn_cifar10/weighted_MSELoss/950.tar'
-    extractor_model=load_extractor(path).to(device)
-
-    extractor_model.eval()
-    sample_list=read_data(path='/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/dead_neural',num_images=10000)
-    # sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',num_images=10240)
-
-    criterion=torch.nn.L1Loss()
-    for sample in sample_list:
-        net = sample['net']
-
-        filter_label = sample['filter_label']
-        label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
-
-        output = extractor_model.forward(net,net_name=sample['net_name'],dataset_name=sample['dataset_name'])
-
-        loss = criterion(output, label)
-
-        predict_dead_filter.performance_evaluation(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.1)
-
-        print(float(loss))
-        print()
-    print()
+    # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn/normalization_learningrate0.01_no_sigmoid_no_bias_15featuresMSELoss/700.tar'
+    # # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn_cifar10/weighted_MSELoss/950.tar'
+    # extractor_model=load_extractor(path).to(device)
+    #
+    # extractor_model.eval()
+    # sample_list=read_data(path='/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/dead_neural',num_images=10000)
+    # # sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',num_images=10240)
+    #
+    # criterion=torch.nn.L1Loss()
+    # for sample in sample_list:
+    #     net = sample['net']
+    #
+    #     filter_label = sample['filter_label']
+    #     label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
+    #
+    #     output = extractor_model.forward(net,net_name=sample['net_name'],dataset_name=sample['dataset_name'])
+    #
+    #     loss = criterion(output, label)
+    #
+    #     predict_dead_filter.performance_evaluation(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.1)
+    #
+    #     print(float(loss))
+    #     print()
+    # print()
 
 
     # read_data(num_images=10000)

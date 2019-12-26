@@ -388,17 +388,23 @@ print(torch.cuda.is_available())
 
 # vgg16_extractor_static_cifar10
 net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
-net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/checkpoint/flop=100352778,accuracy=0.93450.tar'),pretrained=True)
+# net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/checkpoint/flop=85460622,accuracy=0.93420.tar'),pretrained=True)
 max_filters_pruned_for_one_time=[0.15 for i in range(13)]
+# max_filters_pruned_for_one_time[7]=0
+# max_filters_pruned_for_one_time[8]=0
+# max_filters_pruned_for_one_time[9]=0
 max_filters_pruned_for_one_time[10]=0.3
 max_filters_pruned_for_one_time[11]=0.3
 max_filters_pruned_for_one_time[12]=0.3
+# max_filters_pruned_for_one_time=[0 for i in range(13)]
+# max_filters_pruned_for_one_time[4]=0.1
 prune_and_train.prune_inactive_neural_with_extractor(net=net,
                                                      net_name='vgg16_bn',
-                                                     exp_name='vgg16_extractor_static_cifar10',
+                                                     exp_name='vgg16_extractor_static_cifar10_more_train',
                                                      target_accuracy=0.933,
                                                      prune_rate=0.05,
                                                      round_for_train=2,
+                                                     round_to_train_freq=7,
                                                      tar_acc_gradual_decent=True,
                                                      flop_expected=4e7,
                                                      dataset_name='cifar10',
@@ -408,17 +414,17 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
                                                      learning_rate=0.01,
                                                      evaluate_step=3000,
                                                      num_epoch=450,
-                                                     filter_preserve_ratio=0.1,
+                                                     filter_preserve_ratio=0.2,
                                                      max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
                                                      learning_rate_decay=True,
                                                      learning_rate_decay_factor=0.5,
                                                      weight_decay=5e-4,
                                                      learning_rate_decay_epoch=[20,50, 100, 150, 250, 300, 350, 400],
-                                                     max_training_round=1,
-                                                     round=9,
+                                                     max_training_round=2,
+                                                     round=1,
                                                      top_acc=1,
                                                      max_data_to_test=10000,
-                                                     extractor_epoch=700,
+                                                     extractor_epoch=100,
                                                      extractor_feature_len=15,
                                                      gcn_rounds=2
                                                      )
@@ -447,13 +453,13 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
 #                                                      optimizer=optim.SGD,
 #                                                      learning_rate=0.01,
 #                                                      evaluate_step=1000,
-#                                                      num_epoch=10,
+#                                                      num_epoch=15,
 #                                                      filter_preserve_ratio=0.15,
 #                                                      max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
 #                                                      learning_rate_decay=True,
 #                                                      learning_rate_decay_factor=0.1,
 #                                                      weight_decay=5e-4,
-#                                                      learning_rate_decay_epoch=[1,7],
+#                                                      learning_rate_decay_epoch=[3,8],
 #                                                      max_training_round=1,
 #                                                      round=3,
 #                                                      top_acc=5,

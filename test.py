@@ -5,6 +5,10 @@ from network import vgg_channel_weight, vgg,storage
 from framework import evaluate,data_loader
 from framework import config as conf
 import os,sys
+from filter_characteristic import filter_feature_extractor,predict_dead_filter
+import numpy as np
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 #
 # c=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel/checkpoint/flop=18923530,accuracy=0.93600.tar')
 #
@@ -14,27 +18,45 @@ import os,sys
 #     if isinstance(mod,nn.Conv2d):
 #         print()
 
+net_file_name=['']
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_pureData/checkpoint/flop=3496274525,accuracy=0.74196.tar')
+
+# file_list = os.listdir('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/checkpoint')
+# file_list.sort()
+extractor = filter_feature_extractor.load_extractor(
+    '/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_more_train/extractor/100.tar')
+extractor.eval()
+i=0
+
+# for file_name in file_list:
+# print(file_name)
+# checkpoint=torch.load(os.path.join('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/checkpoint/',file_name))
+checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_more_train/checkpoint/flop=160463562,accuracy=0.93700.tar')
 net=storage.restore_net(checkpoint,pretrained=True)
-net=torch.nn.DataParallel(net)
-# evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=512,num_workers=8,dataset_name='imagenet'),save_net=False)
-train.train(net=net,
-            net_name='resnet50',
-            exp_name='resnet50_pureData_train',
-            learning_rate=0.001,
-            num_epochs=10,
-            batch_size=512,
-            test_net=True,
-            num_workers=8,
-            learning_rate_decay=True,
-            learning_rate_decay_factor=10,
-            learning_rate_decay_epoch=[5],
-            weight_decay=5e-4,
-            momentum=0.9,
-            target_accuracy=0.743903061255542,
-            optimizer=torch.optim.SGD
-            )
+
+useless_filter_index,module_list,neural_list,FIRE=evaluate.find_useless_filters_data_version(net=net,batch_size=16,percent_of_inactive_filter=0.1,dataset_name='cifar10')
+
+# checkpoint = {'prune_rate': 0.1, 'module_list': module_list,
+#               'neural_list': neural_list, 'state_dict': net.state_dict(),
+#               'num_test_images': 10000}
+# checkpoint.update(storage.get_net_information(net, 'cifar10', 'vgg16_bn'))
+# torch.save(checkpoint,
+#            os.path.join('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10', 'all_Fire',file_name))
+# i+=1
+
+
+
+label = torch.Tensor(FIRE).reshape((-1, 1)).to(device)
+
+Fire_e=extractor.forward(net,'vgg16_bn','cifar10')
+criterion=torch.nn.L1Loss()
+loss=criterion(label,Fire_e)
+print(float(loss))
+
+Fire_e=Fire_e.view(-1).detach().cpu().numpy()
+predict_dead_filter.performance_evaluation(np.array(FIRE),Fire_e,0.1)
+print('\n\n\n\n\n')
 
 
 

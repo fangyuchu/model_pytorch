@@ -573,6 +573,7 @@ def prune_inactive_neural_with_extractor(net,
                                          target_accuracy,
                                          prune_rate,
                                          round_for_train=2,
+                                         round_to_train_freq=5,
                                          tar_acc_gradual_decent=False,
                                          flop_expected=None,
                                          dataset_name='imagenet',
@@ -643,6 +644,7 @@ def prune_inactive_neural_with_extractor(net,
     print('target_accuracy:',target_accuracy)
     print('prune_rate:',prune_rate)
     print('round_for_train:',round_for_train)
+    print('roung_to_train_freq:',round_to_train_freq)
     print('tar_acc_gradual_decent:',tar_acc_gradual_decent)
     print('flop_expected:',flop_expected)
     print('dataset_name:',dataset_name)
@@ -713,6 +715,7 @@ def prune_inactive_neural_with_extractor(net,
     filter_layer = []
     FIRE=[]
     extractor = None
+
     # using data to prune the net for (round_for_train)rounds
     while True:
         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
@@ -727,7 +730,7 @@ def prune_inactive_neural_with_extractor(net,
             else:
                 num_filters_to_prune_at_most[i] = min(int(filter_num[i] * max_filters_pruned_for_one_time),filter_num[i]-filter_num_lower_bound[i])
 
-        if round <= round_for_train:
+        if round%round_to_train_freq<=round_for_train:                                                                          #save data to train extractor
             dead_filter_index, module_list, neural_list, _ = evaluate.find_useless_filters_data_version(
                 net=net_entity,
                 batch_size=16,                                                                                                  #this function need to run on sigle gpu
@@ -747,7 +750,9 @@ def prune_inactive_neural_with_extractor(net,
             checkpoint.update(storage.get_net_information(net_entity, dataset_name, net_name))
             torch.save(checkpoint,
                        os.path.join(checkpoint_path, 'dead_neural/round %d.tar' % round))
-            if round == round_for_train:
+            if round%round_to_train_freq == round_for_train:
+                print('{} train extractor at round {}.'.format(datetime.now(),round))
+                extractor=None
                 train_extractor(train_data_dir=os.path.join(checkpoint_path, 'dead_neural'),
                                 net_name=net_name,
                                 dataset_name=dataset_name,
@@ -756,6 +761,7 @@ def prune_inactive_neural_with_extractor(net,
                                 feature_len=extractor_feature_len,
                                 gcn_rounds=gcn_rounds,
                                 checkpoint_path=os.path.join(checkpoint_path, 'extractor'))
+
 
         else:
             if extractor is None:
