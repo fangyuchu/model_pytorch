@@ -833,11 +833,12 @@ def prune_inactive_neural_with_extractor(net,
                                   top_acc=top_acc
                                   )
             training_round += 1
-            if not success:
-                net = old_net
-                if max_training_round == training_round:
-                    print('{} net can\'t reach target accuracy. Continue to prune anyway.'.format(datetime.now()))
-                    break
+
+            # if not success:
+            #     net = old_net
+            #     if max_training_round == training_round:
+            #         print('{} net can\'t reach target accuracy. Continue to prune anyway.'.format(datetime.now()))
+            #         break
 
                     # return
 

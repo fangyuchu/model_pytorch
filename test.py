@@ -7,7 +7,7 @@ from framework import config as conf
 import os,sys
 from filter_characteristic import filter_feature_extractor,predict_dead_filter
 import numpy as np
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 #
 # c=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel/checkpoint/flop=18923530,accuracy=0.93600.tar')
