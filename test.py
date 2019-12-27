@@ -7,7 +7,7 @@ from framework import config as conf
 import os,sys
 from filter_characteristic import filter_feature_extractor,predict_dead_filter
 import numpy as np
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 #
 # c=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel/checkpoint/flop=18923530,accuracy=0.93600.tar')
@@ -32,8 +32,9 @@ i=0
 # for file_name in file_list:
 # print(file_name)
 # checkpoint=torch.load(os.path.join('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/checkpoint/',file_name))
-checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_more_train/checkpoint/flop=160463562,accuracy=0.93700.tar')
+checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_more_train/checkpoint/flop=146809690,accuracy=0.93630.tar')
 net=storage.restore_net(checkpoint,pretrained=True)
+
 
 useless_filter_index,module_list,neural_list,FIRE=evaluate.find_useless_filters_data_version(net=net,batch_size=16,percent_of_inactive_filter=0.1,dataset_name='cifar10')
 
