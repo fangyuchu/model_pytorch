@@ -465,11 +465,11 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
                                                      weight_decay=5e-4,
                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
                                                      max_training_round=2,
-                                                     round=15,
+                                                     round=1,
                                                      top_acc=1,
                                                      max_data_to_test=10000,
                                                      extractor_epoch=100,
-                                                     extractor_feature_len=1,
+                                                     extractor_feature_len=15,
                                                      gcn_rounds=2
                                                      )
 
