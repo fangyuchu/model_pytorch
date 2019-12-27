@@ -812,27 +812,27 @@ def prune_inactive_neural_with_extractor(net,
 
         success = False
         training_round=0
-        while not success:
-            old_net = copy.deepcopy(net)
-            success = train.train(net=net,
-                                  net_name=net_name,
-                                  exp_name=exp_name,
-                                  num_epochs=num_epoch,
-                                  target_accuracy=target_accuracy,
-                                  learning_rate=learning_rate,
-                                  load_net=False,
-                                  evaluate_step=evaluate_step,
-                                  dataset_name=dataset_name,
-                                  optimizer=optimizer,
-                                  batch_size=batch_size,
-                                  learning_rate_decay=learning_rate_decay,
-                                  learning_rate_decay_factor=learning_rate_decay_factor,
-                                  weight_decay=weight_decay,
-                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                  test_net=True,
-                                  top_acc=top_acc
-                                  )
-            training_round += 1
+        # while not success:
+        old_net = copy.deepcopy(net)
+        success = train.train(net=net,
+                              net_name=net_name,
+                              exp_name=exp_name,
+                              num_epochs=num_epoch,
+                              target_accuracy=target_accuracy,
+                              learning_rate=learning_rate,
+                              load_net=False,
+                              evaluate_step=evaluate_step,
+                              dataset_name=dataset_name,
+                              optimizer=optimizer,
+                              batch_size=batch_size,
+                              learning_rate_decay=learning_rate_decay,
+                              learning_rate_decay_factor=learning_rate_decay_factor,
+                              weight_decay=weight_decay,
+                              learning_rate_decay_epoch=learning_rate_decay_epoch,
+                              test_net=True,
+                              top_acc=top_acc
+                              )
+        training_round += 1
 
             # if not success:
             #     net = old_net
