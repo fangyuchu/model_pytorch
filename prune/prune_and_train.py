@@ -11,7 +11,7 @@ import random
 import copy
 from filter_characteristic import predict_dead_filter
 from filter_characteristic.filter_feature_extractor import train_extractor,load_extractor
-from network import resnet_cifar, resnet_tinyimagenet,storage,resnet
+from network import resnet_cifar, resnet_tinyimagenet,storage,resnet,vgg,resnet
 import math
 
 
@@ -697,14 +697,29 @@ def prune_inactive_neural_with_extractor(net,
         acc_drop_tolerance = original_accuracy - target_accuracy
 
     '''计算Conv的层数'''
+    if 'vgg' in net_name:
+        original_net = getattr(globals()['vgg'], net_name)(pretrained=False,dataset_name=dataset_name)
+    elif 'resnet' in net_name:
+        if 'imagenet' == dataset_name:
+            original_net = getattr(globals()['resnet'], net_name)(pretrained=False)
+        else:
+            raise Exception('Please input right dataset_name.')
+    else:
+        raise Exception('Unsupported net type:'+net_name)
+    filter_num_lower_bound = []  # 最低filter数量
+    for name, mod in original_net.named_modules():
+        if isinstance(mod, torch.nn.Conv2d) and 'downsample' not in name:  # 1*1 conv in shortcut will not be counted
+            filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
+    del original_net
+
     conv_list = []  # List，保存要剪枝的Conv层索引，下标从0开始
     i = 0  # Conv总数
-    filter_num_lower_bound = []  # 最低filter数量
+
     filter_num = []
     num_filters_to_prune_at_most=[]
     for name,mod in net.named_modules():
         if isinstance(mod,torch.nn.Conv2d)  and 'downsample' not in name:               #1*1 conv in shortcut will not be counted
-            filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
+            # filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
             filter_num.append(mod.out_channels)
             num_filters_to_prune_at_most+=[0]
             if ('layer'in name and 'conv3' not in name) or 'features' in name:              #for resnet and vgg respectively
