@@ -25,14 +25,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # file_list = os.listdir('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/checkpoint')
 # file_list.sort()
 extractor = filter_feature_extractor.load_extractor(
-    '/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_more_train/extractor/first_extractor.tar')
+    '/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_few_finetune/extractor/100.tar')
 extractor.eval()
 i=0
 
 # for file_name in file_list:
 # print(file_name)
 # checkpoint=torch.load(os.path.join('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10/checkpoint/',file_name))
-checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_more_train/checkpoint/flop=84658818,accuracy=0.93350.tar')
+checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_few_finetune/checkpoint/flop=178998414,accuracy=0.93020.tar')
 net=storage.restore_net(checkpoint,pretrained=True)
 
 

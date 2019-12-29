@@ -683,8 +683,19 @@ def prune_inactive_neural_with_extractor(net,
                                                                  num_workers=num_workers,
                                                                  dataset_name=dataset_name)
 
-    flop_original_net = measure_flops.measure_model(net, dataset_name)
-    original_accuracy = evaluate.evaluate_net(net=net,
+
+    if 'vgg' in net_name:
+        original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
+    elif 'resnet' in net_name:
+        if 'imagenet' == dataset_name:
+            original_net = getattr(globals()['resnet'], net_name)(pretrained=True).to(device)
+        else:
+            raise Exception('Please input right dataset_name.')
+    else:
+        raise Exception('Unsupported net type:'+net_name)
+
+    flop_original_net = measure_flops.measure_model(original_net, dataset_name)
+    original_accuracy = evaluate.evaluate_net(net=original_net,
                                               data_loader=validation_loader,
                                               save_net=False,
                                               dataset_name=dataset_name,
@@ -696,20 +707,10 @@ def prune_inactive_neural_with_extractor(net,
         flop_drop_expected = flop_original_net - flop_expected
         acc_drop_tolerance = original_accuracy - target_accuracy
 
-    '''计算Conv的层数'''
-    if 'vgg' in net_name:
-        original_net = getattr(globals()['vgg'], net_name)(pretrained=False,dataset_name=dataset_name)
-    elif 'resnet' in net_name:
-        if 'imagenet' == dataset_name:
-            original_net = getattr(globals()['resnet'], net_name)(pretrained=False)
-        else:
-            raise Exception('Please input right dataset_name.')
-    else:
-        raise Exception('Unsupported net type:'+net_name)
     filter_num_lower_bound = []  # 最低filter数量
     for name, mod in original_net.named_modules():
         if isinstance(mod, torch.nn.Conv2d) and 'downsample' not in name:  # 1*1 conv in shortcut will not be counted
-            filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
+            filter_num_lower_bound+=[max(extractor_feature_len,int(mod.out_channels * filter_preserve_ratio))]  # 输出通道数 * filter的保存比例
     del original_net
 
     conv_list = []  # List，保存要剪枝的Conv层索引，下标从0开始
