@@ -507,36 +507,34 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 #vgg16 imagenet old way
-net=vgg.vgg16_bn(pretrained=True)
-net=nn.DataParallel(net)
-# evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
-
-# measure_flops.measure_model(net, 'cifar10', print_flop=True)
-prune_and_train.prune_inactive_neural_with_regressor(net=net,
-                                                     exp_name='vgg16_bn_imagenet_old_way',
-                                                     net_name='vgg16_bn',
-                                                     dataset_name='imagenet',
-                                                     prune_rate=0.1,
-                                                     load_regressor=False,
-                                                     round_for_train=2,
-                                                     round=1,
-                                                        max_training_round=2,
-                                                     filter_preserve_ratio=0.1,
-                                                     max_filters_pruned_for_one_time=0.3,
-                                                     target_accuracy=0.8981,
-                                                     tar_acc_gradual_decent=True,
-                                                     flop_expected=0.2,
-                                                     batch_size=256,
-                                                     use_random_data=False,
-                                                     # optimizer=optim.Adam,
-                                                     # learning_rate=1e-3,
-                                                     # weight_decay=0
-                                                     optimizer=optim.SGD,
-                                                      learning_rate=0.01,
-                                                      evaluate_step=1000,
-                                                      num_epoch=20,
-                                                     learning_rate_decay=True,
-                                                     learning_rate_decay_epoch=[5,10,15],
-                                                     learning_rate_decay_factor=0.1,
-                                                     top_acc=5,
-                                                     )
+# net=vgg.vgg16_bn(pretrained=True)
+# net=nn.DataParallel(net)
+#
+# prune_and_train.prune_inactive_neural_with_regressor(net=net,
+#                                                      exp_name='vgg16_bn_imagenet_old_way',
+#                                                      net_name='vgg16_bn',
+#                                                      dataset_name='imagenet',
+#                                                      prune_rate=0.1,
+#                                                      load_regressor=False,
+#                                                      round_for_train=2,
+#                                                      round=1,
+#                                                         max_training_round=2,
+#                                                      filter_preserve_ratio=0.1,
+#                                                      max_filters_pruned_for_one_time=0.3,
+#                                                      target_accuracy=0.8981,
+#                                                      tar_acc_gradual_decent=True,
+#                                                      flop_expected=0.2,
+#                                                      batch_size=256,
+#                                                      use_random_data=False,
+#                                                      # optimizer=optim.Adam,
+#                                                      # learning_rate=1e-3,
+#                                                      # weight_decay=0
+#                                                      optimizer=optim.SGD,
+#                                                       learning_rate=0.01,
+#                                                       evaluate_step=1000,
+#                                                       num_epoch=20,
+#                                                      learning_rate_decay=True,
+#                                                      learning_rate_decay_epoch=[5,10,15],
+#                                                      learning_rate_decay_factor=0.1,
+#                                                      top_acc=5,
+#                                                      )
