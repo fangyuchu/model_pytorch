@@ -59,17 +59,17 @@ class BasicBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.planes = planes  # changed
         self.relu2 = nn.ReLU(True)
-        self.shortcut = nn.Sequential()
+        self.downsample = nn.Sequential()
         if stride != 1 or in_planes != planes:
             if option == 'A':
                 """
                 For CIFAR10 ResNet paper uses option A.
                 """
-                self.shortcut = LambdaLayer(self.tmp_func)
+                self.downsample = LambdaLayer(self.tmp_func)
                 # self.shortcut = LambdaLayer(lambda x:
                 #                             F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes//4, planes//4), "constant", 0))
             elif option == 'B':
-                self.shortcut = nn.Sequential(
+                self.downsample = nn.Sequential(
                     nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
                     nn.BatchNorm2d(self.expansion * planes)
                 )
@@ -80,7 +80,7 @@ class BasicBlock(nn.Module):
     def forward(self, x):
         out = self.relu1(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
-        out += self.shortcut(x)
+        out += self.downsample(x)
         out = self.relu2(out)
         return out
 

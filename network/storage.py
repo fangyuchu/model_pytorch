@@ -34,8 +34,8 @@ def restore_net(checkpoint,pretrained=True):
     elif 'resnet' in net_name:
         if 'imagenet' == dataset_name:
             net = getattr(globals()['resnet'], net_name)(pretrained=False)
-        # elif 'cifar10' == dataset_name:
-        #     net = getattr(globals()['resnet_cifar'], net_name)()
+        elif 'cifar10' == dataset_name:
+            net = getattr(globals()['resnet_cifar'], net_name)()
         else:
             raise Exception('Please input right dataset_name.')
     else:
@@ -86,11 +86,14 @@ if __name__ == "__main__":
     # conversion(checkpoint_path='../data/baseline/resnet32_cifar10,accuracy=0.92380.tar',net_name='resnet56',dataset_name='cifar10')
 
 
-    # dataset_name='imagenet'
-    # # net=vgg.vgg16_bn(pretrained=False,dataset_name=dataset_name)
-    # net=resnet.resnet50()
+    checkpoint=torch.load('/home/victorfang/model_pytorch/data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
+
     net=resnet_cifar.resnet56()
-    # checkpoint=torch.load('../data/baseline/resnet56_cifar10,accuracy=0.94230.tar')
+    # net.load_state_dict(checkpoint['state_dict'])
+    c=get_net_information(net=net,dataset_name='cifar10',net_name='resnet56')
+    net=restore_net(checkpoint,True)
+    from framework import evaluate,data_loader
+    evaluate.evaluate_net(net,data_loader.create_validation_loader(512,4,'cifar10'),False)
     # c=get_net_information(net=net,dataset_name=dataset_name,net_name='resnet50')
 
 

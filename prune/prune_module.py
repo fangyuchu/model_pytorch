@@ -247,7 +247,7 @@ def prune_conv_layer_resnet(net, layer_index, filter_index):
         if conv_to_prune is not None:
             if isinstance(mod, torch.nn.Conv2d):  # 要删的filter后一层的conv
                 if 'downsample' in name:
-                    raise Exception('Pruning last conv in block is not implemented yet.')
+                    raise Exception('Pruning bypass conv in block is not implemented yet.')
                 next_conv = mod
                 break
             elif isinstance(mod, torch.nn.BatchNorm2d):  # 要删的filter后一层的batch normalization

@@ -22,6 +22,7 @@ def get_information_for_pruned_conv(net,net_name,filter_preserve_ratio):
             filter_num += [mod.out_channels]
             if 'vgg' in net_name:
                 conv_list+=[layer]
+            #todo: might be wrong for resnet on cifar
             elif 'resnet' in net_name:
                 if 'layer' in name and 'conv3' not in name:
                     conv_list+=[layer]

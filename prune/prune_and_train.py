@@ -689,6 +689,8 @@ def prune_inactive_neural_with_extractor(net,
     elif 'resnet' in net_name:
         if 'imagenet' == dataset_name:
             original_net = getattr(globals()['resnet'], net_name)(pretrained=True).to(device)
+        elif 'cifar10' == dataset_name:
+            original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
         else:
             raise Exception('Please input right dataset_name.')
     else:
@@ -713,9 +715,13 @@ def prune_inactive_neural_with_extractor(net,
             filter_num_lower_bound+=[max(extractor_feature_len,int(mod.out_channels * filter_preserve_ratio))]  # 输出通道数 * filter的保存比例
     del original_net
 
+    if isinstance(net, nn.DataParallel):
+        net_entity = net.module
+    else:
+        net_entity = net
+
     conv_list = []  # List，保存要剪枝的Conv层索引，下标从0开始
     i = 0  # Conv总数
-
     filter_num = []
     num_filters_to_prune_at_most=[]
     for name,mod in net.named_modules():
@@ -723,8 +729,13 @@ def prune_inactive_neural_with_extractor(net,
             # filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
             filter_num.append(mod.out_channels)
             num_filters_to_prune_at_most+=[0]
-            if ('layer'in name and 'conv3' not in name) or 'features' in name:              #for resnet and vgg respectively
-                conv_list.append(i)                                                         #layer that need to be pruned
+            # layer that need to be pruned
+            if isinstance(net_entity,resnet.ResNet) and 'conv3' not in name and 'layer' in name:                        #resnet for imagenet
+                conv_list.append(i)
+            elif isinstance(net_entity,resnet_cifar.ResNet) and 'conv2' not in name and 'layer' in name:                #resnet for cifar
+                conv_list.append(i)
+            elif 'features' in name:                                                                                    #vgg
+                conv_list.append(i)
             i += 1
 
 
@@ -813,33 +824,33 @@ def prune_inactive_neural_with_extractor(net,
 
         success = False
         training_round=0
-        # while not success:
-        old_net = copy.deepcopy(net)
-        success = train.train(net=net,
-                              net_name=net_name,
-                              exp_name=exp_name,
-                              num_epochs=num_epoch,
-                              target_accuracy=target_accuracy,
-                              learning_rate=learning_rate,
-                              load_net=False,
-                              evaluate_step=evaluate_step,
-                              dataset_name=dataset_name,
-                              optimizer=optimizer,
-                              batch_size=batch_size,
-                              learning_rate_decay=learning_rate_decay,
-                              learning_rate_decay_factor=learning_rate_decay_factor,
-                              weight_decay=weight_decay,
-                              learning_rate_decay_epoch=learning_rate_decay_epoch,
-                              test_net=True,
-                              top_acc=top_acc
-                              )
-        training_round += 1
+        while not success:
+            old_net = copy.deepcopy(net)
+            success = train.train(net=net,
+                                  net_name=net_name,
+                                  exp_name=exp_name,
+                                  num_epochs=num_epoch,
+                                  target_accuracy=target_accuracy,
+                                  learning_rate=learning_rate,
+                                  load_net=False,
+                                  evaluate_step=evaluate_step,
+                                  dataset_name=dataset_name,
+                                  optimizer=optimizer,
+                                  batch_size=batch_size,
+                                  learning_rate_decay=learning_rate_decay,
+                                  learning_rate_decay_factor=learning_rate_decay_factor,
+                                  weight_decay=weight_decay,
+                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                  test_net=True,
+                                  top_acc=top_acc
+                                  )
+            training_round += 1
 
-            # if not success:
-            #     net = old_net
-            #     if max_training_round == training_round:
-            #         print('{} net can\'t reach target accuracy. Continue to prune anyway.'.format(datetime.now()))
-            #         break
+            if not success:
+                net = old_net
+                if max_training_round == training_round:
+                    print('{} net can\'t reach target accuracy. Continue to prune anyway.'.format(datetime.now()))
+                    break
 
                     # return
 

@@ -6,7 +6,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import create_net,net_with_mask,vgg,storage
 from framework import config as conf
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -379,30 +379,76 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # # vgg16_extractor_static_cifar10
 # net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
-# net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_more_train/checkpoint/flop=90693142,accuracy=0.93460.tar'),pretrained=True)
-# max_filters_pruned_for_one_time=[0.15 for i in range(13)]
-# # max_filters_pruned_for_one_time[7]=0
-# # max_filters_pruned_for_one_time[8]=0
-# # max_filters_pruned_for_one_time[9]=0
-# max_filters_pruned_for_one_time[10]=0.3
-# max_filters_pruned_for_one_time[11]=0.3
-# max_filters_pruned_for_one_time[12]=0.3
+net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_cifar10_0.1prunerate/checkpoint/flop=84929794,accuracy=0.93470.tar'),pretrained=True)
+max_filters_pruned_for_one_time=[0.3 for i in range(13)]
+max_filters_pruned_for_one_time[5]=0
+max_filters_pruned_for_one_time[6]=0
+max_filters_pruned_for_one_time[7]=0.02
+max_filters_pruned_for_one_time[8]=0.02
+max_filters_pruned_for_one_time[9]=0.02
+max_filters_pruned_for_one_time[10]=0.6
+max_filters_pruned_for_one_time[11]=0.6
+max_filters_pruned_for_one_time[12]=0.3
+# max_filters_pruned_for_one_time=[0 for i in range(13)]
+# max_filters_pruned_for_one_time[4]=0.1
+prune_and_train.prune_inactive_neural_with_extractor(net=net,
+                                                     net_name='vgg16_bn',
+                                                     exp_name='vgg16_extractor_static_cifar10_0.1prunerate',
+                                                     target_accuracy=0.9335,
+                                                     prune_rate=0.05,
+                                                     round_for_train=2,
+                                                     round_to_train_freq=6,
+                                                     tar_acc_gradual_decent=True,
+                                                     flop_expected=4e7,
+                                                     dataset_name='cifar10',
+                                                     batch_size=512,
+                                                     num_workers=8,
+                                                     optimizer=optim.SGD,
+                                                     learning_rate=0.01,
+                                                     evaluate_step=3000,
+                                                     num_epoch=450,
+                                                     filter_preserve_ratio=0.2,
+                                                     max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
+                                                     learning_rate_decay=True,
+                                                     learning_rate_decay_factor=0.5,
+                                                     weight_decay=5e-4,
+                                                     learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+                                                     max_training_round=2,
+                                                     round=8,
+                                                     top_acc=1,
+                                                     max_data_to_test=10000,
+                                                     extractor_epoch=100,
+                                                     extractor_feature_len=15,
+                                                     gcn_rounds=2
+                                                     )
+
+
+# # resnet56_extractor_static_cifar10
+# # net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
+# net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_extractor_static_cifar10/checkpoint/flop=73820810,accuracy=0.93480.tar'),pretrained=True)
+# max_filters_pruned_for_one_time=[0.2 for i in range(55)]
+# # max_filters_pruned_for_one_time[7]=0.1
+# # max_filters_pruned_for_one_time[8]=0.1
+# # max_filters_pruned_for_one_time[9]=0.1
+# # max_filters_pruned_for_one_time[10]=0.3
+# # max_filters_pruned_for_one_time[11]=0.3
+# # max_filters_pruned_for_one_time[12]=0.3
 # # max_filters_pruned_for_one_time=[0 for i in range(13)]
 # # max_filters_pruned_for_one_time[4]=0.1
 # prune_and_train.prune_inactive_neural_with_extractor(net=net,
-#                                                      net_name='vgg16_bn',
-#                                                      exp_name='vgg16_extractor_static_cifar10_more_train',
-#                                                      target_accuracy=0.933,
-#                                                      prune_rate=0.02,
+#                                                      net_name='resnet56',
+#                                                      exp_name='resnet56_extractor_static_cifar10',
+#                                                      target_accuracy=0.93,
+#                                                      prune_rate=0.05,
 #                                                      round_for_train=2,
-#                                                      round_to_train_freq=7,
+#                                                      round_to_train_freq=6,
 #                                                      tar_acc_gradual_decent=True,
-#                                                      flop_expected=4e7,
+#                                                      flop_expected=3.6e7,
 #                                                      dataset_name='cifar10',
 #                                                      batch_size=512,
-#                                                      num_workers=1,
+#                                                      num_workers=8,
 #                                                      optimizer=optim.SGD,
-#                                                      learning_rate=0.001,
+#                                                      learning_rate=0.01,
 #                                                      evaluate_step=3000,
 #                                                      num_epoch=450,
 #                                                      filter_preserve_ratio=0.2,
@@ -412,12 +458,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      weight_decay=5e-4,
 #                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
 #                                                      max_training_round=2,
-#                                                      round=15,
+#                                                      round=9,
 #                                                      top_acc=1,
 #                                                      max_data_to_test=10000,
-#                                                      extractor_epoch=100,
+#                                                      extractor_epoch=300,
 #                                                      extractor_feature_len=15,
-#                                                      gcn_rounds=2
+#                                                      gcn_rounds=1
 #                                                      )
 
 

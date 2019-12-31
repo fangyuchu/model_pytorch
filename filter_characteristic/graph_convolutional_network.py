@@ -27,8 +27,7 @@ class gcn(nn.Module):
 
             return self.forward_vgg(net,rounds)
         elif 'resnet' in net_name:
-            test=self.forward_resnet(net,rounds)
-            return test
+            return self.forward_resnet(net,rounds)
     # def forward_vgg_tmp(self,net,rounds=2):
     #     weight_list = []
     #     for mod in net.modules():  # mod is a copy
@@ -105,7 +104,9 @@ class gcn(nn.Module):
                     information_at_last = weight.mean(dim=1).reshape([-1, 1])                 # calculate the mean of current layer
                     first_conv = False
                 if isinstance(mod,resnet.Bottleneck):
-                    _,information_at_last=self.aggregate_bottleneck(mod,information_at_last)
+                    _,information_at_last=self.aggregate_block(mod,information_at_last)
+                elif isinstance(mod,resnet_cifar.BasicBlock):
+                    _,information_at_last=self.aggregate_block(mod,information_at_last)
 
         weight_list=[]
         for name,mod in net.named_modules():
@@ -126,17 +127,20 @@ class gcn(nn.Module):
 
         return output  # each object represents one conv
 
-    def aggregate_bottleneck(self,bottleneck,information_in_front):
+    def aggregate_block(self,block,information_in_front):
         '''
-
-        :param bottleneck: bottleneck module
-        :param conv_in_front: conv module in front of bottleneck
+        aggregate basicblock and bottleneck in resnet
+        :param block: block module
+        :param conv_in_front: conv module in front of block
         :return:
         '''
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         weight_dowmsample=None
+        zero_padding=False
         conv_list=[]
-        for name,mod in bottleneck.named_modules():
-
+        for name,mod in block.named_modules():
+            if 'downsample' in name and isinstance(mod,resnet_cifar.LambdaLayer):                   #for basic block
+                zero_padding=True
             if isinstance(mod,nn.Conv2d):
                 if 'downsample' in name:
                     weight_dowmsample = conv_to_matrix(mod)
@@ -149,7 +153,10 @@ class gcn(nn.Module):
         if weight_dowmsample is not None:                                                       #with 1x1 conv
             weight_dowmsample += information_in_front.repeat(1, 1).view(-1)
             information_at_last+=weight_dowmsample.mean(dim=1).reshape([-1, 1])
-        else:                                                                                   #without 1x1 conv
+        elif zero_padding is True:                                                              #with zero padding
+            pad_length=information_at_last.shape[0]-information_in_front.shape[0]
+            information_at_last += torch.cat((information_in_front, torch.zeros(pad_length,1).to(device)), 0)
+        else:                                                                                   #identity map
             information_at_last+=information_in_front
 
         return conv_list,information_at_last
@@ -211,14 +218,20 @@ if __name__ == "__main__":
 
     # net= vgg.vgg16_bn(pretrained=True).to(device)
     net1= resnet_cifar.resnet56().to(device)
+
+    i=0
+    for mod in net1.modules():
+        if isinstance(mod,torch.nn.Conv2d):
+            i+=1
+
     net2=resnet.resnet50().to(device)
     net3=vgg.vgg16_bn().to(device)
 
 
-    test=gcn(in_features=27,out_features=10).to(device)
+    test=gcn(in_features=10,out_features=10).to(device)
 
 
-    test.forward(net=net3,net_name='vgg16_bn',dataset_name='imagenet',rounds=2)
+    test.forward(net=net1,net_name='resnet56',dataset_name='cifar10',rounds=2)
 
     c=test.forward(net=net2,rounds=2,net_name='resnet50',dataset_name='imagenet')
     print()
