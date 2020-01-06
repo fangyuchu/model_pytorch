@@ -400,6 +400,8 @@ def sort_inactive_filters(net,
             index = inactive_filter_index[np.where(inactive_filter_layer == i)]  # index of inactive filters in layer i
             if num_filters_to_prune_at_most is not None:
                 if len(index) > num_filters_to_prune_at_most[i]:
+                    if num_filters_to_prune_at_most[i]<0:
+                        num_filters_to_prune_at_most[i]=0
                     delta += len(index) - num_filters_to_prune_at_most[i]  # number of inactive filters excluded because of the restriction
                     index = index[:num_filters_to_prune_at_most[i]]
             useless_filter_index[i] = index

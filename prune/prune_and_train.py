@@ -12,15 +12,8 @@ import copy
 from filter_characteristic import predict_dead_filter
 from filter_characteristic.filter_feature_extractor import train_extractor,load_extractor
 from network import resnet_cifar, resnet_tinyimagenet,storage,resnet,vgg,resnet
+from network.storage import  restore_net
 import math
-
-
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7"
-
-#
-                
-                
-
 
 
 def prune_inactive_neural_with_regressor(net,
@@ -597,6 +590,7 @@ def prune_inactive_neural_with_extractor(net,
                                          extractor_epoch=300,
                                          extractor_feature_len=27,
                                          gcn_rounds=2,
+                                         only_gcn=False,
                                  ):
     '''
 
@@ -627,6 +621,7 @@ def prune_inactive_neural_with_extractor(net,
     :param learning_rate_decay_epoch:
     :param max_training_round:if the net can't reach target accuracy in max_training_round , the program stop.
     :param top_acc:
+    :param only_gcn: only use gcn for prediction
     :param kwargs:
     :return:
     '''
@@ -668,6 +663,7 @@ def prune_inactive_neural_with_extractor(net,
     print('extractor_epoch',extractor_epoch )
     print('extractor_feature_len', extractor_feature_len)
     print('gcn_rounds',gcn_rounds )
+    print('only_gcn:',only_gcn)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
@@ -685,10 +681,21 @@ def prune_inactive_neural_with_extractor(net,
 
 
     if 'vgg' in net_name:
-        original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
+        if 'imagenet'==dataset_name:
+            original_net=getattr(globals()['resnet'], net_name)(pretrained=True).to(device)
+        elif 'cifar10'==dataset_name:
+            original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
+        elif 'tiny_imagenet'==dataset_name:
+            original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16bn_tinyimagenet_0.73150.tar')))
+        elif 'cifar100'==dataset_name:
+            original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16_cifar100_0.72940.tar')))
+        else:
+            raise Exception('Please input right dataset_name.')
     elif 'resnet' in net_name:
         if 'imagenet' == dataset_name:
             original_net = getattr(globals()['resnet'], net_name)(pretrained=True).to(device)
+        elif 'tiny_imagenet'==dataset_name:
+            original_net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet18_tinyimagenet_v2_0.72990.tar')))
         elif 'cifar10' == dataset_name:
             original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
         else:
@@ -710,9 +717,304 @@ def prune_inactive_neural_with_extractor(net,
         acc_drop_tolerance = original_accuracy - target_accuracy
 
     filter_num_lower_bound = []  # 最低filter数量
+    i=0
     for name, mod in original_net.named_modules():
         if isinstance(mod, torch.nn.Conv2d) and 'downsample' not in name:  # 1*1 conv in shortcut will not be counted
-            filter_num_lower_bound+=[max(extractor_feature_len,int(mod.out_channels * filter_preserve_ratio))]  # 输出通道数 * filter的保存比例
+            if type(filter_preserve_ratio) is list:
+                ratio=filter_preserve_ratio[i]
+            else:
+                ratio=filter_preserve_ratio
+            filter_num_lower_bound+=[max(extractor_feature_len,int(mod.out_channels * ratio))]  # 输出通道数 * filter的保存比例
+            i += 1
+    del original_net
+
+    if isinstance(net, nn.DataParallel):
+        net_entity = net.module
+    else:
+        net_entity = net
+
+    conv_list = []  # List，保存要剪枝的Conv层索引，下标从0开始
+    i = 0  # Conv总数
+    filter_num = []
+    num_filters_to_prune_at_most=[]
+    for name,mod in net.named_modules():
+        if isinstance(mod,torch.nn.Conv2d)  and 'downsample' not in name:               #1*1 conv in shortcut will not be counted
+            # filter_num_lower_bound.append(int(mod.out_channels * filter_preserve_ratio))  # 输出通道数 * filter的保存比例
+            filter_num.append(mod.out_channels)
+            num_filters_to_prune_at_most+=[0]
+            # layer that need to be pruned
+            if isinstance(net_entity,resnet.ResNet) and 'conv3' not in name and 'layer' in name:                        #resnet for imagenet
+                if net_name=='resnet18' and 'conv2' in name:
+                    #todo:为了resnet18 on tinyimagenet临时改的，暂时赶时间，之后改过来！！！
+                    i+=1
+                    continue
+                conv_list.append(i)
+            elif isinstance(net_entity,resnet_cifar.ResNet) and 'conv2' not in name and 'layer' in name:                #resnet for cifar
+                conv_list.append(i)
+            elif 'features' in name:                                                                                    #vgg
+                conv_list.append(i)
+            i += 1
+
+    filter_layer = []
+    FIRE=[]
+    extractor = None
+
+    # using data to prune the net for (round_for_train)rounds
+    while True:
+        print('{} start round {} of filter pruning.'.format(datetime.now(), round))
+        if isinstance(net,nn.DataParallel):
+            net_entity = net.module
+        else:
+            net_entity= net
+
+        for i in range(len(filter_num)):
+            if type(max_filters_pruned_for_one_time) is list:
+                num_filters_to_prune_at_most[i] = min(int(filter_num[i] * max_filters_pruned_for_one_time[i]),filter_num[i]-filter_num_lower_bound[i])
+            else:
+                num_filters_to_prune_at_most[i] = min(int(filter_num[i] * max_filters_pruned_for_one_time),filter_num[i]-filter_num_lower_bound[i])
+
+        if round%round_to_train_freq<=round_for_train:                                                                          #save data to train extractor
+            dead_filter_index, module_list, neural_list, _ = evaluate.find_useless_filters_data_version(
+                net=net_entity,
+                batch_size=16,                                                                                                  #this function need to run on sigle gpu
+                percent_of_inactive_filter=prune_rate,
+                dead_or_inactive='inactive',
+                dataset_name=dataset_name,
+                max_data_to_test=max_data_to_test,
+                num_filters_to_prune_at_most=num_filters_to_prune_at_most,
+            )
+            num_test_images = math.ceil(max_data_to_test / 16) * 16                            #Warning, this goes wrong if dataset_size is smaller
+            if not os.path.exists(os.path.join(checkpoint_path, 'dead_neural')):
+                os.makedirs(os.path.join(checkpoint_path, 'dead_neural'), exist_ok=True)
+
+            checkpoint = {'prune_rate': prune_rate, 'module_list': module_list,
+                          'neural_list': neural_list, 'state_dict': net_entity.state_dict(),
+                          'num_test_images':num_test_images}
+            checkpoint.update(storage.get_net_information(net_entity, dataset_name, net_name))
+            torch.save(checkpoint,
+                       os.path.join(checkpoint_path, 'dead_neural/round %d.tar' % round))
+            if round%round_to_train_freq == round_for_train:
+                print('{} train extractor at round {}.'.format(datetime.now(),round))
+                extractor=None
+                train_extractor(train_data_dir=os.path.join(checkpoint_path, 'dead_neural'),
+                                net_name=net_name,
+                                dataset_name=dataset_name,
+                                num_images=num_test_images,
+                                epoch=extractor_epoch,
+                                feature_len=extractor_feature_len,
+                                gcn_rounds=gcn_rounds,
+                                checkpoint_path=os.path.join(checkpoint_path, 'extractor'),
+                                only_gcn=only_gcn)
+
+
+        else:
+            if extractor is None:
+                extractor = load_extractor(os.path.join(checkpoint_path, 'extractor', str(extractor_epoch)+'.tar'))
+            extractor.eval()
+            FIRE=extractor.forward(net_entity,net_name,dataset_name).view(-1).tolist()
+            dead_filter_index=evaluate.sort_inactive_filters(net_entity,prune_rate,FIRE,num_filters_to_prune_at_most)
+
+        net_compressed = False
+        '''卷积核剪枝'''
+        for i in conv_list:
+            filter_num[i] = filter_num[i] - len(dead_filter_index[i])
+            if len(dead_filter_index[i]) > 0:
+                net_compressed = True
+            print('layer {}: remain {} filters, prune {} filters.'.format(i, filter_num[i], len(dead_filter_index[i])))
+            net = prune_module.prune_conv(net=net,
+                                          net_name=net_name,
+                                          layer_index=i ,
+                                          filter_index=dead_filter_index[i])
+
+        if net_compressed is False:
+            print('{} round {} did not prune any filters. Restart.'.format(datetime.now(), round + 1))
+            continue
+        else:
+            round+=1
+        flop_pruned_net = measure_flops.measure_model(net_entity, dataset_name)
+
+        if tar_acc_gradual_decent is True:  # decent the target_accuracy
+            flop_reduced = flop_original_net - flop_pruned_net
+            target_accuracy = original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected)
+            print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
+
+        success = False
+        training_round=0
+        while not success:
+            old_net = copy.deepcopy(net)
+            success = train.train(net=net,
+                                  net_name=net_name,
+                                  exp_name=exp_name,
+                                  num_epochs=num_epoch,
+                                  target_accuracy=target_accuracy,
+                                  learning_rate=learning_rate,
+                                  load_net=False,
+                                  evaluate_step=evaluate_step,
+                                  dataset_name=dataset_name,
+                                  optimizer=optimizer,
+                                  batch_size=batch_size,
+                                  learning_rate_decay=learning_rate_decay,
+                                  learning_rate_decay_factor=learning_rate_decay_factor,
+                                  weight_decay=weight_decay,
+                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                  test_net=True,
+                                  top_acc=top_acc
+                                  )
+            training_round += 1
+
+            if not success:
+                net = old_net
+                if max_training_round == training_round:
+                    print('{} net can\'t reach target accuracy. Continue to prune anyway.'.format(datetime.now()))
+
+                    file_path, file_name = find_best_net(flop_pruned_net, os.path.join(checkpoint_path, 'checkpoint'))
+                    print('{} load net:{}'.format(datetime.now(), file_name))
+                    data_parallel=isinstance(net,nn.DataParallel)
+                    net = restore_net(torch.load(file_path), True)
+                    if data_parallel is True:
+                        net = nn.DataParallel(net)
+                    break
+
+
+
+
+def prune_inactive_neural_with_extractor_consistent_training(net,
+                                         net_name,
+                                         exp_name,
+                                         prune_rate,
+                                         round_for_train=2,
+                                         round_to_train_freq=5,
+                                         flop_expected=None,
+                                         dataset_name='imagenet',
+                                         validation_loader=None,
+                                         batch_size=conf.batch_size,
+                                         num_workers=conf.num_workers,
+                                         optimizer=optim.Adam,
+                                         learning_rate=0.01,
+                                         learning_rate_decay=False,
+                                         learning_rate_decay_factor=conf.learning_rate_decay_factor,
+                                         weight_decay=conf.weight_decay,
+                                         learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+                                         evaluate_step=1200,
+                                         num_epoch=450,
+                                         filter_preserve_ratio=0.3,
+                                         max_filters_pruned_for_one_time=0.5,
+                                         max_training_round=9999,
+                                         round=1,
+                                         top_acc=1,
+                                         max_data_to_test=10000,
+                                         extractor_epoch=300,
+                                         extractor_feature_len=27,
+                                         gcn_rounds=2,
+                                 ):
+    '''
+
+    :param net:
+    :param net_name:
+    :param exp_name:
+    :param prune_rate:
+    :param load_regressor:
+    :param predictor_name:
+    :param round_for_train:
+    :param flop_expected:
+    :param dataset_name:
+    :param use_random_data:
+    :param validation_loader:
+    :param batch_size:
+    :param num_workers:
+    :param optimizer:
+    :param learning_rate:
+    :param evaluate_step:
+    :param num_epoch:
+    :param filter_preserve_ratio:
+    :param max_filters_pruned_for_one_time:
+    :param learning_rate_decay:
+    :param learning_rate_decay_factor:
+    :param weight_decay:
+    :param learning_rate_decay_epoch:
+    :param max_training_round:if the net can't reach target accuracy in max_training_round , the program stop.
+    :param top_acc:
+    :param kwargs:
+    :return:
+    '''
+    checkpoint_path=os.path.join(conf.root_path, 'model_saved', exp_name)
+    # save the output to log
+    print('save log in:' + os.path.join(checkpoint_path , 'log.txt'))
+    if not os.path.exists(checkpoint_path):
+        os.makedirs(checkpoint_path, exist_ok=True)
+    sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+    sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+
+    print('net:',net)
+    print('net_name:',net_name)
+    print('exp_name:',exp_name)
+    print('prune_rate:',prune_rate)
+    print('round_for_train:',round_for_train)
+    print('roung_to_train_freq:',round_to_train_freq)
+    print('flop_expected:',flop_expected)
+    print('dataset_name:',dataset_name)
+    print('validation_loader:',validation_loader)
+    print('batch_size:',batch_size)
+    print('num_workers:',num_workers)
+    print('optimizer:',optimizer)
+    print('learning_rate:',learning_rate)
+    print('evaluate_step:',evaluate_step)
+    print('num_epoch:',num_epoch)
+    print('filter_preserve_ratio:',filter_preserve_ratio)
+    print('max_filters_pruned_for_one_time:',max_filters_pruned_for_one_time)
+    print('learning_rate_decay:',learning_rate_decay)
+    print('learning_rate_decay_factor:',learning_rate_decay_factor)
+    print('weight_decay:',weight_decay)
+    print('learning_rate_decay_epoch:',learning_rate_decay_epoch)
+    print('max_training_round:',max_training_round)
+    print('top_acc:',top_acc)
+    print('round:',round)
+    print('max_data_to_test',max_data_to_test )
+    print('extractor_epoch',extractor_epoch )
+    print('extractor_feature_len', extractor_feature_len)
+    print('gcn_rounds',gcn_rounds )
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print('using: ', end='')
+    if torch.cuda.is_available():
+        print(torch.cuda.device_count(),' * ',end='')
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))
+    else:
+        print(device)
+    net.to(device)
+    data_parallel=isinstance(net,nn.DataParallel)
+    '''加载数据集'''
+    if validation_loader is None:
+        validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+                                                                 num_workers=num_workers,
+                                                                 dataset_name=dataset_name)
+
+
+    if 'vgg' in net_name:
+        original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
+    elif 'resnet' in net_name:
+        if 'imagenet' == dataset_name:
+            original_net = getattr(globals()['resnet'], net_name)(pretrained=True).to(device)
+        elif 'tiny_imagenet'==dataset_name:
+            original_net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet18_tinyimagenet_v2_0.72990.tar')))
+        elif 'cifar10' == dataset_name:
+            original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
+        else:
+            raise Exception('Please input right dataset_name.')
+    else:
+        raise Exception('Unsupported net type:'+net_name)
+
+
+    filter_num_lower_bound = []  # 最低filter数量
+    i=0
+    for name, mod in original_net.named_modules():
+        if isinstance(mod, torch.nn.Conv2d) and 'downsample' not in name:  # 1*1 conv in shortcut will not be counted
+            if type(filter_preserve_ratio) is list:
+                ratio=filter_preserve_ratio[i]
+            else:
+                ratio=filter_preserve_ratio
+            filter_num_lower_bound+=[max(extractor_feature_len,int(mod.out_channels * ratio))]  # 输出通道数 * filter的保存比例
+            i+=1
     del original_net
 
     if isinstance(net, nn.DataParallel):
@@ -746,7 +1048,7 @@ def prune_inactive_neural_with_extractor(net,
     # using data to prune the net for (round_for_train)rounds
     while True:
         print('{} start round {} of filter pruning.'.format(datetime.now(), round))
-        if isinstance(net,nn.DataParallel):
+        if data_parallel is True:
             net_entity = net.module
         else:
             net_entity= net
@@ -810,49 +1112,48 @@ def prune_inactive_neural_with_extractor(net,
                                           filter_index=dead_filter_index[i])
 
         if net_compressed is False:
-            round -= 1
             print('{} round {} did not prune any filters. Restart.'.format(datetime.now(), round + 1))
             continue
         else:
             round+=1
         flop_pruned_net = measure_flops.measure_model(net_entity, dataset_name)
 
-        if tar_acc_gradual_decent is True:  # decent the target_accuracy
-            flop_reduced = flop_original_net - flop_pruned_net
-            target_accuracy = original_accuracy - acc_drop_tolerance * (flop_reduced / flop_drop_expected)
-            print('{} current target accuracy:{}'.format(datetime.now(), target_accuracy))
-
-        success = False
         training_round=0
-        while not success:
-            old_net = copy.deepcopy(net)
-            success = train.train(net=net,
-                                  net_name=net_name,
-                                  exp_name=exp_name,
-                                  num_epochs=num_epoch,
-                                  target_accuracy=target_accuracy,
-                                  learning_rate=learning_rate,
-                                  load_net=False,
-                                  evaluate_step=evaluate_step,
-                                  dataset_name=dataset_name,
-                                  optimizer=optimizer,
-                                  batch_size=batch_size,
-                                  learning_rate_decay=learning_rate_decay,
-                                  learning_rate_decay_factor=learning_rate_decay_factor,
-                                  weight_decay=weight_decay,
-                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                  test_net=True,
-                                  top_acc=top_acc
-                                  )
-            training_round += 1
 
-            if not success:
-                net = old_net
-                if max_training_round == training_round:
-                    print('{} net can\'t reach target accuracy. Continue to prune anyway.'.format(datetime.now()))
-                    break
+        success = train.train(net=net,
+                              net_name=net_name,
+                              exp_name=exp_name,
+                              num_epochs=num_epoch,
+                              learning_rate=learning_rate,
+                              load_net=False,
+                              evaluate_step=evaluate_step,
+                              dataset_name=dataset_name,
+                              optimizer=optimizer,
+                              batch_size=batch_size,
+                              learning_rate_decay=learning_rate_decay,
+                              learning_rate_decay_factor=learning_rate_decay_factor,
+                              weight_decay=weight_decay,
+                              learning_rate_decay_epoch=learning_rate_decay_epoch,
+                              test_net=True,
+                              top_acc=top_acc
+                              )
+        file_path,file_name=find_best_net(flop_pruned_net,os.path.join(checkpoint_path,'checkpoint'))
+        print('{} load net:{}'.format(datetime.now(),file_name))
+        net=restore_net(torch.load(file_path),True)
+        if data_parallel is True:
+            net=nn.DataParallel(net)
+        training_round += 1
 
-                    # return
+
+def find_best_net(flop,dir):
+    file_list=os.listdir(dir)
+    flop = str(flop)
+    target_net_list=[]
+    for file in file_list:
+        if flop in file:
+            target_net_list+=[file]
+    target_net_list.sort()                                                                  #nets are sorted by their accuracy in ascending order
+    return os.path.join(dir,target_net_list[-1]),target_net_list[-1]
 
 # #old version, for resnet on cifar10/100 and tiny imagenet
 # def prune_inactive_neural_with_regressor_resnet(net,
@@ -2282,6 +2583,50 @@ def prune_inactive_neural_with_extractor(net,
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
+    max_filters_pruned_for_one_time=[0.3 for i in range(13)]
+    # max_filters_pruned_for_one_time[5]=0
+    max_filters_pruned_for_one_time[5]=0.1
+    max_filters_pruned_for_one_time[6]=0
+    max_filters_pruned_for_one_time[7]=0.01
+    max_filters_pruned_for_one_time[8]=0.01
+    max_filters_pruned_for_one_time[9]=0.01
+    max_filters_pruned_for_one_time[10]=0.6
+    max_filters_pruned_for_one_time[11]=0.6
+    max_filters_pruned_for_one_time[12]=0.6
+
+    # max_filters_pruned_for_one_time=[0 for i in range(13)]
+    # max_filters_pruned_for_one_time[11]=0.1
+
+    prune_inactive_neural_with_extractor_consistent_training(net=net,
+                                                         net_name='vgg16_bn',
+                                                         exp_name='test',
+                                                         # exp_name='vgg16_extractor_static_cifar10_0.1prunerate',
+                                                         prune_rate=0.03,
+                                                         round_for_train=2,
+                                                         round_to_train_freq=6,
+                                                         flop_expected=4e7,
+                                                         dataset_name='cifar10',
+                                                         batch_size=512,
+                                                         num_workers=8,
+                                                         optimizer=optim.SGD,
+                                                         learning_rate=0.001,
+                                                         evaluate_step=3000,
+                                                         num_epoch=10,
+                                                         filter_preserve_ratio=0.2,
+                                                         max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
+                                                         learning_rate_decay=True,
+                                                         learning_rate_decay_factor=0.5,
+                                                         weight_decay=5e-4,
+                                                         learning_rate_decay_epoch=[20,50, 100, 150, 250, 300, 350, 400],
+                                                         max_training_round=2,
+                                                         round=19,
+                                                         top_acc=1,
+                                                         max_data_to_test=10000,
+                                                         extractor_epoch=100,
+                                                         extractor_feature_len=15,
+                                                         gcn_rounds=2
+                                                         )
 
 
 

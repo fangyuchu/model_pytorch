@@ -13,13 +13,15 @@ from random import shuffle
 import copy
 from filter_characteristic import predict_dead_filter
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
-
 
 class extractor(nn.Module):
-    def __init__(self,feature_len,gcn_rounds=2):
+    def __init__(self,feature_len,gcn_rounds=2,only_gcn=False):
         super(extractor, self).__init__()
-        self.gcn=gcn(in_features=feature_len,out_features=feature_len)
+        self.only_gcn=only_gcn
+        if only_gcn:                                                                        #only use gcn for prediction
+            self.gcn = gcn(in_features=feature_len, out_features=1)
+        else:
+            self.gcn=gcn(in_features=feature_len,out_features=feature_len)
         self.feature_len=feature_len
         self.gcn_rounds=gcn_rounds
         self.network=nn.Sequential(
@@ -37,7 +39,8 @@ class extractor(nn.Module):
     def forward(self,net,net_name,dataset_name ):
         device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         crosslayer_features=self.gcn.forward(net=net,rounds=self.gcn_rounds,net_name=net_name,dataset_name=dataset_name)
-
+        if self.only_gcn:                                                                      #only use gcn for prediction
+            return crosslayer_features
         filter_num=[]
         singular_value_list=[]
         for name,mod in net.named_modules():                                                   #mod is a copy
@@ -83,7 +86,11 @@ def load_extractor(path):
     checkpoint=torch.load(path)
     feature_len=checkpoint['feature_len']
     gcn_rounds=checkpoint['gcn_rounds']
-    net=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds).to(device)
+    try:
+        only_gcn=checkpoint['only_gcn']
+    except KeyError:
+        only_gcn=False
+    net=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds,only_gcn=only_gcn).to(device)
     net.load_state_dict(checkpoint['state_dict'])
     return net
 
@@ -103,7 +110,6 @@ def read_data(path,
                 module_list=checkpoint['module_list']
             except KeyError:
                 module_list=checkpoint['relu_list']
-
 
             num_conv = 0  # num of conv layers in the network
             filter_weight=[]
@@ -145,10 +151,11 @@ def train_extractor(train_data_dir,
                     gcn_rounds=2,
                     criterion=torch.nn.MSELoss(),
                     special='',
-                    checkpoint_path=None):
+                    checkpoint_path=None,
+                    only_gcn=False):
     print(criterion)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    extractor_model=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds).to(device)
+    extractor_model=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds,only_gcn=only_gcn).to(device)
     sample_list=read_data(path=train_data_dir, num_images=num_images)
     optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-2,weight_decay=0)
     # optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.SGD,learning_rate=1e-3,weight_decay=0)
@@ -180,42 +187,17 @@ def train_extractor(train_data_dir,
         print('{}  Epoch:{}. loss is {}. Sum:'.format(datetime.now(),i, total_loss),end='')
         print(sum(total_loss))
         if i%50==0 and i!=0:
-
-
-            # ########################################################################
-            # sample_list_test = read_data(
-            #     path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',
-            #     num_images=10000)
-            #
-            # criterion_test = torch.nn.L1Loss()
-            # for sample_test in sample_list_test:
-            #     extractor_model.eval()
-            #     net_test = sample_test['net']
-            #
-            #     filter_label_test = sample_test['filter_label']
-            #     label_test = torch.Tensor(filter_label_test).reshape((-1, 1)).to(device)
-            #
-            #     output_test = extractor_model.forward(net_test, net_name=sample_test['net_name'], dataset_name=sample_test['dataset_name'])
-            #
-            #     loss_test = criterion_test(output_test, label_test)
-            #
-            #     predict_dead_filter.performance_evaluation(np.array(filter_label_test),
-            #                                                output_test.data.detach().cpu().numpy().reshape(-1), 0.1)
-            #
-            #     print(float(loss_test))
-            # ########################################################################
-
-
-
             checkpoint={'feature_len':feature_len,
                         'gcn_rounds':gcn_rounds,
-                        'state_dict':extractor_model.state_dict()}
+                        'state_dict':extractor_model.state_dict(),
+                        'only_gcn':only_gcn}
 
             torch.save(checkpoint,os.path.join(checkpoint_path,str(i)+'.tar'))
 
     checkpoint = {'feature_len': feature_len,
                   'gcn_rounds': gcn_rounds,
-                  'state_dict': extractor_model.state_dict()}
+                  'state_dict': extractor_model.state_dict(),
+                  'only_gcn':only_gcn}
 
     torch.save(checkpoint, os.path.join(checkpoint_path, str(epoch) + '.tar'))
 
@@ -243,13 +225,15 @@ if __name__ == "__main__":
     #     num_images=1024,
     #     special='normalization_learningrate0.1')
     #
-    # train_extractor(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',
+    # train_extractor(train_data_dir='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',
     #                 criterion=nn.MSELoss(),
     #                 net_name='vgg16_bn',
     #                 dataset_name='cifar10',
-    #                 feature_len=27,
-    #                 num_images=10240,
-    #                 special='normalization_')
+    #                 feature_len=15,
+    #                 num_images=10000,
+    #                 special='not_only_gcn',
+    #                 only_gcn=False,
+    #                 epoch=500)
 
     # train_extractor(
     #     train_data_dir='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet56/train',
@@ -264,13 +248,14 @@ if __name__ == "__main__":
     # )
 
 
-    path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/resnet56/resnet56_gcnround=1MSELoss/300.tar'
-    # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn_cifar10/weighted_MSELoss/950.tar'
+    # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/resnet56/resnet56_gcnround=1MSELoss/300.tar'
+    path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn/only_gcnMSELoss/100.tar'
+    # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn/not_only_gcnMSELoss/100.tar'
     extractor_model=load_extractor(path).to(device)
 
     extractor_model.eval()
-    sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet56/test',num_images=10000)
-    # sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',num_images=10240)
+    # sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet56/test',num_images=10000)
+    sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',num_images=10000)
 
     criterion=torch.nn.L1Loss()
     for sample in sample_list:

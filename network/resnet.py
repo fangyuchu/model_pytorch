@@ -2,7 +2,6 @@ import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 import os
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6"
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152']
@@ -35,9 +34,10 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu1 = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = nn.BatchNorm2d(planes)
+        self.relu2=nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
@@ -46,7 +46,7 @@ class BasicBlock(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = self.relu1(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
@@ -55,7 +55,7 @@ class BasicBlock(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        out = self.relu(out)
+        out = self.relu2(out)
 
         return out
 
@@ -255,16 +255,26 @@ def resnet152(pretrained=False, **kwargs):
         model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
     return model
 
-if __name__ == "__main__":
-    import torch
-    from prune import prune_module
-    #todo:用数据剪resnet50几轮创造训练集
-    #todo:检查完了find_useless_filters_data_version,它会返回所有卷积层中的useless filter
-    #todo:下一步：检查剪掉卷积核的那些代码，考虑重新写
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net=resnet50(pretrained=True).to(device)
-    net=torch.nn.DataParallel(net)
-    a=prune_module.create_module_name_list(net)
-    from framework import evaluate,data_loader
-    evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=16,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
-    print()
+# if __name__ == "__main__":
+#     import torch
+#     from network import storage
+#     from framework import evaluate,data_loader
+#
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     checkpoint=torch.load('/home/victorfang/model_pytorch/data/baseline/resnet18_tinyimagenet_v2_0.72990.tar')
+#     # c_sample=torch.load('/home/victorfang/model_pytorch/data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+#     # net=resnet18(num_classes=200)
+#     # net.load_state_dict(checkpoint['state_dict'])
+#     # net.to(device)
+#
+#     # checkpoint.update(storage.get_net_information(net=net,dataset_name='tiny_imagenet',net_name='resnet18'))
+#     # checkpoint.pop('net')
+#     # torch.save(checkpoint,'/home/victorfang/model_pytorch/data/baseline/resnet18_tinyimagenet_v2_0.72990.tar')
+#     net=storage.restore_net(checkpoint=checkpoint,pretrained=True)
+#     # net=nn.DataParallel(net)
+#     evaluate.evaluate_net(net=net,
+#                           data_loader=data_loader.create_validation_loader(512,8,'tiny_imagenet'),
+#                           save_net=False,
+#                           dataset_name='tiny_imagenet')
+#
+#     print()

@@ -18,6 +18,7 @@ import numpy as np
 #     if isinstance(mod,nn.Conv2d):
 #         print()
 
+
 net_file_name=['']
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

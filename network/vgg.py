@@ -45,6 +45,26 @@ class VGG(nn.Module):
                 nn.ReLU(True),
                 nn.Linear(512, 10),
             )
+        elif dataset_name == 'tiny_imagenet':
+            self.classifier = nn.Sequential(
+                nn.Linear(512*7*7, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 200),
+            )
+        elif dataset_name == 'cifar100':
+            self.classifier = nn.Sequential(
+                nn.Linear(512, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 4096),
+                nn.ReLU(True),
+                nn.Dropout(),
+                nn.Linear(4096, 100),
+            )
         else:
             raise Exception("Please input right dataset_name")
         if init_weights:
@@ -198,5 +218,30 @@ def vgg19_bn(pretrained=False, **kwargs):
     return model
 
 
-
-
+# if __name__ == "__main__":
+#     import torch
+#     from network import storage
+#     from framework import data_loader,evaluate
+#
+#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#     checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_cifar100_extractor_static/checkpoint/flop=194985856,accuracy=0.71950.tar')
+#     c_sample=torch.load('/home/victorfang/model_pytorch/data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+#
+#     # net=checkpoint['net']
+#     # # net=vgg16(dataset_name='cifar100').to(device)
+#     # net.load_state_dict(checkpoint['state_dict'])
+#     # checkpoint.pop('state_dict')
+#     # checkpoint['state_dict']=net.state_dict()
+#     # checkpoint.update(storage.get_net_information(net=net,dataset_name='cifar100',net_name='vgg16'))
+#     # # checkpoint.pop('net')
+#     # torch.save(checkpoint,'/home/victorfang/model_pytorch/data/model_saved/vgg16_cifar100_extractor_static/checkpoint/flop=194985856,accuracy=0.71950.tar')
+#     net=storage.restore_net(checkpoint=checkpoint,pretrained=True)
+#
+#
+#     # net=nn.DataParallel(net)
+#     evaluate.evaluate_net(net=net,
+#                           data_loader=data_loader.create_validation_loader(512,8,'cifar100'),
+#                           save_net=False,
+#                           dataset_name='cifar100')
+#
+#     print()
