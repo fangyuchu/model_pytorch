@@ -3,12 +3,13 @@ from torch import nn
 import torch.optim as optim
 from prune import prune_and_train,prune_and_train_with_mask
 from framework import evaluate,data_loader,measure_flops,train
+from framework.train import name_parameters_no_grad
 from network import create_net,net_with_mask,vgg,storage
 from framework import config as conf
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,3,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-# os.environ["CUDA_VISIBLE_DEVICES"] ='2,3'
+# os.environ["CUDA_VISIBLE_DEVICES"] ='1'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -495,47 +496,47 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 
-# #resnet18_tinyimagenet_extractor_static
-checkpoint = torch.load(os.path.join(conf.root_path,'baseline/resnet18_tinyimagenet_v2_0.72990.tar'))
-checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet18_tinyimagenet_extractor_static/checkpoint/flop=1421011656,accuracy=0.69870.tar')
-net=storage.restore_net(checkpoint)
-net=nn.DataParallel(net)
-a=[1 for i in range(20)]
-# a[1]=a[5]=a[9]=a[13]=0.3
-# a[3]=a[7]=a[11]=a[15]=0.1
-prune_and_train.prune_inactive_neural_with_extractor(net=net,
-                                                     net_name='resnet18',
-                                                     exp_name='resnet18_tinyimagenet_extractor_static',
-                                                     target_accuracy=0.69,
-                                                     prune_rate=0.1,
-                                                     round_for_train=3,
-                                                     round_to_train_freq=6,
-                                                     tar_acc_gradual_decent=True,
-                                                     flop_expected=12.2e8,
-                                                     dataset_name='tiny_imagenet',
-                                                     batch_size=512,
-                                                     num_workers=8,
-                                                     optimizer=optim.SGD,
-                                                     learning_rate=0.001,
-                                                     evaluate_step=100,
-                                                     num_epoch=40,
-                                                     filter_preserve_ratio=0.2,
-                                                     max_filters_pruned_for_one_time=a,
-                                                     learning_rate_decay=True,
-
-                                                     learning_rate_decay_epoch=[ 7,  14, 21,28,35],
-                                                     learning_rate_decay_factor=0.1,
-                                                     weight_decay=5e-4,
-
-                                                     max_training_round=2,
-                                                     round=2,
-                                                     top_acc=1,
-                                                     max_data_to_test=10000,
-                                                     extractor_epoch=300,
-                                                     extractor_feature_len=30,
-                                                     gcn_rounds=1,
-
-                                     )
+# # #resnet18_tinyimagenet_extractor_static
+# checkpoint = torch.load(os.path.join(conf.root_path,'baseline/resnet18_tinyimagenet_v2_0.72990.tar'))
+# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet18_tinyimagenet_extractor_static/checkpoint/flop=1396513224,accuracy=0.69480.tar')
+# net=storage.restore_net(checkpoint)
+# net=nn.DataParallel(net)
+# a=[1 for i in range(20)]
+# # a[1]=a[5]=a[9]=a[13]=0.3
+# # a[3]=a[7]=a[11]=a[15]=0.1
+# prune_and_train.prune_inactive_neural_with_extractor(net=net,
+#                                                      net_name='resnet18',
+#                                                      exp_name='resnet18_tinyimagenet_extractor_static',
+#                                                      target_accuracy=0.69,
+#                                                      prune_rate=0.15,
+#                                                      round_for_train=3,
+#                                                      round_to_train_freq=6,
+#                                                      tar_acc_gradual_decent=True,
+#                                                      flop_expected=12.2e8,
+#                                                      dataset_name='tiny_imagenet',
+#                                                      batch_size=512,
+#                                                      num_workers=8,
+#                                                      optimizer=optim.SGD,
+#                                                      learning_rate=0.001,
+#                                                      evaluate_step=100,
+#                                                      num_epoch=40,
+#                                                      filter_preserve_ratio=0.2,
+#                                                      max_filters_pruned_for_one_time=a,
+#                                                      learning_rate_decay=True,
+#
+#                                                      learning_rate_decay_epoch=[ 7,  14, 21,28,35],
+#                                                      learning_rate_decay_factor=0.1,
+#                                                      weight_decay=5e-4,
+#
+#                                                      max_training_round=2,
+#                                                      round=2,
+#                                                      top_acc=1,
+#                                                      max_data_to_test=10000,
+#                                                      extractor_epoch=300,
+#                                                      extractor_feature_len=30,
+#                                                      gcn_rounds=1,
+#
+#                                      )
 
 # # # vgg16_extractor_static_cifar10
 # # net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
@@ -604,45 +605,8 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
 
 # # # resnet56_extractor_static_cifar10
 # net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
-# net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_extractor_static_cifar10_only_gcn/checkpoint/flop=67756682,accuracy=0.93450.tar'),pretrained=True)
-# max_filters_pruned_for_one_time=[0 for i in range(55)]
-# max_filters_pruned_for_one_time[53]=max_filters_pruned_for_one_time[19]=max_filters_pruned_for_one_time[37]=max_filters_pruned_for_one_time[51]=0.1
-#
-# prune_and_train.prune_inactive_neural_with_extractor(net=net,
-#                                                      net_name='resnet56',
-#                                                      exp_name='resnet56_extractor_static_cifar10_only_gcn',
-#                                                      target_accuracy=0.9342,
-#                                                      prune_rate=0.05,
-#                                                      round_for_train=2,
-#                                                      round_to_train_freq=6,
-#                                                      tar_acc_gradual_decent=True,
-#                                                      flop_expected=5.95e7,
-#                                                      dataset_name='cifar10',
-#                                                      batch_size=512,
-#                                                      num_workers=8,
-#                                                      optimizer=optim.SGD,
-#                                                      learning_rate=0.001,
-#                                                      evaluate_step=3000,
-#                                                      num_epoch=450,
-#                                                      filter_preserve_ratio=0.2,
-#                                                      max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
-#                                                      learning_rate_decay=True,
-#                                                      learning_rate_decay_factor=0.5,
-#                                                      weight_decay=5e-4,
-#                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
-#                                                      max_training_round=2,
-#                                                      round=6,
-#                                                      top_acc=1,
-#                                                      max_data_to_test=10000,
-#                                                      extractor_epoch=300,
-#                                                      extractor_feature_len=5,
-#                                                      gcn_rounds=1,
-#                                                      only_gcn=False
-#                                                      )
-
-# # # resnet56_extractor_static_cifar10
-# net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
-# # net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_extractor_static_cifar10/checkpoint/flop=67756682,accuracy=0.93450.tar'),pretrained=True)
+# # net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_cifar10_baseline+1/checkpoint/flop=125485706,accuracy=0.93270.tar'),pretrained=True)
+# net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_extractor_static_cifar10/checkpoint/flop=77783690,accuracy=0.93550.tar'),pretrained=True)
 # max_filters_pruned_for_one_time=[0.1 for i in range(55)]
 # # max_filters_pruned_for_one_time[53]=max_filters_pruned_for_one_time[19]=max_filters_pruned_for_one_time[37]=max_filters_pruned_for_one_time[51]=0.1
 #
@@ -650,7 +614,7 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
 #                                                      net_name='resnet56',
 #                                                      exp_name='resnet56_extractor_static_cifar10',
 #                                                      target_accuracy=0.9342,
-#                                                      prune_rate=0.05,
+#                                                      prune_rate=0.03,
 #                                                      round_for_train=2,
 #                                                      round_to_train_freq=6,
 #                                                      tar_acc_gradual_decent=True,
@@ -669,7 +633,7 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
 #                                                      weight_decay=5e-4,
 #                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
 #                                                      max_training_round=2,
-#                                                      round=1,
+#                                                      round=6,
 #                                                      top_acc=1,
 #                                                      max_data_to_test=10000,
 #                                                      extractor_epoch=300,
@@ -681,17 +645,17 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
 
 
 # # vgg16_cifar100_extractor_static
-# checkpoint = torch.load('/home/victorfang/model_pytorch/data/baseline/vgg16_cifar100_0.72940.tar')#torch.load(os.path.join(conf.root_path,'baseline/vgg16_cifar100_0.72940.tar'))
-# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_cifar100_extractor_static/checkpoint/flop=194985856,accuracy=0.71950.tar')
+# checkpoint = torch.load('/home/victorfang/model_pytorch/data/baseline/vgg16bn_cifar100_0.73020.tar')#torch.load(os.path.join(conf.root_path,'baseline/vgg16_cifar100_0.72940.tar'))
+# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16bn_cifar100_extractor_static/checkpoint/flop=191568244,accuracy=0.72060.tar')
 # net=storage.restore_net(checkpoint).to(device)
 #
 # filter_preserve_ratio=[0.15 for i in range(13)]
-# max_filters_pruned_for_one_time=[1 for i in range(13)]
+# max_filters_pruned_for_one_time=[0.3 for i in range(13)]
 # # max_filters_pruned_for_one_time[8]=0
 # prune_and_train.prune_inactive_neural_with_extractor(net=net,
-#                                                      exp_name='vgg16_cifar100_extractor_static',
-#                                                      net_name='vgg16',
-#                                                      prune_rate=0.05,
+#                                                      exp_name='vgg16bn_cifar100_extractor_static',
+#                                                      net_name='vgg16_bn',
+#                                                      prune_rate=0.1,
 #                                                      dataset_name='cifar100',
 #                                                      filter_preserve_ratio=filter_preserve_ratio,
 #                                                      max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
@@ -699,17 +663,22 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
 #                                                      tar_acc_gradual_decent=True,
 #                                                      flop_expected=1.78e8,
 #                                                      batch_size=512,
-#                                                      num_epoch=250,
+#                                                      # num_epoch=250,
 #                                                      evaluate_step=8000,
 #                                                      round_for_train=2,
-#                                                      round=1,
+#                                                      round=3,
+#
+#                                                      num_epoch=200,
+#                                                      learning_rate=0.001,
+#                                                      learning_rate_decay_epoch=[60, 120, 160],
+#                                                      learning_rate_decay_factor=0.2,
 #
 #                                                      optimizer=optim.SGD,
-#                                                      learning_rate=0.01,  # 标准baseline
+#                                                      # learning_rate=0.01,  # 标准baseline
 #                                                      learning_rate_decay=True,
-#                                                      learning_rate_decay_epoch=[20,50, 120,160,200],
-#                                                      learning_rate_decay_factor=0.2,
-#                                                      weight_decay=5e-4,
+#                                                      # learning_rate_decay_epoch=[20,50, 120,160,200],
+#                                                      # learning_rate_decay_factor=0.2,
+#                                                      weight_decay=5e-3,
 #                                                      top_acc=1,
 #                                                      max_data_to_test=10000,
 #                                                      extractor_epoch=100,
@@ -718,3 +687,107 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
 #                                                      only_gcn=False,
 #                                                     max_training_round=2,
 #                                                             )
+
+
+# # resnet56_extractor_static_cifar10
+# net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
+# net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_extractor_static_cifar10_only_gcn_1/checkpoint/flop=62724746,accuracy=0.93460.tar'),pretrained=True)
+# max_filters_pruned_for_one_time=[0 for i in range(55)]
+# no_grad=[]
+#
+# max_filters_pruned_for_one_time[51]=0.2
+# no_grad=name_parameters_no_grad(net,['layer3.block7','fc'])
+#
+# prune_and_train.prune_inactive_neural_with_extractor(net=net,
+#                                                      net_name='resnet56',
+#                                                      exp_name='resnet56_extractor_static_cifar10_only_gcn_3',
+#                                                      target_accuracy=0.9344,
+#                                                      prune_rate=0.1,
+#                                                      round_for_train=2,
+#                                                      round_to_train_freq=6,
+#                                                      tar_acc_gradual_decent=True,
+#                                                      flop_expected=5.95e7,
+#                                                      dataset_name='cifar10',
+#                                                      batch_size=512,
+#                                                      num_workers=4,
+#
+#                                                      optimizer=optim.SGD,
+#                                                      learning_rate=0.0001,
+#                                                      learning_rate_decay_epoch=[50, 100, 150, 250, 300, 350, 400],
+#                                                      learning_rate_decay=True,
+#                                                      learning_rate_decay_factor=0.5,
+#
+#                                                      no_grad=no_grad,
+#
+#                                                      # optimizer=optim.Adam,
+#                                                      # learning_rate=0.0001,
+#                                                      # learning_rate_decay=False,
+#
+#                                                      evaluate_step=3000,
+#                                                      num_epoch=450,
+#                                                      filter_preserve_ratio=0.1,
+#                                                      max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
+#                                                      weight_decay=5e-4,
+#                                                      max_training_round=5,
+#                                                      round=6,
+#                                                      top_acc=1,
+#                                                      max_data_to_test=10000,
+#                                                      extractor_epoch=300,
+#                                                      extractor_feature_len=5,
+#                                                      gcn_rounds=1,
+#                                                      only_gcn=False
+#                                                      )
+
+
+# # #
+# # resnet56_extractor_static_cifar100
+# net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar100_0.70370.tar')))
+net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar100_0.71580.tar')))
+
+net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_extractor_static_cifar100_2/checkpoint/flop=112773476,accuracy=0.71230.tar'),pretrained=True)
+max_filters_pruned_for_one_time=[0.2 for i in range(55)]
+# max_filters_pruned_for_one_time[53]=max_filters_pruned_for_one_time[19]=max_filters_pruned_for_one_time[37]=max_filters_pruned_for_one_time[51]=0.1
+
+prune_and_train.prune_inactive_neural_with_extractor(net=net,
+                                                     net_name='resnet56',
+                                                     exp_name='resnet56_extractor_static_cifar100_2',
+                                                     target_accuracy=0.7058,
+                                                     prune_rate=0.05,
+                                                     round_for_train=3,
+                                                     round_to_train_freq=6,
+                                                     tar_acc_gradual_decent=True,
+                                                     flop_expected=6.5e7,
+                                                     dataset_name='cifar100',
+                                                     batch_size=512,
+                                                     num_workers=4,
+
+                                                     evaluate_step=3000,
+
+                                                     num_epoch=200,
+                                                     learning_rate=0.001,
+                                                     learning_rate_decay=True,
+                                                     learning_rate_decay_epoch=[60,120,160],  # , 150, 250, 300, 350, 400],
+                                                     learning_rate_decay_factor=0.1,
+                                                     weight_decay=1e-4,
+
+                                                     # num_epoch=450,
+
+                                                     # optimizer=optim.SGD,
+                                                     # learning_rate=0.01,
+                                                     # learning_rate_decay=True,
+                                                     # learning_rate_decay_factor=0.5,
+                                                     # learning_rate_decay_epoch=[20,50,100,150, 250, 300, 350, 400],
+                                                     # weight_decay=5e-4,
+
+
+                                                     filter_preserve_ratio=0.2,
+                                                     max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
+                                                     max_training_round=3,
+                                                     round=2,
+                                                     top_acc=1,
+                                                     max_data_to_test=10000,
+                                                     extractor_epoch=300,
+                                                     extractor_feature_len=10,
+                                                     gcn_rounds=2,
+                                                     only_gcn=False
+                                                     )

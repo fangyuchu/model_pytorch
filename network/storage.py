@@ -38,6 +38,8 @@ def restore_net(checkpoint,pretrained=True):
             net = getattr(globals()['resnet'], net_name)(pretrained=False,num_classes=200)
         elif 'cifar10' == dataset_name:
             net = getattr(globals()['resnet_cifar'], net_name)()
+        elif 'cifar100'==dataset_name:
+            net = getattr(globals()['resnet_cifar'], net_name)(num_classes=100)
         else:
             raise Exception('Please input right dataset_name.')
     else:

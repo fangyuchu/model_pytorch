@@ -139,8 +139,8 @@ def resnet44():
     return ResNet(BasicBlock, [7, 7, 7])
 
 
-def resnet56():
-    return ResNet(BasicBlock, [9, 9, 9])
+def resnet56(num_classes=10):
+    return ResNet(BasicBlock, [9, 9, 9],num_classes=num_classes)
 
 
 def resnet110():
@@ -201,4 +201,25 @@ def test(net):
 #     torch.save(c_new, path)
 
 if __name__ == "__main__":
+    import torch
+    from network import storage
+    from framework import evaluate,data_loader
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    checkpoint=torch.load('/home/victorfang/model_pytorch/data/baseline/resnet56_cifar100_0.71580.tar')
+    # c_sample=torch.load('/home/victorfang/model_pytorch/data/baseline/vgg16_bn_cifar10,accuracy=0.941.tar')
+    net=resnet56(num_classes=200)
+    net.load_state_dict(checkpoint['state_dict'])
+    net.to(device)
+
+    # checkpoint.update(storage.get_net_information(net=net,dataset_name='tiny_imagenet',net_name='resnet18'))
+    # checkpoint.pop('net')
+    # torch.save(checkpoint,'/home/victorfang/model_pytorch/data/baseline/resnet18_tinyimagenet_v2_0.72990.tar')
+    # net=storage.restore_net(checkpoint=checkpoint,pretrained=True)
+    # net=nn.DataParallel(net)
+    evaluate.evaluate_net(net=net,
+                          data_loader=data_loader.create_validation_loader(512,8,'cifar100'),
+                          save_net=False,
+                          dataset_name='cifar100')
+
     print()

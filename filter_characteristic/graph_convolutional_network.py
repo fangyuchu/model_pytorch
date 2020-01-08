@@ -28,30 +28,6 @@ class gcn(nn.Module):
             return self.forward_vgg(net,rounds)
         elif 'resnet' in net_name:
             return self.forward_resnet(net,rounds)
-    # def forward_vgg_tmp(self,net,rounds=2):
-    #     weight_list = []
-    #     for mod in net.modules():  # mod is a copy
-    #         if isinstance(mod, nn.Conv2d):
-    #             weight_list += [transform_conv.conv_to_matrix(copy.deepcopy(mod))]  # a list containing 2-d conv weight matrix
-    #     while rounds > 0:
-    #         rounds -= 1
-    #         mean = torch.zeros(3, 1).to(weight_list[0].device)  # initialize mean for first layer
-    #         for i in range(len(weight_list)):
-    #             mean = mean.repeat(1, 9).view(-1)  # expand each value for 9 times.
-    #             # this implies that the default size of kernel is 3x3
-    #             weight_list[i] += mean  # aggregate the mean from previous layer
-    #             mean = weight_list[i].mean(dim=1).reshape([-1, 1])  # calculate the mean of current layer
-    #
-    #     gcn_feature_in = []
-    #     for i in range(len(weight_list)):
-    #         gcn_feature_in += [
-    #             pca(weight_list[i], dim=self.in_features)]  # reduce the dimension of all filters to same value
-    #
-    #     gcn_feature_out = []
-    #     for i in range(len(gcn_feature_in)):
-    #         gcn_feature_out += [self.network(gcn_feature_in[i])]  # foward propagate
-    #
-    #     return gcn_feature_out,gcn_feature_in
 
     def forward_vgg(self, net, rounds):
         '''

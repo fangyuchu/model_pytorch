@@ -33,6 +33,26 @@ def set_learning_rate(optimizer,lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
+def name_parameters_no_grad(net,module_need_grad):
+    '''
+    return a list containing parameter_names that do not need grad
+    :param net:
+    :param module_need_grad: module name which need to be trained
+    :return:
+    '''
+    no_grad_list=dict()
+    for name, _ in net.named_parameters():
+        no_grad_list[name] = 1
+        if type(module_need_grad) is list:
+            for mod_name in module_need_grad:
+                if mod_name in name:
+                    no_grad_list.pop(name)
+                    print(name)
+        else:
+            if module_need_grad in name:
+                no_grad_list.pop(name)
+    return list(no_grad_list.keys())
+
 def prepare_optimizer(
         net,
         optimizer,
