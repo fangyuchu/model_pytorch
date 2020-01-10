@@ -7,7 +7,11 @@ from framework import config as conf
 import os,sys
 from filter_characteristic import filter_feature_extractor,predict_dead_filter
 import numpy as np
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,4,6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0,4,6,7"
+
+checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/data/baseline/resnet56_cifar100_0.71580.tar')
+
+print()
 
 #
 # c=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel/checkpoint/flop=18923530,accuracy=0.93600.tar')
@@ -18,24 +22,24 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0,4,6,7"
 #     if isinstance(mod,nn.Conv2d):
 #         print()
 
-net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
-def name_parameters_no_grad(net,module_need_grad):
-    no_grad_list=dict()
-    for name, _ in net.named_parameters():
-        no_grad_list[name] = 1
-        if type(module_need_grad) is list:
-            for mod_name in module_need_grad:
-                if mod_name in name:
-                    no_grad_list.pop(name)
-                    print(name)
-        else:
-            if module_need_grad in name:
-                no_grad_list.pop(name)
-    return list(no_grad_list.keys())
-a=name_parameters_no_grad(net,['layer2.block2.conv1','fc'])
-
-
-print()
+# net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
+# def name_parameters_no_grad(net,module_need_grad):
+#     no_grad_list=dict()
+#     for name, _ in net.named_parameters():
+#         no_grad_list[name] = 1
+#         if type(module_need_grad) is list:
+#             for mod_name in module_need_grad:
+#                 if mod_name in name:
+#                     no_grad_list.pop(name)
+#                     print(name)
+#         else:
+#             if module_need_grad in name:
+#                 no_grad_list.pop(name)
+#     return list(no_grad_list.keys())
+# a=name_parameters_no_grad(net,['layer2.block2.conv1','fc'])
+#
+#
+# print()
 
 
 
