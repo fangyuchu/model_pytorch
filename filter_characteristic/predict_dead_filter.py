@@ -475,11 +475,14 @@ def filter_inactive_rate_ndcg(filter_label_val,prediction,ratio):
     return ndcg
 
 def performance_evaluation(label,prediction,ratio):
+    data=[]
     #mean absolute error
     loss = mean_absolute_error(label, prediction)
     print('loss:{}'.format(loss))
+    data+=[loss]
     #ndcg
-    filter_inactive_rate_ndcg(label, prediction,ratio)
+    ndcg=filter_inactive_rate_ndcg(label, prediction,ratio)
+    data+=[ndcg]
     #f-score,percision and recall
     # true_rank = np.argsort(-np.array(label))[:int(ratio*len(label))]
     # predicted_rank = np.argsort(-prediction)[:int(ratio*len(label))]
@@ -506,7 +509,9 @@ def performance_evaluation(label,prediction,ratio):
             if k in truth_top:
                 sum += 1
         print(sum / i)
+        data+=[sum/i]
     print()
+    return data
 
 
 def pca_filter(net,feature_len):

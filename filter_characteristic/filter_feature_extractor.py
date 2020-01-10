@@ -136,6 +136,8 @@ def read_data(path,
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
             net=storage.restore_net(checkpoint,pretrained=True)
+            from framework import measure_flops
+            measure_flops.measure_model(net, 'cifar10',print_flop=True)
 
             neural_list=checkpoint['neural_list']
             try:
@@ -217,7 +219,7 @@ def train_extractor(train_data_dir,
 
         print('{}  Epoch:{}. loss is {}. Sum:'.format(datetime.now(),i, total_loss),end='')
         print(sum(total_loss))
-        if i%50==0 and i!=0:
+        if i%10==0 and i!=0:
             checkpoint={'feature_len':feature_len,
                         'gcn_rounds':gcn_rounds,
                         'state_dict':extractor_model.state_dict(),
@@ -237,29 +239,8 @@ def train_extractor(train_data_dir,
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # train_extractor(path='/home/victorfang/model_pytorch/data/model_saved/random_net',
-    #                 criterion=nn.MSELoss(),special='random_net',net_name='vgg16_bn',dataset_name='cifar10')
 
-    # train_extractor(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet50/train',
-    #                 criterion=nn.MSELoss(),
-    #                 net_name='resnet50',
-    #                 dataset_name='imagenet',
-    #                 feature_len=50,
-    #                 num_images=1024,
-    #                 special='normalization_learningrate0.1')
-
-    # train_extractor(
-    #     train_data_dir='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet50/train',
-    #     criterion=weighted_MSELoss(),
-    #     net_name='resnet50',
-    #     dataset_name='imagenet',
-    #     feature_len=50,
-    #     num_images=1024,
-    #     special='normalization_learningrate0.1')
-    #
-
-
-    # train_extractor(train_data_dir='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',
+    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/train'),
     #                 criterion=nn.MSELoss(),
     #                 net_name='vgg16_bn',
     #                 dataset_name='cifar10',
@@ -267,56 +248,112 @@ if __name__ == "__main__":
     #                 num_images=10000,
     #                 special='combined_innerfeatures',
     #                 only_gcn=False,
-    #                 epoch=500)
+    #                 epoch=150)
 
-    train_extractor(train_data_dir='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',
-                    criterion=nn.MSELoss(),
-                    net_name='vgg16_bn',
-                    dataset_name='cifar10',
-                    feature_len=15,
-                    num_images=10000,
-                    special='only_innerfeatures',
-                    only_gcn=False,
-                    epoch=500,
-                    only_inner_features=True)
+    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/train'),
+    #                 criterion=nn.MSELoss(),
+    #                 net_name='vgg16_bn',
+    #                 dataset_name='cifar10',
+    #                 feature_len=15,
+    #                 num_images=10000,
+    #                 special='only_innerfeatures',
+    #                 only_gcn=False,
+    #                 epoch=150,
+    #                 only_inner_features=True)
 
-    # train_extractor(
-    #     train_data_dir='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet56/train',
-    #     criterion=nn.MSELoss(),
-    #     net_name='resnet56',
-    #     dataset_name='cifar10',
-    #     feature_len=10,
-    #     num_images=10000,
-    #     special='resnet56_gcnround=1',
-    #     epoch=700,
-    #     gcn_rounds=1,
-    # )
+    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/train'),
+    #                 criterion=nn.MSELoss(),
+    #                 net_name='vgg16_bn',
+    #                 dataset_name='cifar10',
+    #                 feature_len=15,
+    #                 num_images=10000,
+    #                 special='only_gcn',
+    #                 only_gcn=True,
+    #                 epoch=150,
+    #                 only_inner_features=False)
 
 
-    # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn/combined_innerfeaturesMSELoss/100.tar'
-    # # path='/home/victorfang/model_pytorch/data/filter_feature_extractor/checkpoint/vgg16_bn/only_gcnMSELoss/100.tar'
-    # extractor_model=load_extractor(path).to(device)
     #
-    # extractor_model.eval()
-    # # sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet56/test',num_images=10000)
-    # sample_list=read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',num_images=10000)
+    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/resnet56/train'),
+    #                 criterion=nn.MSELoss(),
+    #                 net_name='resnet56',
+    #                 dataset_name='cifar10',
+    #                 feature_len=10,
+    #                 num_images=10000,
+    #                 special='combined_innerfeatures',
+    #                 only_gcn=False,
+    #                 epoch=500,
+    #                 gcn_rounds=1)
     #
-    # criterion=torch.nn.L1Loss()
-    # for sample in sample_list:
-    #     net = sample['net']
+    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/resnet56/train'),
+    #                 criterion=nn.MSELoss(),
+    #                 net_name='resnet56',
+    #                 dataset_name='cifar10',
+    #                 feature_len=10,
+    #                 num_images=10000,
+    #                 special='only_innerfeatures',
+    #                 only_gcn=False,
+    #                 epoch=500,
+    #                 only_inner_features=True,
+    #                 gcn_rounds=1)
     #
-    #     filter_label = sample['filter_label']
-    #     label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
-    #
-    #     output = extractor_model.forward(net,net_name=sample['net_name'],dataset_name=sample['dataset_name'])
-    #
-    #     loss = criterion(output, label)
-    #
-    #     predict_dead_filter.performance_evaluation(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.1)
-    #
-    #     print(float(loss))
-    #     print()
-    # print()
+    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/resnet56/train'),
+    #                 criterion=nn.MSELoss(),
+    #                 net_name='resnet56',
+    #                 dataset_name='cifar10',
+    #                 feature_len=10,
+    #                 num_images=10000,
+    #                 special='only_gcn',
+    #                 only_gcn=True,
+    #                 epoch=500,
+    #                 only_inner_features=False,
+    #                 gcn_rounds=1)
+
+
+
+
+
+
+    sample_list=read_data(path=os.path.join(conf.root_path,'filter_feature_extractor/model_data/resnet56/test'),num_images=10000)
+    # sample_list=read_data(path=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/test'),num_images=10000)
+
+    num_epoch='500'
+
+    path_list=[]
+    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/combined_innerfeaturesMSELoss/'+num_epoch+'.tar')]
+    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/only_gcnMSELoss/'+num_epoch+'.tar')]
+    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/only_innerfeaturesMSELoss/'+num_epoch+'.tar')]
+
+    path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/combined_innerfeaturesMSELoss/'+num_epoch+'.tar')]
+    path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/only_gcnMSELoss/'+'500'+'.tar')]
+    path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/only_innerfeaturesMSELoss/'+'500'+'.tar')]
+
+    stat={}
+    for path in path_list:
+        print(path)
+        data = []
+        extractor_model=load_extractor(path).to(device)
+        extractor_model.eval()
+        criterion=torch.nn.L1Loss()
+        for sample in sample_list:
+            net = sample['net']
+
+            filter_label = sample['filter_label']
+            label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
+
+            output = extractor_model.forward(net,net_name=sample['net_name'],dataset_name=sample['dataset_name'])
+
+            loss = criterion(output, label)
+
+            data+=[predict_dead_filter.performance_evaluation(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.1)]
+
+        data=np.array(data)
+        data=np.mean(data,axis=0)
+        stat[path.split('/')[-2]]=data
+        print(data)
+        print()
+    print(stat)
+
 
 
     # read_data(num_images=10000)

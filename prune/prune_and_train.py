@@ -683,7 +683,7 @@ def prune_inactive_neural_with_extractor(net,
 
     if 'vgg' in net_name:
         if 'imagenet'==dataset_name:
-            original_net=getattr(globals()['resnet'], net_name)(pretrained=True).to(device)
+            original_net=getattr(globals()['vgg'], net_name)(pretrained=True).to(device)
         elif 'cifar10'==dataset_name:
             original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
         elif 'tiny_imagenet'==dataset_name:
@@ -707,7 +707,8 @@ def prune_inactive_neural_with_extractor(net,
             raise Exception('Please input right dataset_name.')
     else:
         raise Exception('Unsupported net type:'+net_name)
-
+    if isinstance(net, torch.nn.DataParallel):
+        original_net=nn.DataParallel(original_net)
     flop_original_net = measure_flops.measure_model(original_net, dataset_name)
     original_accuracy = evaluate.evaluate_net(net=original_net,
                                               data_loader=validation_loader,

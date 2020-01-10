@@ -379,8 +379,21 @@ def tolerance():
     plt.show()
 
 if __name__ == "__main__":
-    plot_dead_neuron_filter_number()
-    # speed_up_pruned_net()
+    fontsize=14
+    pruned_flop=[9.48,31.63,63.72,84.54,88.30]
+    acc_drop=[0.1,0.2,0.5,1,2]
+    plt.figure()
+    plt.plot(acc_drop, pruned_flop, 'bo--')
+    plt.yticks(fontsize=fontsize)
+    plt.xticks(acc_drop,acc_drop,fontsize=fontsize-2)
 
-    # speed_up_regressor()
-    # tolerance()
+    plt.xlabel('Tolerance Accuracy Drop%', fontsize=fontsize)
+    plt.ylabel('Pruned FLOPs%', fontsize=fontsize)
+    plt.savefig('/home/victorfang/Desktop/vgg16_cifar10_tolerance.eps', format='eps')
+    plt.show()
+
+    # plot_dead_neuron_filter_number()
+    # # speed_up_pruned_net()
+    #
+    # # speed_up_regressor()
+    # # tolerance()
