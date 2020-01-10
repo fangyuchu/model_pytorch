@@ -562,9 +562,10 @@ if __name__ == "__main__":
 
     #回归#################################################################################################################################################
     filter_train,filter_label_train,filter_layer_train=read_data(num_images=10000,regression_or_classification='regression',
-                                                                 path='/home/victorfang/PycharmProjects/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train')
+                                                                 path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet56/train'
+                                                                 )
     filter_val,filter_label_val,filter_layer_val=read_data(num_images=10000,regression_or_classification='regression',
-                                                           path='/home/victorfang/PycharmProjects/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test')
+                                                           path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/resnet56/test')
 
     stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
     stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
