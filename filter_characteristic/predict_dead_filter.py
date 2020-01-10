@@ -366,26 +366,25 @@ def statistics(filters,layer,balance_channel=False,min_max_scaler=None,data_num=
     :param scaler:
     :return:
     '''
-    feature_num=15
+    feature_num=8
     stat=np.zeros(shape=[len(filters),feature_num],dtype=np.float)
     for i in range(len(filters)):
 
         stat[i][0]=filters[i].shape[0]                                 #通道数1
         stat[i][1]=layer[i]                                            #哪一层1
-        stat[i][2]=np.sum(np.abs(filters[i]))                          #绝对值求和1
-        stat[i][3]=np.sum(filters[i])                                  #求和1
-        stat[i][4]=filters[i].max()-filters[i].min()                    #极差1
-        stat[i][5]=filters[i].max()                                     #最大值1
-        stat[i][6]=stat[i][10]-stat[i][8]                                #四分位数极差1
-        stat[i][7]=np.std(filters[i])                                   #标准差1
-        stat[i][8]=np.percentile(filters[i],25)                         #第一四分位数1
-        stat[i][9]=filters[i].min()                                    #最小值1
-        stat[i][10]=np.percentile(filters[i],75)                         #第三四分位数1
-        stat[i][11]=np.mean(filters[i])                                  #均值1
-        stat[i][12]=np.median(filters[i])                                #中位数1
-        stat[i][13]=(filters[i].max()+filters[i].min())/2                #中列数(max+min)/21
-        stat[i][14]=trimmed_mean(filters[i],0.2)                         #截断均值（p=0.2）
-        #stat[i][15:]=np.mean(filters[i],axis=0).flatten()               #降维后的卷积核参数
+        # stat[i][2]=np.sum(np.abs(filters[i]))                          #绝对值求和1
+        stat[i][2]=np.sum(filters[i])                                  #求和1
+        stat[i][3]=filters[i].max()-filters[i].min()                    #极差1
+        stat[i][4]=filters[i].max()                                     #最大值1
+        # stat[i][6]=stat[i][10]-stat[i][8]                                #四分位数极差1
+        stat[i][6]=np.std(filters[i])                                   #标准差1
+        # stat[i][8]=np.percentile(filters[i],25)                         #第一四分位数1
+        stat[i][6]=filters[i].min()                                    #最小值1
+        # stat[i][10]=np.percentile(filters[i],75)                         #第三四分位数1
+        stat[i][7]=np.mean(filters[i])                                  #均值1
+        # stat[i][12]=np.median(filters[i])                                #中位数1
+        # stat[i][13]=(filters[i].max()+filters[i].min())/2                #中列数(max+min)/21
+        # stat[i][14]=trimmed_mean(filters[i],0.2)                         #截断均值（p=0.2）
 
 
 
@@ -534,21 +533,21 @@ def pca_filter(net,feature_len):
 
 
 if __name__ == "__main__":
-    from filter_characteristic import filter_feature_extractor
-    sample_train=filter_feature_extractor.read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',num_images=10000)
-    sample_val=filter_feature_extractor.read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',num_images=10000)
-
-    stat_train=pca_filter(sample_train[0]['net'],15)
-    filter_label_train = np.array(sample_train[0]['filter_label'])
-    for i in range(1,len(sample_train)):
-        stat_train=np.vstack((stat_train,pca_filter(sample_train[i]['net'],15)))
-        filter_label_train=np.hstack((filter_label_train,np.array(sample_train[i]['filter_label'])))
-
-    stat_val = pca_filter(sample_val[0]['net'], 15)
-    filter_label_val = np.array(sample_val[0]['filter_label'])
-    for i in range(1, len(sample_val)):
-        stat_val = np.vstack((stat_val, pca_filter(sample_val[i]['net'], 15)))
-        filter_label_val = np.hstack((filter_label_val, np.array(sample_val[i]['filter_label'])))
+    # from filter_characteristic import filter_feature_extractor
+    # sample_train=filter_feature_extractor.read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train',num_images=10000)
+    # sample_val=filter_feature_extractor.read_data(path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test',num_images=10000)
+    #
+    # stat_train=pca_filter(sample_train[0]['net'],15)
+    # filter_label_train = np.array(sample_train[0]['filter_label'])
+    # for i in range(1,len(sample_train)):
+    #     stat_train=np.vstack((stat_train,pca_filter(sample_train[i]['net'],15)))
+    #     filter_label_train=np.hstack((filter_label_train,np.array(sample_train[i]['filter_label'])))
+    #
+    # stat_val = pca_filter(sample_val[0]['net'], 15)
+    # filter_label_val = np.array(sample_val[0]['filter_label'])
+    # for i in range(1, len(sample_val)):
+    #     stat_val = np.vstack((stat_val, pca_filter(sample_val[i]['net'], 15)))
+    #     filter_label_val = np.hstack((filter_label_val, np.array(sample_val[i]['filter_label'])))
 
 
 
@@ -562,13 +561,13 @@ if __name__ == "__main__":
     ratio=0.1
 
     #回归#################################################################################################################################################
-    # filter_train,filter_label_train,filter_layer_train=read_data(num_images=10000,regression_or_classification='regression',
-    #                                                              path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train')
-    # filter_val,filter_label_val,filter_layer_val=read_data(sample_num=1000,num_images=10000,regression_or_classification='regression',
-    #                                                        path='/home/victorfang/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test')
-    #
-    # stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
-    # stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
+    filter_train,filter_label_train,filter_layer_train=read_data(num_images=10000,regression_or_classification='regression',
+                                                                 path='/home/victorfang/PycharmProjects/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/train')
+    filter_val,filter_label_val,filter_layer_val=read_data(num_images=10000,regression_or_classification='regression',
+                                                           path='/home/victorfang/PycharmProjects/model_pytorch/data/filter_feature_extractor/model_data/vgg16_bn_cifar10/test')
+
+    stat_train,min_max_scaler,_,_=statistics(filters=filter_train,layer=filter_layer_train,balance_channel=False,min_max_scaler=None)
+    stat_val,_,_,_=statistics(filters=filter_val,layer=filter_layer_val,balance_channel=False,min_max_scaler=min_max_scaler)
 
 
     ##use auto_encoder to extract features################################################################################################
@@ -647,9 +646,9 @@ if __name__ == "__main__":
         # 'epsilon':[0.1,0.2,0.5,0.001]
 
     }
-    model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
     model.fit(stat_train, filter_label_train)
-    print(model.best_estimator_)
+    # print(model.best_estimator_)
     prediction = model.predict(stat_val)
     performance_evaluation(filter_label_val,prediction,ratio)
 
@@ -675,19 +674,19 @@ if __name__ == "__main__":
     #                   n_jobs=-1, oob_score=False, random_state=None,
     #                   verbose=0, warm_start=False)
 
-    param_grid = {
-        'n_estimators': [50,100,500,1000],#[100* i for i in range(1, 10, 2)],
-        'min_samples_split':[0.005,0.003,0.002,0.001],
-        'max_features':['sqrt','log2',None],
-        'max_leaf_nodes':[None,2,4,6,8,10],
-        'min_weight_fraction_leaf':[0.001,0],
-
-         'max_depth':[i*10+5 for i in range(3)],
-        'min_samples_leaf':range(10,101,40),
-    }
-    model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
+    # param_grid = {
+    #     'n_estimators': [50,100,500,1000],#[100* i for i in range(1, 10, 2)],
+    #     'min_samples_split':[0.005,0.003,0.002,0.001],
+    #     'max_features':['sqrt','log2',None],
+    #     'max_leaf_nodes':[None,2,4,6,8,10],
+    #     'min_weight_fraction_leaf':[0.001,0],
+    #
+    #      'max_depth':[i*10+5 for i in range(3)],
+    #     'min_samples_leaf':range(10,101,40),
+    # }
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=8)
     model.fit(stat_train, filter_label_train)
-    print(model.best_estimator_)
+    # print(model.best_estimator_)
     prediction = model.predict(stat_val)
     performance_evaluation(filter_label_val,prediction,ratio)
 
@@ -706,16 +705,16 @@ if __name__ == "__main__":
                           random_state=None, subsample=1.0, tol=0.0001,
                           validation_fraction=0.1, verbose=0, warm_start=False)
 
-    param_grid = {
-        'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
-        'learning_rate': [0.05, 0.1, 0.2],
-        'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
-        'max_features':['sqrt','log2',None],
-        'subsample':[0.8,0.9,1],
-        'max_depth':[11,13,15,17,19],
-        'min_samples_leaf':[10,12,14,16,18],
-    }
-    model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
+    # param_grid = {
+    #     'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
+    #     'learning_rate': [0.05, 0.1, 0.2],
+    #     'min_samples_split':[0.007,0.005,0.004,0.003,0.002],
+    #     'max_features':['sqrt','log2',None],
+    #     'subsample':[0.8,0.9,1],
+    #     'max_depth':[11,13,15,17,19],
+    #     'min_samples_leaf':[10,12,14,16,18],
+    # }
+    # model = GridSearchCV(model, param_grid, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
     model.fit(stat_train, filter_label_train)
     prediction = model.predict(stat_val)
     performance_evaluation(filter_label_val,prediction,ratio)
