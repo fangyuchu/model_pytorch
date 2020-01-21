@@ -592,6 +592,7 @@ def prune_inactive_neural_with_extractor(net,
                                          gcn_rounds=2,
                                          only_gcn=False,
                                          no_grad=[],
+                                         scheduler_name='MultiStepLR',
                                  ):
     '''
 
@@ -623,7 +624,7 @@ def prune_inactive_neural_with_extractor(net,
     :param max_training_round:if the net can't reach target accuracy in max_training_round , the program stop.
     :param top_acc:
     :param only_gcn: only use gcn for prediction
-    :param kwargs:
+    :param scheduler_name:
     :return:
     '''
     checkpoint_path=os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -665,6 +666,7 @@ def prune_inactive_neural_with_extractor(net,
     print('extractor_feature_len', extractor_feature_len)
     print('gcn_rounds',gcn_rounds )
     print('only_gcn:',only_gcn)
+    print('scheduler_name:',scheduler_name)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('using: ', end='')
@@ -701,7 +703,7 @@ def prune_inactive_neural_with_extractor(net,
             original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/resnet56_cifar10,accuracy=0.94230.tar')))
         elif 'cifar100' == dataset_name:
             # original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/resnet56_cifar100_0.70370.tar')))
-            original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/resnet56_cifar100_0.71580.tar')))
+            original_net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/resnet32_cifar100_0.70580.tar')))
 
         else:
             raise Exception('Please input right dataset_name.')
@@ -709,7 +711,7 @@ def prune_inactive_neural_with_extractor(net,
         raise Exception('Unsupported net type:'+net_name)
     if isinstance(net, torch.nn.DataParallel):
         original_net=nn.DataParallel(original_net)
-    flop_original_net = measure_flops.measure_model(original_net, dataset_name)
+    flop_original_net = measure_flops.measure_model(original_net, dataset_name,print_flop=True)
     original_accuracy = evaluate.evaluate_net(net=original_net,
                                               data_loader=validation_loader,
                                               save_net=False,
@@ -867,7 +869,8 @@ def prune_inactive_neural_with_extractor(net,
                                   learning_rate_decay_epoch=learning_rate_decay_epoch,
                                   test_net=True,
                                   top_acc=top_acc,
-                                  no_grad=no_grad
+                                  no_grad=no_grad,
+                                  scheduler_name=scheduler_name
                                   )
             training_round += 1
 

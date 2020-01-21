@@ -136,8 +136,8 @@ def read_data(path,
         if '.tar' in file_name:
             checkpoint=torch.load(os.path.join(path,file_name))
             net=storage.restore_net(checkpoint,pretrained=True)
-            from framework import measure_flops
-            measure_flops.measure_model(net, 'cifar10',print_flop=True)
+            # from framework import measure_flops
+            # measure_flops.measure_model(net, 'cifar10',print_flop=True)
 
             neural_list=checkpoint['neural_list']
             try:
@@ -314,20 +314,20 @@ if __name__ == "__main__":
 
 
 
-    sample_list=read_data(path=os.path.join(conf.root_path,'filter_feature_extractor/model_data/resnet56/test'),num_images=10000)
+    sample_list=read_data(path='/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_imagenet/dead_neural',num_images=1000)
     # sample_list=read_data(path=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/test'),num_images=10000)
 
-    num_epoch='500'
+    num_epoch='150'
 
     path_list=[]
     # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/combined_innerfeaturesMSELoss/'+num_epoch+'.tar')]
     # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/only_gcnMSELoss/'+num_epoch+'.tar')]
     # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/only_innerfeaturesMSELoss/'+num_epoch+'.tar')]
 
-    path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/combined_innerfeaturesMSELoss/'+num_epoch+'.tar')]
-    path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/only_gcnMSELoss/'+'500'+'.tar')]
-    path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/only_innerfeaturesMSELoss/'+'500'+'.tar')]
-
+    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/combined_innerfeaturesMSELoss/'+num_epoch+'.tar')]
+    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/only_gcnMSELoss/'+'500'+'.tar')]
+    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/only_innerfeaturesMSELoss/'+'500'+'.tar')]
+    path_list+=['/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_imagenet/extractor/10.tar']
     stat={}
     for path in path_list:
         print(path)

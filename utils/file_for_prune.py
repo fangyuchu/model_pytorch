@@ -4,10 +4,12 @@ import torch.optim as optim
 from prune import prune_and_train,prune_and_train_with_mask
 from framework import evaluate,data_loader,measure_flops,train
 from framework.train import name_parameters_no_grad
-from network import create_net,net_with_mask,vgg,storage
+from network import create_net,net_with_mask,vgg,storage,resnet
 from framework import config as conf
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3'
+
 # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 # os.environ["CUDA_VISIBLE_DEVICES"] ='2'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -784,22 +786,66 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                      only_gcn=False
 #                                                      )
 
-# vgg16_extractor_static_imagenet
-net=vgg.vgg16_bn(pretrained=True)
+# # vgg16_extractor_static_imagenet
+# # net=vgg.vgg16_bn(pretrained=True)
+# net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'model_saved/vgg16_extractor_static_imagenet/checkpoint/flop=8474054688,accuracy=0.90304.tar')))
+#
 # net=nn.DataParallel(net)
-# net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
-filter_preserve_ratio=[0.2 for i in range(13)]
-max_filters_pruned_for_one_time=[0.3 for i in range(13)]
+# filter_preserve_ratio=[0.2 for i in range(13)]
+# max_filters_pruned_for_one_time=[0.3 for i in range(13)]
+# prune_and_train.prune_inactive_neural_with_extractor(net=net,
+#                                                      net_name='vgg16_bn',
+#                                                      exp_name='vgg16_extractor_static_imagenet',
+#                                                      dataset_name='imagenet',
+#                                                      target_accuracy=0.894,
+#                                                      prune_rate=0.20,
+#                                                      round_for_train=3,
+#                                                      round_to_train_freq=6,
+#                                                      tar_acc_gradual_decent=True,
+#                                                      flop_expected=0.15,
+#
+#                                                      batch_size=512,
+#                                                      num_workers=8,
+#                                                      optimizer=optim.SGD,
+#                                                      evaluate_step=1000,
+#                                                      filter_preserve_ratio=filter_preserve_ratio,
+#                                                      max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
+#
+#                                                         num_epoch=40,
+#                                                      learning_rate=0.01,
+#                                                      learning_rate_decay=True,
+#                                                      learning_rate_decay_factor=0.1,
+#                                                      weight_decay=1e-4,
+#                                                      learning_rate_decay_epoch=[10,20,30],#[15,30],
+#
+#                                                      max_training_round=2,
+#                                                      round=4,
+#                                                      top_acc=5,
+#                                                      max_data_to_test=1000,
+#                                                      extractor_epoch=100,
+#                                                      extractor_feature_len=15,
+#                                                      gcn_rounds=2
+#                                                      )
+
+
+# resnet50_extractor_static_imagenet
+# net=vgg.vgg16_bn(pretrained=True)
+# net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'model_saved/vgg16_extractor_static_imagenet/checkpoint/flop=8474054688,accuracy=0.90304.tar')))
+net=resnet.resnet50(pretrained=True)
+net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_extractor_static_imagenet2/checkpoint/flop=1796559732,accuracy=0.91562.tar'),pretrained=True)
+net=nn.DataParallel(net)
+filter_preserve_ratio=[0.1 for i in range(49)]
+max_filters_pruned_for_one_time=[0.3 for i in range(49)]
 prune_and_train.prune_inactive_neural_with_extractor(net=net,
-                                                     net_name='vgg16_bn',
-                                                     exp_name='vgg16_extractor_static_imagenet_testonegpu',
+                                                     net_name='resnet50',
+                                                     exp_name='resnet50_extractor_static_imagenet',
                                                      dataset_name='imagenet',
-                                                     target_accuracy=0.894,
-                                                     prune_rate=0.1,
-                                                     round_for_train=2,
+                                                     target_accuracy=0.9256,
+                                                     prune_rate=0.2,
+                                                     round_for_train=3,
                                                      round_to_train_freq=6,
                                                      tar_acc_gradual_decent=True,
-                                                     flop_expected=0.2,
+                                                     flop_expected=0.45,
 
                                                      batch_size=512,
                                                      num_workers=8,
@@ -808,18 +854,19 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
                                                      filter_preserve_ratio=filter_preserve_ratio,
                                                      max_filters_pruned_for_one_time=max_filters_pruned_for_one_time,
 
-                                                        num_epoch=40,
+                                                        num_epoch=60,
                                                      learning_rate=0.01,
                                                      learning_rate_decay=True,
                                                      learning_rate_decay_factor=0.1,
                                                      weight_decay=1e-4,
-                                                     learning_rate_decay_epoch=[15,30],
+                                                     learning_rate_decay_epoch=[15,30,55],#[15,30],
 
                                                      max_training_round=2,
-                                                     round=1,
+                                                     round=4,
                                                      top_acc=5,
                                                      max_data_to_test=1000,
-                                                     extractor_epoch=100,
+                                                     extractor_epoch=300,
                                                      extractor_feature_len=15,
-                                                     gcn_rounds=2
+                                                     gcn_rounds=1
                                                      )
+

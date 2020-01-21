@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim import lr_scheduler
 import numpy as np
 from network import vgg
 import os
@@ -75,9 +76,14 @@ def prepare_optimizer(
             value.requires_grad=True
 
     if optimizer is optim.Adam:
-        optimizer = optimizer(filter(lambda p: p.requires_grad, net.parameters()), lr=learning_rate, weight_decay=weight_decay,**kwargs)
+        optimizer = optimizer([{'params':filter(lambda p: p.requires_grad, net.parameters()),'initial_lr':learning_rate}],
+                              lr=learning_rate,
+                              weight_decay=weight_decay,**kwargs)
     elif optimizer is optim.SGD:
-        optimizer=optimizer(filter(lambda p: p.requires_grad, net.parameters()),lr=learning_rate,weight_decay=weight_decay,momentum=momentum,**kwargs)
+        optimizer=optimizer([{'params':filter(lambda p: p.requires_grad, net.parameters()),'initial_lr':learning_rate}],
+                            lr=learning_rate,
+                            weight_decay=weight_decay,
+                            momentum=momentum,**kwargs)
     return optimizer
 
 
@@ -110,6 +116,10 @@ def train(
         top_acc=1,
         criterion=nn.CrossEntropyLoss(),  # 损失函数默为交叉熵，多用于多分类问题
         no_grad=[],
+        scheduler_name='MultiStepLR',
+        eta_min=0,
+        #todo:tmp!!!
+        data_parallel=False
 ):
     '''
 
@@ -138,6 +148,8 @@ def train(
     :param top_acc: can be 1 or 5
     :param criterion： loss function
     :param no_grad: list containing names of the modules that do not need to be trained
+    :param scheduler_name
+    :param eta_min: for CosineAnnealingLR
     :return:
     '''
     success=True                                                                   #if the trained net reaches target accuracy
@@ -214,8 +226,9 @@ def train(
     if os.path.isfile(file_new):
         if load_net:
             checkpoint = torch.load(file_new)
-            print('{} load net from previous checkpoint'.format(datetime.now()))
-            net.load_state_dict(checkpoint['state_dict'])
+            print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
+            # net.load_state_dict(checkpoint['state_dict'])
+            net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
             sample_num = checkpoint['sample_num']
 
     if test_net:
@@ -243,7 +256,17 @@ def train(
 
 
     optimizer=prepare_optimizer(net,optimizer,no_grad,momentum,learning_rate,weight_decay)
-
+    if learning_rate_decay:
+        if scheduler_name =='MultiStepLR':
+            scheduler = lr_scheduler.MultiStepLR(optimizer,
+                                                 milestones=learning_rate_decay_epoch,
+                                                 gamma=learning_rate_decay_factor,
+                                                 last_epoch=ceil(sample_num/train_set_size))
+        elif scheduler_name == 'CosineAnnealingLR':
+            scheduler=lr_scheduler.CosineAnnealingLR(optimizer,
+                                                     num_epochs,
+                                                     eta_min=eta_min,
+                                                     last_epoch=ceil(sample_num/train_set_size))
     print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
@@ -272,13 +295,13 @@ def train(
             images, labels = images.to(device), labels.to(device)
             sample_num += int(images.shape[0])
 
-            if learning_rate_decay:
-                exponential_decay_learning_rate(optimizer=optimizer,
-                                                sample_num=sample_num,
-                                                learning_rate_decay_factor=learning_rate_decay_factor,
-                                                train_set_size=train_set_size,
-                                                learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                                batch_size=batch_size)
+            # if learning_rate_decay:
+            #     exponential_decay_learning_rate(optimizer=optimizer,
+            #                                     sample_num=sample_num,
+            #                                     learning_rate_decay_factor=learning_rate_decay_factor,
+            #                                     train_set_size=train_set_size,
+            #                                     learning_rate_decay_epoch=learning_rate_decay_epoch,
+            #                                     batch_size=batch_size)
 
             optimizer.zero_grad()
             # forward + backward
@@ -286,6 +309,7 @@ def train(
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+
 
             if step%60==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
@@ -309,6 +333,9 @@ def train(
                     return success
                 accuracy =float(accuracy)
                 print('{} continue training'.format(datetime.now()))
+        if learning_rate_decay:
+            scheduler.step()
+            print(optimizer.state_dict()['param_groups'][0]['lr'])
 
     print("{} Training finished. Saving net...".format(datetime.now()))
     net_test = copy.deepcopy(net)

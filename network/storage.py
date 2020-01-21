@@ -23,7 +23,7 @@ def get_net_information(net,dataset_name,net_name):
     checkpoint['structure']=structure
     return checkpoint
 
-def restore_net(checkpoint,pretrained=True):
+def restore_net(checkpoint,pretrained=True,data_parallel=False):
     structure=checkpoint['structure']
     dataset_name=checkpoint['dataset_name']
     net_name=checkpoint['net_name']
@@ -69,6 +69,8 @@ def restore_net(checkpoint,pretrained=True):
             net=nn.DataParallel(net)
             net.load_state_dict(checkpoint['state_dict'])
             net=net._modules['module']
+    if data_parallel:
+        net=nn.DataParallel(net)
     return net
 
 
