@@ -17,7 +17,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_extractor_static_cifar10_only_gcn_3/checkpoint/flop=62061194,accuracy=0.93410.tar'),pretrained=True)
 # net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_extractor_static_cifar100_2_train/checkpoint/flop=95299940,accuracy=0.70470.tar'),pretrained=True)
 
-net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_imagenet/checkpoint/flop=6908514684,accuracy=0.88772.tar'),pretrained=True)
+net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_extractor_static_imagenet2/checkpoint/flop=1796559732,accuracy=0.91862.tar'),pretrained=True)
 
 # net=storage.restore_net(torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet18_tinyimagenet_extractor_static_train/checkpoint/flop=1289487816,accuracy=0.67650.tar'),pretrained=True)
 net=torch.nn.DataParallel(net)
@@ -49,7 +49,7 @@ while not success and i<1:
     success=train.train(net=net,
 
                 net_name='resnet50',
-                exp_name='resnet50_extractor_static_imagenet_train',
+                exp_name='resnet50_extractor_static_imagenet_train2',
 
                 num_epochs=100,
                 learning_rate=0.001,
@@ -57,7 +57,7 @@ while not success and i<1:
                 learning_rate_decay_factor=0.1,
                 weight_decay=1e-4,
                 # learning_rate_decay_epoch=[10,30],
-                learning_rate_decay_epoch=[100],
+                learning_rate_decay_epoch=[30,60],
                 dataset_name='imagenet',
                 batch_size=512,
                 evaluate_step=1000,
