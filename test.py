@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from framework import data_loader, train, evaluate
-from network import vgg_channel_weight, vgg,storage
+from network import vgg_channel_weight, vgg,storage,resnet
 from framework import evaluate,data_loader
 from framework import config as conf
 import os,sys
@@ -9,9 +9,22 @@ from filter_characteristic import filter_feature_extractor,predict_dead_filter
 import numpy as np
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,4,6,7"
 
-checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/data/baseline/resnet56_cifar100_0.71580.tar')
+# a=torch.tensor([0.9,2],dtype=torch.float,requires_grad=True)
+# b=a*a
+# e=a*a
+# print(b)
+# print(e)
+# e=torch.clamp(e,min=1.5,max=5)
+# c=torch.sum(e)
+#
+# c.backward()
+# print()
 
+a=resnet.resnet50(pretrained=False)
 print()
+# checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/data/baseline/resnet56_cifar100_0.71580.tar')
+#
+# print()
 
 #
 # c=torch.load('/home/disk_new/model_saved/vgg16_bn_weighted_channel/checkpoint/flop=18923530,accuracy=0.93600.tar')

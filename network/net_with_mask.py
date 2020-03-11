@@ -108,9 +108,9 @@ class Conv2dMask(nn.Conv2d):
 
 if __name__ == "__main__":
     net=NetWithMask(dataset_name='imagenet',net_name='vgg16_bn')
-
-    tmp=net.prune()
-    net.mask_filters(layer_index=0,filter_index=[0,2,5])
+    #
+    # tmp=net.prune()
+    # net.mask_filters(layer_index=0,filter_index=[0,2,5])
 
     from framework import evaluate,data_loader
     dl=data_loader.create_validation_loader(batch_size=512,num_workers=2,dataset_name='cifar10')

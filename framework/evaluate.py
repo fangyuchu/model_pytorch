@@ -45,20 +45,22 @@ def validate(val_loader, model,max_data_to_test=99999999,device=None):
         end = time.time()
         s_n=0
         for i, (input, target) in enumerate(val_loader):
-            #print('{} {}'.format(datetime.now(),i))
             target = target.to(device)
             input = input.to(device)
 
             s_n+=input.shape[0]
-
+            print(i)
             # compute output
             output = model(input)
 
             # measure accuracy and record loss
             prec1, prec5 = accuracy(output.data, target.data, topk=(1, 5))
             #losses.update(loss.data.item(), input.size(0))
-            top1.update(prec1.item(), input.size(0))
-            top5.update(prec5.item(), input.size(0))
+            try:
+                top1.update(prec1.item(), input.size(0))
+                top5.update(prec5.item(), input.size(0))
+            except RuntimeError:
+                print()
 
             # measure elapsed time
             batch_time.update(time.time() - end)
