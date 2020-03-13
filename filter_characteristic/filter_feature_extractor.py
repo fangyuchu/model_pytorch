@@ -26,7 +26,7 @@ class extractor(nn.Module):
         self.feature_len=feature_len
         self.gcn_rounds=gcn_rounds
         if not only_inner_features:
-            in_features=feature_len * 2
+            in_features=feature_len + 5
         else:
             in_features=feature_len
         self.network=nn.Sequential(
@@ -37,6 +37,7 @@ class extractor(nn.Module):
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(128,1,bias=False),
+            nn.ReLU(True)       #to ensure more 0 outputs
             # nn.Sigmoid()
         )
         self.normalization=nn.BatchNorm1d(num_features=in_features)
@@ -52,38 +53,50 @@ class extractor(nn.Module):
         else:
             features=innerlayer_features
         features=self.normalization(features)
+
         return self.network(features)
 
     def extract_innerlayer_features(self,net):
         device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        singular_values=[]
-        mean=[]
-        max=[]
-        std=[]
         channel_num=[]
         filter_num=[]
-        for name,mod in net.named_modules():                                                   #mod is a copy
-            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+        for name, mod in net.named_modules():
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
                 filter_num += [mod.out_channels]
-                channel_num+=[mod.in_channels]
-                weight= transform_conv.conv_to_matrix(copy.deepcopy(mod))
-                u, s, v = torch.svd(weight)
-                singular_values+=[s[:self.feature_len-5]]
-                mean+=[torch.mean(weight,dim=1)]
-                max+=[torch.max(weight,dim=1)[0]]
-                std+=[torch.std(weight,dim=1)]
+                channel_num += [mod.in_channels]
 
-        innerlayer_features = torch.zeros((sum(filter_num), self.feature_len )).to(device)
+        # singular values are not used for efficiency concern
+        # singular_values = torch.zeros((sum(filter_num), self.feature_len - 5)).to(device)
+        mean = torch.zeros(sum(filter_num)).to(device)
+        max = torch.zeros(sum(filter_num)).to(device)
+        std = torch.zeros(sum(filter_num)).to(device)
+        start=0
+        i=0
+        for name,mod in net.named_modules():
+            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+                stop = start + filter_num[i]
+                weight= transform_conv.conv_to_matrix(copy.deepcopy(mod))
+                #singular values are not used for efficiency concern
+                # u, s, v = torch.svd(weight)
+                # singular_values[start:stop]=s[:self.feature_len-5].repeat(filter_num[i],1)
+                mean[start:stop]=torch.mean(weight,dim=1)
+                max[start:stop]=torch.max(weight,dim=1)[0]
+                std[start:stop]=torch.std(weight,dim=1)
+                start = stop
+                i+=1
+
+        innerlayer_features = torch.zeros((sum(filter_num),5 )).to(device)
         start=0
         for i in range(len(filter_num)):
             stop = start+filter_num[i]
             innerlayer_features[start:stop][:,0]=i+1                                                                            #layer
             innerlayer_features[start:stop][:,1]=channel_num[i]                                                                  #channel_num
-            innerlayer_features[start:stop][:,2]=mean[i]                                                                        #mean
-            innerlayer_features[start:stop][:,3]=max[i]                                                                         #max
-            innerlayer_features[start:stop][:,4]=std[i]                                                                         #standard deviation
-            innerlayer_features[start:stop][:,5:]=singular_values[i].repeat(filter_num[i],1)                                    #top k singuar value
+            innerlayer_features[start:stop][:,2]=mean[start:stop]                                                                        #mean
+            innerlayer_features[start:stop][:,3]=max[start:stop]                                                                         #max
+            innerlayer_features[start:stop][:,4]=std[start:stop]                                                                         #standard deviation
+            # innerlayer_features[start:stop][:,5:]=singular_values[start:stop]                               #top k singuar value
             start=stop
+
         return innerlayer_features
 
 # class weighted_MSELoss(torch.nn.MSELoss):

@@ -1,10 +1,10 @@
 import torch
 from torch import nn
 import torch.optim as optim
-from prune import prune_and_train,prune_and_train_with_mask
+from prune import prune_and_train
 from framework import evaluate,data_loader,measure_flops,train
 from framework.train import name_parameters_no_grad
-from network import create_net,net_with_mask,vgg,storage,resnet
+from network import vgg,storage,resnet
 from framework import config as conf
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"

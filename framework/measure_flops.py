@@ -1,5 +1,5 @@
 import torch
-from network import vgg,net_with_mask
+from network import vgg
 import torch.nn as nn
 import copy
 
@@ -13,12 +13,9 @@ def measure_layer(layer, x, multi_add=1):
                     layer.stride[0] + 1)
         out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) //
                     layer.stride[1] + 1)
-        if isinstance(layer,net_with_mask.Conv2dMask):
-            in_channels = layer.in_channels - int(torch.sum(layer.front_mask==0))
-            out_channels = layer.out_channels - int(torch.sum(layer.mask==0))
-        else:
-            in_channels=layer.in_channels
-            out_channels=layer.out_channels
+
+        in_channels=layer.in_channels
+        out_channels=layer.out_channels
         delta_ops = in_channels * out_channels * layer.kernel_size[0] *  \
                 layer.kernel_size[1] * out_h * out_w // layer.groups * multi_add
 

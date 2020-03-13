@@ -3,7 +3,6 @@ import torch.nn as nn
 from datetime import datetime
 from framework import evaluate
 import numpy as np
-from network import create_net
 
 
 def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225],is_image=True):
@@ -50,25 +49,25 @@ def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406
 
 if __name__ == "__main__":
 
-    random_normal(num=1000,dataset_name='cifar10',is_image=True)
-
-
-    a=random_normal(100)
-    net= create_net.vgg_cifar10(net_name='vgg16_bn')
-    # loader=data_loader.create_validation_loader(batch_size=300,num_workers=2,dataset_name='cifar10')
-    # evaluate.check_ReLU_alive(network=network,neural_dead_times=8000,data_loader=loader)
-    relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=80, data=a)
-
-    neural_dead_times = 80
-    filter_FIRE = 0.9
-    neural_dead_times_decay = 0.95
-    filter_FIRE_decay = 0.98
-    filter_preserve_ratio = 0.1
-    max_filters_pruned_for_one_time = 0.3
-    target_accuracy = 0.931
-    batch_size = 300
-    num_epoch = 300
-    evaluate_step = 1600
+    # random_normal(num=1000,dataset_name='cifar10',is_image=True)
+    #
+    #
+    # a=random_normal(100)
+    # net= create_net.vgg_cifar10(net_name='vgg16_bn')
+    # # loader=data_loader.create_validation_loader(batch_size=300,num_workers=2,dataset_name='cifar10')
+    # # evaluate.check_ReLU_alive(network=network,neural_dead_times=8000,data_loader=loader)
+    # relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=80, data=a)
+    #
+    # neural_dead_times = 80
+    # filter_FIRE = 0.9
+    # neural_dead_times_decay = 0.95
+    # filter_FIRE_decay = 0.98
+    # filter_preserve_ratio = 0.1
+    # max_filters_pruned_for_one_time = 0.3
+    # target_accuracy = 0.931
+    # batch_size = 300
+    # num_epoch = 300
+    # evaluate_step = 1600
 
 
     num_conv = 0  # num of conv layers in the network

@@ -169,7 +169,6 @@ def evaluate_net(  net,
         # save net
         print("{} Saving net...".format(datetime.now()))
         checkpoint={'highest_accuracy':accuracy,
-                    'state_dict':net.state_dict(),
                     'sample_num':sample_num,
                     'flop_num':flop_num,
                     'exp_name':exp_name}

@@ -1,5 +1,5 @@
 import torch.nn as nn
-from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg
+from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg,net_with_predicted_mask
 import re
 from prune import prune_module
 import torch
@@ -13,17 +13,23 @@ def get_net_information(net,dataset_name,net_name):
     :param net_name:
     :return:
     '''
-    checkpoint = {
-                  'net_name':net_name,
-                    'dataset_name':dataset_name}
+    checkpoint = {}
+    checkpoint['net_name']=net_name
+    checkpoint['dataset_name']=dataset_name
+    checkpoint['state_dict']=net.state_dict()
     structure=[]                                                                                #number of filters for each conv
     for name,mod in net.named_modules():
         if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
             structure+=[mod.out_channels]
     checkpoint['structure']=structure
+
+    if isinstance(net,net_with_predicted_mask.predicted_mask_net):
+        checkpoint['feature_len']=net.feature_len
+        checkpoint['gcn_rounds']=net.gcn_rounds
+
     return checkpoint
 
-def restore_net(checkpoint,pretrained=True,data_parallel=False):
+def restore_net(checkpoint,pretrained=True,data_parallel=False,transformed_net=False):
     structure=checkpoint['structure']
     dataset_name=checkpoint['dataset_name']
     net_name=checkpoint['net_name']
@@ -61,6 +67,10 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
+
+    if transformed_net is True:
+        t_net=net_with_predicted_mask.predicted_mask_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
+        net=t_net
 
     if pretrained:
         try:

@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 import torch.optim as optim
-from prune import prune_and_train,prune_and_train_with_mask
+from prune import prune_and_train
 from framework import evaluate,data_loader,measure_flops,train
-from network import create_net,net_with_mask,vgg,storage
+from network import vgg,storage
 from framework import config as conf
 from framework.train import name_parameters_no_grad
 import os

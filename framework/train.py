@@ -227,7 +227,6 @@ def train(
         if load_net:
             checkpoint = torch.load(file_new)
             print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
-            # net.load_state_dict(checkpoint['state_dict'])
             net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
             sample_num = checkpoint['sample_num']
 
@@ -294,14 +293,6 @@ def train(
             images, labels = data
             images, labels = images.to(device), labels.to(device)
             sample_num += int(images.shape[0])
-
-            # if learning_rate_decay:
-            #     exponential_decay_learning_rate(optimizer=optimizer,
-            #                                     sample_num=sample_num,
-            #                                     learning_rate_decay_factor=learning_rate_decay_factor,
-            #                                     train_set_size=train_set_size,
-            #                                     learning_rate_decay_epoch=learning_rate_decay_epoch,
-            #                                     batch_size=batch_size)
 
             optimizer.zero_grad()
             # forward + backward
