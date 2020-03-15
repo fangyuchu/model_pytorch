@@ -8,7 +8,7 @@ from framework import config as conf
 from framework.train import name_parameters_no_grad
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '0,1,2,3'
 # os.environ["CUDA_VISIBLE_DEVICES"] = '4,5,6,7'
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

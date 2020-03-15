@@ -49,7 +49,6 @@ def validate(val_loader, model,max_data_to_test=99999999,device=None):
             input = input.to(device)
 
             s_n+=input.shape[0]
-            print(i)
             # compute output
             output = model(input)
 

@@ -1,10 +1,11 @@
 from filter_characteristic import filter_feature_extractor
-from network import vgg, resnet
+from network import vgg, resnet,storage
 from torch import nn
 import torch
 from prune.prune_module import get_module
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+import copy
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 
 
@@ -16,7 +17,8 @@ class conv2d_with_mask(nn.modules.Conv2d):
         self.weight=conv.weight
         if self.bias is not None:
             self.bias=conv.bias
-        self.mask=None
+        self.mask=nn.Parameter(torch.ones((conv.out_channels,1)))
+        nn.Parameter()
 
 
     def forward(self,input):
@@ -34,14 +36,23 @@ class conv2d_with_mask(nn.modules.Conv2d):
 class predicted_mask_net(nn.Module):
     def __init__(self,net,net_name,dataset_name,feature_len=15,gcn_rounds=2,only_gcn=False,only_inner_features=False):
         super(predicted_mask_net, self).__init__()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.net=self.transform(net).to(device)
-        self.extractor=filter_feature_extractor.extractor(feature_len=feature_len,gcn_rounds=gcn_rounds,only_gcn=only_gcn,only_inner_features=only_inner_features).to(device)
+        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.net=self.transform(net)#.to(device)
+        self.extractor=filter_feature_extractor.extractor(feature_len=feature_len,gcn_rounds=gcn_rounds,only_gcn=only_gcn,only_inner_features=only_inner_features)
         self.net_name=net_name
         self.dataset_name=dataset_name
         self.feature_len=feature_len
         self.gcn_rounds=gcn_rounds
 
+    def copy(self):
+        '''
+        self-made deepcopy
+        :return: a cloned network
+        '''
+        checkpoint=storage.get_net_information(self,self.dataset_name,self.net_name)
+        copied_net=storage.restore_net(checkpoint,pretrained=True,transformed_net=True)
+        copied_net.to(self.extractor.network[0].weight.device)
+        return copied_net
 
     def transform(self,net):
         for name, mod in net.named_modules():
@@ -53,37 +64,22 @@ class predicted_mask_net(nn.Module):
         return net
 
     def update_mask(self):
-        #todo:只有在训练的时候才需要不断更新
-        print('a')
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+                mod.mask=nn.Parameter(torch.ones((mod.out_channels,1)).to(mod.weight.device)) #set mask to None to ensure the deepcopy(deepcopy only works for graph leaves)
 
-        mask = self.extractor(self.net, self.net_name, self.dataset_name)
+        mask = self.extractor(self, self.net_name, self.dataset_name)           #predict mask using extractor
         lo = hi = 0
         for name, mod in self.net.named_modules():
             if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
                 hi += mod.out_channels
                 _modules = get_module(model=self.net, name=name)
-                _modules[name.split('.')[-1]].mask = mask[lo:hi]
+                _modules[name.split('.')[-1]].mask = nn.Parameter(mask[lo:hi])                    #update mask for each conv
                 lo = hi
 
     def forward(self, input):
-        self.update_mask()
+        if self.training is True:
+            self.update_mask()                                                      #mask only need to be updated when training.
         return self.net(input)
 
 
-if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net=resnet.resnet50(pretrained=True).to(device)
-    tran_net=predicted_mask_net(net, net_name='resnet50', dataset_name='imagenet')
-    tran_net=nn.DataParallel(tran_net)
-    from framework import data_loader
-    dl=data_loader.create_validation_loader(batch_size=2048, num_workers=4, dataset_name='imagenet', )
-    from framework.evaluate import evaluate_net
-    evaluate_net(tran_net, dl, save_net=False, net_name='resnet50')
-    # criterion = nn.CrossEntropyLoss()
-    # for step, data in enumerate(train_loader, 0):
-    #     images, labels = data
-    #     images, labels = images.to(device), labels.to(device)
-    #     prediction=tran_net(images)
-    #     loss = criterion(prediction, labels)
-    #     loss.backward()
-    #     print()

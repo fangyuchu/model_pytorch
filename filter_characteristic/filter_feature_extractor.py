@@ -75,7 +75,7 @@ class extractor(nn.Module):
         for name,mod in net.named_modules():
             if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
                 stop = start + filter_num[i]
-                weight= transform_conv.conv_to_matrix(copy.deepcopy(mod))
+                weight= transform_conv.conv_to_matrix(mod)
                 #singular values are not used for efficiency concern
                 # u, s, v = torch.svd(weight)
                 # singular_values[start:stop]=s[:self.feature_len-5].repeat(filter_num[i],1)

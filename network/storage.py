@@ -1,5 +1,6 @@
 import torch.nn as nn
-from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg,net_with_predicted_mask
+from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg
+from network.net_with_predicted_mask import predicted_mask_net
 import re
 from prune import prune_module
 import torch
@@ -23,9 +24,16 @@ def get_net_information(net,dataset_name,net_name):
             structure+=[mod.out_channels]
     checkpoint['structure']=structure
 
-    if isinstance(net,net_with_predicted_mask.predicted_mask_net):
+    if isinstance(net,predicted_mask_net):
         checkpoint['feature_len']=net.feature_len
         checkpoint['gcn_rounds']=net.gcn_rounds
+    # try:
+    #     #for predicted_mask_net
+    #     #isinstanec(net,predicted_mask_met) is False. I don't know why
+    #     checkpoint['feature_len'] = net.feature_len
+    #     checkpoint['gcn_rounds'] = net.gcn_rounds
+    # except AttributeError:
+    #     pass
 
     return checkpoint
 
@@ -69,7 +77,7 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False,transformed_net=F
     net.to(device)
 
     if transformed_net is True:
-        t_net=net_with_predicted_mask.predicted_mask_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
+        t_net=predicted_mask_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
         net=t_net
 
     if pretrained:

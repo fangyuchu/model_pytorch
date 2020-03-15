@@ -302,7 +302,7 @@ def train(
             optimizer.step()
 
 
-            if step%60==0:
+            if step%20==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
 
 

@@ -9,7 +9,7 @@ def conv_to_matrix(conv):
     :param conv: conv module
     :return: 2-d tensor. each row is one filter.
     '''
-    weight = conv.weight.data
+    weight = conv.weight.detach()
     matrix = weight.view(weight.size(0), -1)
     return matrix
 

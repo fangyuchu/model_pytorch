@@ -2,7 +2,7 @@ import torch
 import transform_conv
 from transform_conv import conv_to_matrix
 import torch.nn as nn
-from network import vgg,resnet_cifar,resnet
+from network import vgg,resnet_cifar,resnet,net_with_predicted_mask
 import copy
 from framework import evaluate
 
@@ -24,7 +24,6 @@ class gcn(nn.Module):
         self.normalization = nn.BatchNorm1d(num_features=in_features,)
     def forward(self, net,net_name,dataset_name, rounds=2):
         if 'vgg' in net_name:
-
             return self.forward_vgg(net,rounds)
         elif 'resnet' in net_name:
             return self.forward_resnet(net,rounds)
@@ -37,7 +36,10 @@ class gcn(nn.Module):
         :return: extracted-features representing the cross layer relationship for each filter
         '''
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        net=copy.deepcopy(net)
+        if isinstance(net,net_with_predicted_mask.predicted_mask_net):
+            net=net.copy()
+        else:
+            net=copy.deepcopy(net)
         conv_list=[]
         filter_num=[]
         for mod in net.modules():
@@ -50,9 +52,12 @@ class gcn(nn.Module):
             self.aggregate_convs(conv_list,mean)
 
         weight_list=[]
-        for mod in net.modules():
-            if isinstance(mod,nn.Conv2d):
-                weight_list+=[conv_to_matrix(mod)]
+        # for mod in net.modules():
+        #     if isinstance(mod,nn.Conv2d):
+        #         weight_list+=[conv_to_matrix(mod)]
+
+        for conv in conv_list:
+            weight_list+=[conv_to_matrix(conv)]
 
         gcn_feature_in=[]
         for i in range(len(weight_list)):
@@ -70,7 +75,10 @@ class gcn(nn.Module):
         return gcn_feature_out                                                     #each object represents one conv
 
     def forward_resnet(self,net,rounds):
-        net=copy.deepcopy(net)
+        if isinstance(net,net_with_predicted_mask.predicted_mask_net):
+            net=net.copy()
+        else:
+            net=copy.deepcopy(net)
         while rounds>0:                                                                     #aggregate information in convs
             rounds-=1
             first_conv=True
