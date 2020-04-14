@@ -84,3 +84,31 @@ tiny_imagenet['default_image_size']=224
 #how often to write summary and checkpoint
 evaluate_step=4000
 
+
+#cifar10
+#learning configuration
+#deep residual network
+# weight_decay=1e-4
+# momentum=0.9
+# batch_size=128
+# lr=0.1
+# lr_decay_factor=0.1
+# decay_epoch=[80,120]
+#num_epoch=160
+#soft filter pruning
+# lr=0.1
+# lr_decay_factor=0.2
+# decay_epoch=[60,120,160]
+# weight_decay=1e-4
+# momentum=0.9
+# batch_size=128
+#num_epoch=200
+
+#my schedule
+# num_epochs=450,
+# lr_decay_factor=0.5,
+# decay_epch=[50,100,150,200,250,300,350,400]
+
+
+
+

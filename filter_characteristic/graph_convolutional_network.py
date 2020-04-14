@@ -15,13 +15,13 @@ class gcn(nn.Module):
         self.network=nn.Sequential(
             nn.Linear(in_features,128),
             nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(128, 128),
-            nn.ReLU(True),
-            nn.Dropout(),
+            # nn.Dropout(),
+            # nn.Linear(128, 128),
+            # nn.ReLU(True),
+            # nn.Dropout(),
             nn.Linear(128,out_features),
         )
-        self.normalization = nn.BatchNorm1d(num_features=in_features,)
+        self.normalization = nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
     def forward(self, net,net_name,dataset_name, rounds=2):
         if 'vgg' in net_name:
             return self.forward_vgg(net,rounds)
@@ -35,7 +35,7 @@ class gcn(nn.Module):
         :param rounds:
         :return: extracted-features representing the cross layer relationship for each filter
         '''
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = self.network[0].weight.device
         if isinstance(net,net_with_predicted_mask.predicted_mask_net):
             net=net.copy()
         else:
@@ -46,16 +46,14 @@ class gcn(nn.Module):
             if isinstance(mod,nn.Conv2d):
                 filter_num += [mod.out_channels]
                 conv_list+=[mod]
+
+
         while rounds>0:
             rounds-=1
-            mean = torch.zeros(3, 1).to(net.features[0].weight.device)                      #initialize mean for first layer
+            mean = torch.zeros(3, 1).to(device)                      #initialize mean for first layer
             self.aggregate_convs(conv_list,mean)
 
         weight_list=[]
-        # for mod in net.modules():
-        #     if isinstance(mod,nn.Conv2d):
-        #         weight_list+=[conv_to_matrix(mod)]
-
         for conv in conv_list:
             weight_list+=[conv_to_matrix(conv)]
 
@@ -118,7 +116,7 @@ class gcn(nn.Module):
         :param conv_in_front: conv module in front of block
         :return:
         '''
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = self.network[0].weight.device
         weight_dowmsample=None
         zero_padding=False
         conv_list=[]

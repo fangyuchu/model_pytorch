@@ -32,15 +32,19 @@ class extractor(nn.Module):
         self.network=nn.Sequential(
             nn.Linear(in_features,128),
             nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(128, 128),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(128,1,bias=False),
-            nn.ReLU(True)       #to ensure more 0 outputs
+            # nn.Dropout(),
+            # nn.Linear(128, 128),
+            # nn.ReLU(True),
+            # nn.Dropout(),
+            nn.Linear(128,1,bias=True),
+            # nn.Tanh()
+            # nn.ReLU(True)       #to ensure more 0 outputs
+            # nn.LeakyReLU(inplace=True,negative_slope=1e-2)
             # nn.Sigmoid()
         )
-        self.normalization=nn.BatchNorm1d(num_features=in_features)
+        # self.network[6].register_forward_hook(p)
+        # self.network[7].register_forward_hook(p)
+        self.normalization=nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
         
     def forward(self,net,net_name,dataset_name ):
         crosslayer_features=self.gcn.forward(net=net,rounds=self.gcn_rounds,net_name=net_name,dataset_name=dataset_name)
@@ -54,7 +58,13 @@ class extractor(nn.Module):
             features=innerlayer_features
         features=self.normalization(features)
 
-        return self.network(features)
+        out = self.network(features)
+
+        _,mask_index=torch.topk(torch.abs(out),k=int(0.8*out.shape[0]),dim=0,largest=False)
+        out[mask_index]=0
+
+
+        return out
 
     def extract_innerlayer_features(self,net):
         device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -113,7 +123,6 @@ class extractor(nn.Module):
 #         if self.reduction != 'none':
 #             ret = torch.mean(ret) if self.reduction == 'mean' else torch.sum(ret)
 #         return ret
-
 
 
 

@@ -1,6 +1,5 @@
 import torch.nn as nn
-from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg
-from network.net_with_predicted_mask import predicted_mask_net
+from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg,net_with_predicted_mask
 import re
 from prune import prune_module
 import torch
@@ -24,7 +23,8 @@ def get_net_information(net,dataset_name,net_name):
             structure+=[mod.out_channels]
     checkpoint['structure']=structure
 
-    if isinstance(net,predicted_mask_net):
+    if isinstance(net,net_with_predicted_mask.predicted_mask_net):
+        checkpoint['transformed_net']=True
         checkpoint['feature_len']=net.feature_len
         checkpoint['gcn_rounds']=net.gcn_rounds
     # try:
@@ -37,7 +37,7 @@ def get_net_information(net,dataset_name,net_name):
 
     return checkpoint
 
-def restore_net(checkpoint,pretrained=True,data_parallel=False,transformed_net=False):
+def restore_net(checkpoint,pretrained=True,data_parallel=False):
     structure=checkpoint['structure']
     dataset_name=checkpoint['dataset_name']
     net_name=checkpoint['net_name']
@@ -73,12 +73,12 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False,transformed_net=F
                                                          )
             num_layer+=1
 
+    if 'transformed_net' in checkpoint.keys():
+        t_net=net_with_predicted_mask.predicted_mask_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
+        net=t_net
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
-
-    if transformed_net is True:
-        t_net=predicted_mask_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
-        net=t_net
 
     if pretrained:
         try:

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 import numpy as np
-from network import vgg
+from network import vgg,net_with_predicted_mask
 import os
 from datetime import datetime
 import math
@@ -84,6 +84,7 @@ def prepare_optimizer(
                             lr=learning_rate,
                             weight_decay=weight_decay,
                             momentum=momentum,**kwargs)
+
     return optimizer
 
 
@@ -118,8 +119,10 @@ def train(
         no_grad=[],
         scheduler_name='MultiStepLR',
         eta_min=0,
+        paint_loss=False,
         #todo:tmp!!!
-        data_parallel=False
+        data_parallel=False,
+
 ):
     '''
 
@@ -232,8 +235,7 @@ def train(
 
     if test_net:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
-        net_test=copy.deepcopy(net)
-        accuracy= evaluate.evaluate_net(net_test, validation_loader,
+        accuracy= evaluate.evaluate_net(net, validation_loader,
                                         save_net=True,
                                         checkpoint_path=checkpoint_path,
                                         sample_num=sample_num,
@@ -243,7 +245,6 @@ def train(
                                         net_name=net_name,
                                         exp_name=exp_name
                                         )
-        del net_test
 
         if accuracy >= target_accuracy:
             print('{} net reached target accuracy.'.format(datetime.now()))
@@ -266,15 +267,24 @@ def train(
                                                      num_epochs,
                                                      eta_min=eta_min,
                                                      last_epoch=ceil(sample_num/train_set_size))
+    loss_list=[]
+    acc_list=[]
+    xaxis_loss=[]
+    xaxis_acc=[]
+    xaxis=0
     print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
+            # if step==0 and epoch==0:
+            #     old_data=data
+            # data=old_data
+
+            xaxis+=1
             if sample_num / train_set_size==epoch+1:               #one epoch of training finished
-                net_test = copy.deepcopy(net)
-                accuracy= evaluate.evaluate_net(net_test, validation_loader,
+                accuracy= evaluate.evaluate_net(net, validation_loader,
                                                 save_net=True,
                                                 checkpoint_path=checkpoint_path,
                                                 sample_num=sample_num,
@@ -283,7 +293,6 @@ def train(
                                                 top_acc=top_acc,
                                                 net_name=net_name,
                                                 exp_name=exp_name)
-                del net_test
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
@@ -298,18 +307,24 @@ def train(
             # forward + backward
             outputs = net(images)
             loss = criterion(outputs, labels)
+            # loss2=torch.zeros(1).to(images.device)
+            # for name, mod in net.named_modules():
+            #     if isinstance(mod, net_with_predicted_mask.conv2d_with_mask) and 'downsample' not in name:
+            #         loss2-=torch.sum(mod.mask)
+            #
+            # loss=loss+0.001*loss2
+
             loss.backward()
             optimizer.step()
 
+            loss_list+=[float(loss.detach())]
+            xaxis_loss+=[xaxis]
 
             if step%20==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
 
-
-
             if step % evaluate_step == 0 and step != 0:
-                net_test = copy.deepcopy(net)
-                accuracy= evaluate.evaluate_net(net_test, validation_loader,
+                accuracy= evaluate.evaluate_net(net, validation_loader,
                                                 save_net=True,
                                                 checkpoint_path=checkpoint_path,
                                                 sample_num=sample_num,
@@ -318,20 +333,33 @@ def train(
                                                 top_acc=top_acc,
                                                 net_name=net_name,
                                                 exp_name=exp_name)
-                del net_test
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
                 accuracy =float(accuracy)
+
+                acc_list+=[accuracy]
+                xaxis_acc+=[xaxis]
+
+                if paint_loss:
+                    fig , ax1 =plt.subplots()
+                    ax2=ax1.twinx()
+                    ax1.plot(xaxis_loss,loss_list,'g')
+                    ax2.plot(xaxis_acc,acc_list,'b')
+                    ax1.set_xlabel('step')
+                    ax1.set_ylabel('loss')
+                    ax2.set_ylabel('accuracy')
+                    plt.title(exp_name)
+                    plt.show()
+
                 print('{} continue training'.format(datetime.now()))
         if learning_rate_decay:
             scheduler.step()
             print(optimizer.state_dict()['param_groups'][0]['lr'])
 
     print("{} Training finished. Saving net...".format(datetime.now()))
-    net_test = copy.deepcopy(net)
-    flop_num= measure_flops.measure_model(net=net_test, dataset_name=dataset_name, print_flop=False)
-    accuracy = evaluate.evaluate_net(net_test, validation_loader,
+    flop_num= measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
+    accuracy = evaluate.evaluate_net(net, validation_loader,
                                      save_net=True,
                                      checkpoint_path=checkpoint_path,
                                      sample_num=sample_num,

@@ -91,11 +91,7 @@ def measure_model_mine(net,dataset_name='imagenet'):
 
 
 
-def measure_model(net, dataset_name='imagenet',print_flop=True):
-    if isinstance(net,torch.nn.DataParallel):                   #防止把原模型做了改变
-        model=copy.deepcopy(net._modules['module'])
-    else:
-        model=copy.deepcopy(net)
+def measure_model(net, dataset_name='imagenet', print_flop=True):
 
     if dataset_name is 'imagenet'or dataset_name is 'tiny_imagenet':
         shape=(1,3,224,224)
@@ -134,16 +130,15 @@ def measure_model(net, dataset_name='imagenet',print_flop=True):
             else:
                 restore_forward(child)
 
-    modify_forward(model)
+    modify_forward(net)
     # forward过程中对全局的变量count_ops进行更新
-    model.eval()
-    model.forward(data)
-    restore_forward(model)
+    net.eval()
+    net.forward(data)
+    restore_forward(net)
     if print_flop:
         print('flop_num:{}'.format(count_ops))
     count_ops_temp=count_ops
     count_ops=0
-    del model
     return count_ops_temp
 
 if __name__ == '__main__':

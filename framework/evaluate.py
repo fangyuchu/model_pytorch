@@ -134,6 +134,7 @@ def evaluate_net(  net,
     :param max_data_to_test: use at most max_data_to_test images to evaluate the net
     :param top_acc: top 1 or top 5 accuracy
     '''
+    net.eval()
     if save_net:
         flop_num = measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
         if checkpoint_path is None :
@@ -151,7 +152,6 @@ def evaluate_net(  net,
             flop_num_old=checkpoint['flop_num']
             if flop_num!=flop_num_old:
                 highest_accuracy=0
-            # print('Highest accuracy from previous checkpoint is {}.'.format(highest_accuracy))
         else:
             highest_accuracy=0
 
