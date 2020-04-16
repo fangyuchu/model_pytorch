@@ -32,18 +32,8 @@ class extractor(nn.Module):
         self.network=nn.Sequential(
             nn.Linear(in_features,128),
             nn.ReLU(True),
-            # nn.Dropout(),
-            # nn.Linear(128, 128),
-            # nn.ReLU(True),
-            # nn.Dropout(),
             nn.Linear(128,1,bias=True),
-            # nn.Tanh()
-            # nn.ReLU(True)       #to ensure more 0 outputs
-            # nn.LeakyReLU(inplace=True,negative_slope=1e-2)
-            # nn.Sigmoid()
         )
-        # self.network[6].register_forward_hook(p)
-        # self.network[7].register_forward_hook(p)
         self.normalization=nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
         
     def forward(self,net,net_name,dataset_name ):
@@ -86,12 +76,12 @@ class extractor(nn.Module):
             if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
                 stop = start + filter_num[i]
                 weight= transform_conv.conv_to_matrix(mod)
-                #singular values are not used for efficiency concern
-                # u, s, v = torch.svd(weight)
-                # singular_values[start:stop]=s[:self.feature_len-5].repeat(filter_num[i],1)
                 mean[start:stop]=torch.mean(weight,dim=1)
                 max[start:stop]=torch.max(weight,dim=1)[0]
                 std[start:stop]=torch.std(weight,dim=1)
+                #singular values are not used for efficiency concern
+                # u, s, v = torch.svd(weight)
+                # singular_values[start:stop]=s[:self.feature_len-5].repeat(filter_num[i],1)
                 start = stop
                 i+=1
 

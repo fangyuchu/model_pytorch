@@ -8,25 +8,25 @@ class conv2d_with_mask(nn.modules.Conv2d):
         super(conv2d_with_mask, self).__init__(
             conv.in_channels, conv.out_channels, conv.kernel_size, stride=conv.stride,
             padding=conv.padding, dilation=conv.dilation, groups=conv.groups, bias=(conv.bias is not None))
-        self.weight=conv.weight
+        self.weight = conv.weight
         if self.bias is not None:
-            self.bias=conv.bias
+            self.bias = conv.bias
         # self.mask=nn.Parameter(torch.randn((conv.out_channels,1)))
         # self.mask=torch.randn((conv.out_channels,1))
-        self.mask=None
+        mask = torch.ones(conv.out_channels)
+        self.register_buffer('mask', mask)  # register self.mask as buffer in pytorch module
 
-
-    def forward(self,input):
-        masked_weight=self.weight*self.mask.view(-1,1,1,1)
+    def forward(self, input):
+        masked_weight = self.weight * self.mask.view(-1, 1, 1, 1)
         if self.bias is None:
-            masked_bias=None
+            masked_bias = None
         else:
-            masked_bias=self.bias*self.mask.view(-1)
-        #考虑conv减了之后bn怎么办
-        #暂时通过bn不track running stats解决
+            masked_bias = self.bias * self.mask.view(-1)
+        # 考虑conv减了之后bn怎么办
+        # 暂时通过bn不track running stats解决
         try:
-            out=nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,
-                           self.padding, self.dilation, self.groups)
+            out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,
+                                       self.padding, self.dilation, self.groups)
         except RuntimeError:
             print()
 

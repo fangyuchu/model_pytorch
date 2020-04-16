@@ -7,7 +7,7 @@ from network import vgg,storage,net_with_predicted_mask
 from framework import config as conf
 from framework.train import name_parameters_no_grad
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -30,12 +30,12 @@ train.train(net=net,
             weight_decay=0,
             momentum=0,
 
-            learning_rate=1,
-            num_epochs=350,
+            learning_rate=0.01,
+            num_epochs=1000000,
             batch_size=2048,
             evaluate_step=5000,
             load_net=True,
-            test_net=True,
+            test_net=False,
             num_workers=8,
             # weight_decay=5e-4,
             learning_rate_decay=False,

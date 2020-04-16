@@ -74,9 +74,17 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net=vgg.vgg16_bn(dataset_name='cifar10').to(device)
 net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')),pretrained=False)
-
 net = net_with_predicted_mask.predicted_mask_net(net, net_name='vgg16_bn', dataset_name='cifar10').to(device)
 
+
+# net.update_mask()
+#
+#
+# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16bn_predicted_0.8_5/checkpoint/flop=313740586,accuracy=0.85860.tar')
+# net.load_state_dict(checkpoint['state_dict'])
+# net.update_mask()
+#
+# print()
 # a=torch.load('/home/victorfang/model_pytorch/data/model_saved/tmp/checkpoint/flop=313733786,accuracy=0.18720.tar')
 # a=torch.load('/home/victorfang/test.tar')
 # net.load_state_dict(a['state_dict'])
@@ -128,27 +136,26 @@ net.train()
 #
 train.train(net=net,
             net_name='vgg16_bn',
-            exp_name='vgg16bn_predicted_0.8_1',
+            exp_name='tmp',
             dataset_name='cifar10',
             # optimizer=cgd.CGD,
             optimizer=optim.SGD,
             weight_decay=0,
             momentum=0,
 
-            learning_rate=0.1,
-            num_epochs=350,
+            learning_rate=0.01,
+            num_epochs=1000000,
             batch_size=2048,
             evaluate_step=5000,
-            load_net=False,
+            load_net=True,
             test_net=False,
             num_workers=8,
             # weight_decay=5e-4,
-            learning_rate_decay=True,
+            learning_rate_decay=False,
             learning_rate_decay_epoch=[100,250],
             learning_rate_decay_factor=0.1,
             scheduler_name='MultiStepLR',
             top_acc=1,
             data_parallel=False,
             paint_loss=True,
-            # no_grad=no_grad,
             )

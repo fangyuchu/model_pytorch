@@ -278,9 +278,9 @@ def train(
         net.train()
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
-            # if step==0 and epoch==0:
-            #     old_data=data
-            # data=old_data
+            # if step==0 and epoch==0:      # debug code
+            #     old_data=data             #use the same batch of data over and over again
+            # data=old_data                 #the loss should decrease if the net is defined properly
 
             xaxis+=1
             if sample_num / train_set_size==epoch+1:               #one epoch of training finished
@@ -350,6 +350,7 @@ def train(
                     ax1.set_ylabel('loss')
                     ax2.set_ylabel('accuracy')
                     plt.title(exp_name)
+                    plt.savefig(os.path.join(root_path,'model_saved',exp_name,'train.png'))
                     plt.show()
 
                 print('{} continue training'.format(datetime.now()))
