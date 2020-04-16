@@ -34,56 +34,74 @@ def set_learning_rate(optimizer,lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def name_parameters_no_grad(net,module_need_grad):
+def set_modules_no_grad(net, module_no_grad):
     '''
-    return a list containing parameter_names that do not need grad
     :param net:
-    :param module_need_grad: module name which need to be trained
-    :return:
+    :param module_no_grad: module name which need to be trained
+    :return: a dict containing parameter names that don't need grad
     '''
-    no_grad_list=dict()
+    requires_grad_dict=dict()
     for name, _ in net.named_parameters():
-        no_grad_list[name] = 1
-        if type(module_need_grad) is list:
-            for mod_name in module_need_grad:
+        requires_grad_dict[name] = True
+        if type(module_no_grad) is list:
+            for mod_name in module_no_grad:
                 if mod_name in name:
-                    no_grad_list.pop(name)
+                    requires_grad_dict[name]=False
                     print(name)
         else:
-            if module_need_grad in name:
-                no_grad_list.pop(name)
-    return list(no_grad_list.keys())
+            if module_no_grad in name:
+                requires_grad_dict[name]=False
+    requires_grad_dict['default']=True
+    return requires_grad_dict
+
+def look_up_hyperparameter(parameter_dict,parameter_name, hyperparameter_type):
+    '''
+    find the specified hyper-parameter for each parameter
+    :param parameter_dict: a dict containing(key:partial name of the parameter, value: hyperparameter)
+    :param parameter_name: name of the parameter in model
+    :param hyperparameter_type: type of the hyperparameter. e.g 'learning rate', 'momentum'
+    :return:
+    '''
+    if type(parameter_dict) is not dict:
+        return parameter_dict
+    if 'default' not in parameter_dict.keys():
+        raise Exception('Default '+hyperparameter_type+' is not given.')
+    for key in parameter_dict.keys():
+        if key in parameter_name:
+            return parameter_dict[key]
+    return parameter_dict['default']
 
 def prepare_optimizer(
         net,
         optimizer,
-        no_grad=[],
         momentum=conf.momentum,
         learning_rate=conf.learning_rate,
         weight_decay=conf.weight_decay,
+        requires_grad=True,
         **kwargs
 ):
-    #define optimizer. only parameters that require grad will be updated
+    param_list=[]
     for name, value in net.named_parameters():
-        hit=False
-        for sub_string in no_grad:
-            if sub_string in name:
-                value.requires_grad = False
-                hit=True
-                # print('Module: \"'+name+'\" will not be updated')
-                break
-        if hit is False:
-            value.requires_grad=True
+        value.requires_grad = look_up_hyperparameter(requires_grad,name,'requires_grad')
+        if value.requires_grad is True:
+            m=look_up_hyperparameter(momentum,name,'momentum')
+            lr=look_up_hyperparameter(learning_rate,name,'learning rate')
+            wd=look_up_hyperparameter(weight_decay,name,'weight decay')
+            param_list+=[{'params':value,'lr':lr,'weight_decay':wd,'momentum':m}]
 
-    if optimizer is optim.Adam:
-        optimizer = optimizer([{'params':filter(lambda p: p.requires_grad, net.parameters()),'initial_lr':learning_rate}],
-                              lr=learning_rate,
-                              weight_decay=weight_decay,**kwargs)
-    elif optimizer is optim.SGD:
-        optimizer=optimizer([{'params':filter(lambda p: p.requires_grad, net.parameters()),'initial_lr':learning_rate}],
-                            lr=learning_rate,
-                            weight_decay=weight_decay,
-                            momentum=momentum,**kwargs)
+    optimizer=optimizer(param_list,lr=look_up_hyperparameter(learning_rate,'default','lr'))
+
+
+
+    # if optimizer is optim.Adam:
+    #     # optimizer = optimizer([{'params':filter(lambda p: p.requires_grad, net.parameters()),'initial_lr':learning_rate}],
+    #     #                       lr=learning_rate,
+    #     #                       weight_decay=weight_decay,**kwargs)
+    # elif optimizer is optim.SGD:
+    #     optimizer=optimizer([{'params':filter(lambda p: p.requires_grad, net.parameters()),'initial_lr':learning_rate}],
+    #                         lr=learning_rate,
+    #                         weight_decay=weight_decay,
+    #                         momentum=momentum,**kwargs)
 
     return optimizer
 
@@ -116,7 +134,7 @@ def train(
         optimizer=optim.SGD,
         top_acc=1,
         criterion=nn.CrossEntropyLoss(),  # 损失函数默为交叉熵，多用于多分类问题
-        no_grad=[],
+        requires_grad=True,
         scheduler_name='MultiStepLR',
         eta_min=0,
         paint_loss=False,
@@ -150,11 +168,12 @@ def train(
     :param optimizer:
     :param top_acc: can be 1 or 5
     :param criterion： loss function
-    :param no_grad: list containing names of the modules that do not need to be trained
+    :param requires_grad: list containing names of the modules that do not need to be trained
     :param scheduler_name
     :param eta_min: for CosineAnnealingLR
     :return:
     '''
+    torch.autograd.set_detect_anomaly(True)
     success=True                                                                   #if the trained net reaches target accuracy
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -255,7 +274,7 @@ def train(
         evaluate_step= math.ceil(train_set_size / batch_size) - 1
 
 
-    optimizer=prepare_optimizer(net,optimizer,no_grad,momentum,learning_rate,weight_decay)
+    optimizer=prepare_optimizer(net, optimizer, momentum, learning_rate, weight_decay ,requires_grad)
     if learning_rate_decay:
         if scheduler_name =='MultiStepLR':
             scheduler = lr_scheduler.MultiStepLR(optimizer,

@@ -8,7 +8,7 @@ from filter_characteristic import filter_feature_extractor,predict_dead_filter
 import numpy as np
 from torch import optim
 import matplotlib.pyplot as plt
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 # net=vgg.vgg16_bn(dataset_name='cifar10')
 # b=net.parameters()
 #
@@ -74,7 +74,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net=vgg.vgg16_bn(dataset_name='cifar10').to(device)
 net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')),pretrained=False)
-net = net_with_predicted_mask.predicted_mask_net(net, net_name='vgg16_bn', dataset_name='cifar10').to(device)
+net = net_with_predicted_mask.predicted_mask_net(net, net_name='vgg16_bn', dataset_name='cifar10',mask_update_freq=500,mask_update_steps=100).to(device)
 
 
 # net.update_mask()
@@ -94,29 +94,17 @@ net = net_with_predicted_mask.predicted_mask_net(net, net_name='vgg16_bn', datas
 
 net.to(device)
 
+
 # def cal_dead_times(module, input, output):
-#     print()
-#     module.train()
-#     out1=module.forward(input[0])
-#     module.eval()
-#     out2=module.forward(input[0])
+#     # print()
+#     (np.abs(output.detach().cpu().numpy())==1).sum()
 #
-#     size=1
-#     for s in out1.shape:
-#         size*=s
-#     same=torch.abs((out1-out2))<1
-#     b=torch.sum(same)
 #
-#     if b!=s:
-#         print(module)
-#     print()
-
-
-
+#
 # for name,mod in net.named_modules():
 #     # if isinstance(mod,torch.nn.BatchNorm2d):
 #     #     mod.register_forward_hook(cal_dead_times)
-#     if name=='net.features':
+#     if isinstance(mod,nn.Hardtanh):
 #     # if name == 'features':
 #
 #         mod.register_forward_hook(cal_dead_times)
@@ -134,20 +122,21 @@ net.train()
 # #
 # import cgd
 #
+print('lr',5)
 train.train(net=net,
             net_name='vgg16_bn',
-            exp_name='tmp',
+            exp_name='tmp2',
             dataset_name='cifar10',
             # optimizer=cgd.CGD,
             optimizer=optim.SGD,
             weight_decay=0,
             momentum=0,
 
-            learning_rate=0.01,
+            learning_rate={'default':5,'extractor':10},
             num_epochs=1000000,
             batch_size=2048,
             evaluate_step=5000,
-            load_net=True,
+            load_net=False,
             test_net=False,
             num_workers=8,
             # weight_decay=5e-4,

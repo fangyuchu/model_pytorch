@@ -33,6 +33,9 @@ class extractor(nn.Module):
             nn.Linear(in_features,128),
             nn.ReLU(True),
             nn.Linear(128,1,bias=True),
+            # tanh_not_inplace(),
+            nn.Hardtanh(inplace=False)
+            # nn.ReLU(True),
         )
         self.normalization=nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
         

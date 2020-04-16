@@ -19,7 +19,7 @@ import os
 
 
 class predicted_mask_net(nn.Module):
-    def __init__(self,net,net_name,dataset_name,feature_len=15,gcn_rounds=2,only_gcn=False,only_inner_features=False,mask_update_freq=50):
+    def __init__(self,net,net_name,dataset_name,feature_len=15,gcn_rounds=2,only_gcn=False,only_inner_features=False,mask_update_freq=40,mask_update_steps=10):
         '''
         Use filter feature extractor to extract features from a cnn and predict mask for it. The mask will guide the
         cnn to skip filters when forwarding. Both extractor and cnn are updated through back-propagation.
@@ -30,7 +30,8 @@ class predicted_mask_net(nn.Module):
         :param gcn_rounds:
         :param only_gcn:
         :param only_inner_features:
-        :param mask_update_freq: how often does the extractor being updated. The extractor will be updated once per mask_update_freq STEP!
+        :param mask_update_freq: how often does the extractor being updated. The extractor will be updated every mask_update_freq STEPs!
+        :param mask_update_steps: update mask for mask_update_steps STEPs
         '''
         super(predicted_mask_net, self).__init__()
         self.net=self.transform(net)#.to(device)
@@ -41,6 +42,7 @@ class predicted_mask_net(nn.Module):
         self.gcn_rounds=gcn_rounds
         # self.data_parallel=True
         self.mask_update_freq=mask_update_freq
+        self.mask_update_steps=mask_update_steps
         self.step_tracked=0
 
     def train(self, mode=True):
@@ -80,26 +82,28 @@ class predicted_mask_net(nn.Module):
             if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
                 hi += mod.out_channels
                 _modules = get_module(model=self.net, name=name)
-                mod.mask[:]=mask[lo:hi].view(-1)                   #update mask for each conv
-                channel_num=torch.sum(mod.mask!=0)
-                print(channel_num)
+                # mod.mask[:]=mask[lo:hi].view(-1)                   #update mask for each conv
+                mod.mask=mask[lo:hi].view(-1)                   #update mask for each conv
+
+                channel_num=torch.sum(mod.mask!=0)                #code for debug
+                if self.training is True:
+                    if self.step_tracked % self.mask_update_freq ==1 or  self.step_tracked % self.mask_update_freq==self.mask_update_steps:
+                        print(channel_num)                                #print the number of channels without being pruned
 
                 if torch.sum(mod.mask==0)==mod.out_channels:
                     raise Exception('all filters are pruned')
                 lo = hi
-        print()
 
     def forward(self, input):
         # if self.training is True or self.data_parallel is True:
-        if self.training is True :
-            if self.step_tracked % self.mask_update_freq == 0:
+        if self.training is True:
+            self.step_tracked += 1
+            if self.step_tracked % self.mask_update_freq <= self.mask_update_steps:
                 self.update_mask()  # mask only need to be updated when training.
             else:
                 for name, mod in self.net.named_modules():
                     if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
-                        mod.mask=mod.mask.detach()  #detach masks from computation graph so the extractor will not be updated
-
-            self.step_tracked += 1
+                        mod.mask = mod.mask.detach()  # detach masks from computation graph so the extractor will not be updated
         return self.net(input)
 
 

@@ -5,7 +5,7 @@ from prune import prune_and_train
 from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask
 from framework import config as conf
-from framework.train import name_parameters_no_grad
+from framework.train import set_modules_no_grad
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
@@ -258,7 +258,7 @@ train.train(net=net,
     #             target_accuracy=0.7108089533597423,
     #             top_acc=1)
 
-    # no_grad = name_parameters_no_grad(net, ['layer3.block8', 'fc'])
+    # no_grad = set_modules_no_grad(net, ['layer3.block8', 'fc'])
     # success=train.train(net=net,
     #
     #             net_name='resnet56',

@@ -3,7 +3,7 @@ from torch import nn
 import torch.optim as optim
 from prune import prune_and_train
 from framework import evaluate,data_loader,measure_flops,train
-from framework.train import name_parameters_no_grad
+from framework.train import set_modules_no_grad
 from network import vgg,storage,resnet
 from framework import config as conf
 import os
@@ -698,7 +698,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # no_grad=[]
 #
 # # max_filters_pruned_for_one_time[51]=0.2
-# # no_grad=name_parameters_no_grad(net,['layer3.block7','fc'])
+# # no_grad=set_modules_no_grad(net,['layer3.block7','fc'])
 #
 # prune_and_train.prune_inactive_neural_with_extractor(net=net,
 #                                                      net_name='resnet56',

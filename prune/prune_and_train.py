@@ -869,7 +869,7 @@ def prune_inactive_neural_with_extractor(net,
                                   learning_rate_decay_epoch=learning_rate_decay_epoch,
                                   test_net=True,
                                   top_acc=top_acc,
-                                  no_grad=no_grad,
+                                  requires_grad=no_grad,
                                   scheduler_name=scheduler_name
                                   )
             training_round += 1
