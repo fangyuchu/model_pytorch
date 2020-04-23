@@ -16,6 +16,8 @@ import logger
 import sys
 import copy
 from network import storage
+from torch.utils.tensorboard import SummaryWriter
+
 
 
 def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
@@ -78,7 +80,7 @@ def prepare_optimizer(
         learning_rate=conf.learning_rate,
         weight_decay=conf.weight_decay,
         requires_grad=True,
-        **kwargs
+        # **kwargs
 ):
     param_list=[]
     for name, value in net.named_parameters():
@@ -87,7 +89,11 @@ def prepare_optimizer(
             m=look_up_hyperparameter(momentum,name,'momentum')
             lr=look_up_hyperparameter(learning_rate,name,'learning rate')
             wd=look_up_hyperparameter(weight_decay,name,'weight decay')
-            param_list+=[{'params':value,'lr':lr,'weight_decay':wd,'momentum':m}]
+            param_list+=[{'params':value,
+                          'lr':lr,
+                          'initial_lr':lr,
+                          'weight_decay':wd,
+                          'momentum':m}]
 
     optimizer=optimizer(param_list,lr=look_up_hyperparameter(learning_rate,'default','lr'))
 
@@ -123,7 +129,7 @@ def train(
         load_net=True,
         test_net=False,
         root_path=conf.root_path,
-        checkpoint_path=None,
+        # checkpoint_path=None,
         momentum=conf.momentum,
         num_workers=conf.num_workers,
         learning_rate_decay=False,
@@ -173,33 +179,33 @@ def train(
     :param eta_min: for CosineAnnealingLR
     :return:
     '''
+    #todo:在tensorboard里记录实验参数
     torch.autograd.set_detect_anomaly(True)
-    success=True                                                                   #if the trained net reaches target accuracy
+    success = True  # if the trained net reaches target accuracy
     # gpu or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print('using: ',end='')
+    print('using: ', end='')
     if torch.cuda.is_available():
-        print(torch.cuda.device_count(),' * ',end='')
+        print(torch.cuda.device_count(), ' * ', end='')
         print(torch.cuda.get_device_name(torch.cuda.current_device()))
     else:
         print(device)
 
-
-    #prepare the data
+    # prepare the data
     if dataset_name is 'imagenet':
-        mean=conf.imagenet['mean']
-        std=conf.imagenet['std']
-        train_set_path=conf.imagenet['train_set_path']
-        train_set_size=conf.imagenet['train_set_size']
-        validation_set_path=conf.imagenet['validation_set_path']
+        mean = conf.imagenet['mean']
+        std = conf.imagenet['std']
+        train_set_path = conf.imagenet['train_set_path']
+        train_set_size = conf.imagenet['train_set_size']
+        validation_set_path = conf.imagenet['validation_set_path']
         default_image_size = conf.imagenet['default_image_size']
     elif dataset_name is 'cifar10':
-        train_set_size=conf.cifar10['train_set_size']
-        mean=conf.cifar10['mean']
-        std=conf.cifar10['std']
-        train_set_path=conf.cifar10['dataset_path']
-        validation_set_path=conf.cifar10['dataset_path']
-        default_image_size=conf.cifar10['default_image_size']
+        train_set_size = conf.cifar10['train_set_size']
+        mean = conf.cifar10['mean']
+        std = conf.cifar10['std']
+        train_set_path = conf.cifar10['dataset_path']
+        validation_set_path = conf.cifar10['dataset_path']
+        default_image_size = conf.cifar10['default_image_size']
     elif dataset_name is 'tiny_imagenet':
         train_set_size = conf.tiny_imagenet['train_set_size']
         mean = conf.tiny_imagenet['mean']
@@ -208,12 +214,12 @@ def train(
         validation_set_path = conf.tiny_imagenet['validation_set_path']
         default_image_size = conf.tiny_imagenet['default_image_size']
     elif dataset_name is 'cifar100':
-        train_set_size=conf.cifar100['train_set_size']
-        mean=conf.cifar100['mean']
-        std=conf.cifar100['std']
-        train_set_path=conf.cifar100['dataset_path']
-        validation_set_path=conf.cifar100['dataset_path']
-        default_image_size=conf.cifar100['default_image_size']
+        train_set_size = conf.cifar100['train_set_size']
+        mean = conf.cifar100['mean']
+        std = conf.cifar100['std']
+        train_set_path = conf.cifar100['dataset_path']
+        validation_set_path = conf.cifar100['dataset_path']
+        default_image_size = conf.cifar100['default_image_size']
     if train_loader is None:
         train_loader= data_loader.create_train_loader(dataset_path=train_set_path,
                                                       default_image_size=default_image_size,
@@ -232,10 +238,14 @@ def train(
                                                                 dataset_name=dataset_name)
 
 
-    if checkpoint_path is None:
-        checkpoint_path=os.path.join(root_path,'model_saved',exp_name,'checkpoint')
+    # if checkpoint_path is None:
+    exp_path=os.path.join(root_path,'model_saved',exp_name)
+    checkpoint_path=os.path.join(exp_path,'checkpoint')
+    tensorboard_path=os.path.join(exp_path,'tensorboard')
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path,exist_ok=True)
+    if not os.path.exists(tensorboard_path):
+        os.makedirs(tensorboard_path, exist_ok=True)
 
     #get the latest checkpoint
     lists = os.listdir(checkpoint_path)
@@ -251,6 +261,16 @@ def train(
             print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
             net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
             sample_num = checkpoint['sample_num']
+
+    #set up summary writer for tensorboard
+    writer=SummaryWriter(log_dir=tensorboard_path,
+                         purge_step=int(sample_num/batch_size))
+    if dataset_name is 'imagenet'or dataset_name is 'tiny_imagenet':
+        image=torch.zeros(2,3,224,224).to(device)
+    elif dataset_name is 'cifar10' or dataset_name is 'cifar100':
+        image=torch.zeros(2,3,32,32).to(device)
+
+    # writer.add_graph(net, image)
 
     if test_net:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
@@ -292,6 +312,7 @@ def train(
     xaxis_acc=[]
     xaxis=0
     print("{} Start training ".format(datetime.now())+net_name+"...")
+    # add_forward_hook(net, module_name='net.features.4')
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
@@ -324,8 +345,19 @@ def train(
 
             optimizer.zero_grad()
             # forward + backward
+
+            # net.eval()
+            # outputs = net(images)
+            # loss = criterion(outputs, labels)
+
+
+            net.train()
             outputs = net(images)
             loss = criterion(outputs, labels)
+
+            #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
+
+
             # loss2=torch.zeros(1).to(images.device)
             # for name, mod in net.named_modules():
             #     if isinstance(mod, net_with_predicted_mask.conv2d_with_mask) and 'downsample' not in name:
@@ -338,10 +370,14 @@ def train(
 
             loss_list+=[float(loss.detach())]
             xaxis_loss+=[xaxis]
+            writer.add_scalar(tag='status/loss',
+                              scalar_value=float(loss.detach()),
+                              global_step=int(sample_num / batch_size))
+
 
             if step%20==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
-
+            old_net=net.copy()
             if step % evaluate_step == 0 and step != 0:
                 accuracy= evaluate.evaluate_net(net, validation_loader,
                                                 save_net=True,
@@ -352,6 +388,7 @@ def train(
                                                 top_acc=top_acc,
                                                 net_name=net_name,
                                                 exp_name=exp_name)
+                evaluate.same_two_nets(net,old_net,print_diffrent_module=True)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
@@ -359,6 +396,9 @@ def train(
 
                 acc_list+=[accuracy]
                 xaxis_acc+=[xaxis]
+                writer.add_scalar(tag='status/val_acc',
+                                  scalar_value=accuracy,
+                                  global_step=int(sample_num / batch_size))
 
                 if paint_loss:
                     fig , ax1 =plt.subplots()
@@ -397,6 +437,7 @@ def train(
     checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
     torch.save(checkpoint, '%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num, accuracy))
     print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
+    writer.close()
     return not success
 
 
@@ -479,6 +520,18 @@ def pixel_transform(feature_maps):
         ratio = mean / (mean - min)
     feature_maps = ratio * (feature_maps - mean) + mean  # 把像素划入0-255
     return feature_maps
+
+def add_forward_hook(net,module_class=None,module_name=None):
+    def hook(module, input, output):
+        print(name_of_mod[module])
+        print('input:',input[0].shape)
+        print('output:',output.shape)
+    name_of_mod={}
+    for name,mod in net.named_modules() :
+        if module_class is not None and isinstance(mod,module_class) or\
+                module_name is not None and module_name == name:
+            handle=mod.register_forward_hook(hook)
+            name_of_mod[mod]=name
 
 
 if __name__ == "__main__":
