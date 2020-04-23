@@ -11,8 +11,6 @@ class conv2d_with_mask(nn.modules.Conv2d):
         self.weight = conv.weight
         if self.bias is not None:
             self.bias = conv.bias
-        # self.mask=nn.Parameter(torch.randn((conv.out_channels,1)))
-        # self.mask=torch.randn((conv.out_channels,1))
         mask = torch.ones(conv.out_channels)
         self.register_buffer('mask', mask)  # register self.mask as buffer in pytorch module
 
@@ -24,13 +22,42 @@ class conv2d_with_mask(nn.modules.Conv2d):
             masked_bias = self.bias * self.mask.view(-1)
         # 考虑conv减了之后bn怎么办
         # 暂时通过bn不track running stats解决
-        try:
-            out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,
-                                       self.padding, self.dilation, self.groups)
-        except RuntimeError:
-            print()
+        out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,
+                                   self.padding, self.dilation, self.groups)
+
 
         return out
+
+
+class conv2d_with_mask_shortcut(conv2d_with_mask):
+    def __init__(self, conv, w_in):
+        super(conv2d_with_mask_shortcut, self).__init__(conv)
+        w_out = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / conv.stride[0]) + 1
+        if w_in != w_out or conv.in_channels != conv.out_channels:
+            # add a shortcut with 1x1 conv
+            # (w_in+2p-k)/(w_out-1) <= stride <= (w_in+2p-k)/(w_out)
+            stride = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / (w_out - 1))
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels=conv.in_channels,
+                          out_channels=conv.out_channels,
+                          stride=stride,
+                          # padding=conv.padding,
+                          kernel_size=1),
+                nn.BatchNorm2d(conv.out_channels)
+            )
+        else:
+            self.shortcut = None
+
+    def forward(self, input):
+        x = super().forward(input)
+        if self.shortcut is not None:
+            x = x + self.shortcut(input)
+        else:
+            x = x + input
+        return x
+
+
+
 
 class BasicBlock_with_mask(nn.Module):
     def __init__(self, basic_block):#in_planes, planes, stride=1, option='A'):
