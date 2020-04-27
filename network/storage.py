@@ -24,7 +24,7 @@ def get_net_information(net,dataset_name,net_name):
     checkpoint['structure']=structure
 
     if isinstance(net,net_with_predicted_mask.predicted_mask_net):
-        checkpoint['transformed_net']=True
+        checkpoint['net_type']=type(net)
         checkpoint['feature_len']=net.feature_len
         checkpoint['gcn_rounds']=net.gcn_rounds
     # try:
@@ -60,6 +60,7 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
         raise Exception('Unsupported net type:'+net_name)
 
     #prune the network according to checkpoint['structure']
+    # if 'net_type' not in checkpoint.keys():
     num_layer=0
     for name,mod in net.named_modules():
         if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
@@ -73,20 +74,26 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
                                                          )
             num_layer+=1
 
-    if 'transformed_net' in checkpoint.keys():
-        t_net=net_with_predicted_mask.predicted_mask_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
-        net=t_net
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
 
+    if 'net_type' in checkpoint.keys():
+        if checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_net:
+            t_net=net_with_predicted_mask.predicted_mask_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
+        elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_and_shortcut_net:
+            t_net=net_with_predicted_mask.predicted_mask_and_shortcut_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
+        net=t_net
+
+
+
     if pretrained:
-        try:
-            net.load_state_dict(checkpoint['state_dict'])
-        except RuntimeError:
-            net=nn.DataParallel(net)
-            net.load_state_dict(checkpoint['state_dict'])
-            net=net._modules['module']
+        net.load_state_dict(checkpoint['state_dict'])
+        # try:
+        #     net.load_state_dict(checkpoint['state_dict'])
+        # except RuntimeError:
+        #     net=nn.DataParallel(net)
+        #     net.load_state_dict(checkpoint['state_dict'])
+        #     net=net._modules['module']
     if data_parallel:
         net=nn.DataParallel(net)
     return net

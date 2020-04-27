@@ -37,21 +37,20 @@ class conv2d_with_mask_shortcut(conv2d_with_mask):
             # add a shortcut with 1x1 conv
             # (w_in+2p-k)/(w_out-1) <= stride <= (w_in+2p-k)/(w_out)
             stride = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / (w_out - 1))
-            self.shortcut = nn.Sequential(
+            self.downsample = nn.Sequential(
                 nn.Conv2d(in_channels=conv.in_channels,
                           out_channels=conv.out_channels,
                           stride=stride,
-                          # padding=conv.padding,
                           kernel_size=1),
                 nn.BatchNorm2d(conv.out_channels)
             )
         else:
-            self.shortcut = None
+            self.downsample = None
 
     def forward(self, input):
         x = super().forward(input)
-        if self.shortcut is not None:
-            x = x + self.shortcut(input)
+        if self.downsample is not None:
+            x = x + self.downsample(input)
         else:
             x = x + input
         return x

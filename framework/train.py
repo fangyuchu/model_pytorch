@@ -313,6 +313,9 @@ def train(
     xaxis=0
     print("{} Start training ".format(datetime.now())+net_name+"...")
     # add_forward_hook(net, module_name='net.features.4')
+    # from network.modules import conv2d_with_mask_shortcut
+    # add_backward_hook(net,conv2d_with_mask_shortcut)
+    # add_backward_hook(net,nn.Linear)
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
@@ -366,6 +369,17 @@ def train(
             # loss=loss+0.001*loss2
 
             loss.backward()
+
+
+            # for name,mod in net.named_modules():
+            #     from network.modules import conv2d_with_mask_shortcut
+            #     if isinstance(mod,conv2d_with_mask_shortcut) or isinstance(mod,nn.Linear) or isinstance(mod,nn.Conv2d):
+            #         grad=mod.weight.grad.detach().cpu().numpy()
+            #         grad_no_zero=grad[grad!=0]
+            #         print(name,grad_no_zero.mean())
+
+
+
             optimizer.step()
 
             loss_list+=[float(loss.detach())]
@@ -377,7 +391,6 @@ def train(
 
             if step%20==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
-            old_net=net.copy()
             if step % evaluate_step == 0 and step != 0:
                 accuracy= evaluate.evaluate_net(net, validation_loader,
                                                 save_net=True,
@@ -388,7 +401,6 @@ def train(
                                                 top_acc=top_acc,
                                                 net_name=net_name,
                                                 exp_name=exp_name)
-                evaluate.same_two_nets(net,old_net,print_diffrent_module=True)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
@@ -410,7 +422,6 @@ def train(
                     ax2.set_ylabel('accuracy')
                     plt.title(exp_name)
                     plt.savefig(os.path.join(root_path,'model_saved',exp_name,'train.png'))
-                    plt.show()
 
                 print('{} continue training'.format(datetime.now()))
         if learning_rate_decay:
@@ -532,6 +543,9 @@ def add_forward_hook(net,module_class=None,module_name=None):
                 module_name is not None and module_name == name:
             handle=mod.register_forward_hook(hook)
             name_of_mod[mod]=name
+
+
+
 
 
 if __name__ == "__main__":

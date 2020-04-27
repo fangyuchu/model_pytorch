@@ -30,7 +30,6 @@ class predicted_mask_net(nn.Module):
         :param mask_update_steps: update mask for mask_update_steps STEPs
         '''
         super(predicted_mask_net, self).__init__()
-        self.net=self.transform(net)#.to(device)
         self.extractor=filter_feature_extractor.extractor(feature_len=feature_len,gcn_rounds=gcn_rounds,only_gcn=only_gcn,only_inner_features=only_inner_features)
         self.net_name=net_name
         self.dataset_name=dataset_name
@@ -40,6 +39,8 @@ class predicted_mask_net(nn.Module):
         self.mask_update_freq=mask_update_freq
         self.mask_update_steps=mask_update_steps
         self.step_tracked=0
+        self.net=self.transform(net)#.to(device)
+
 
     def train(self, mode=True):
         super().train(mode)
@@ -72,32 +73,44 @@ class predicted_mask_net(nn.Module):
         for name, mod in self.named_modules():
             if 'net' in name and (isinstance(mod, nn.BatchNorm2d) or isinstance(mod, nn.BatchNorm1d)):
                 if track is False:
-                    mod.reset_running_stats()   #reset all tracked value
+                    mod.reset_running_stats()  # reset all tracked value
                 mod.track_running_stats = track
-    def mask_need_update(self):
-        if self.step_tracked % self.mask_update_freq <= self.mask_update_steps:
-            return True
+
+    def train_mask(self):
+        #update mask and track_running_stats in BN according to current step
+        if self.training:
+            if self.step_tracked % self.mask_update_freq <= self.mask_update_steps:
+                if self.step_tracked % self.mask_update_freq == 1:  # mask need to be trained
+                    print('{} start updating the mask.'.format(datetime.now()))
+                    self.print_mask()
+                    self.track_running_stats(track=False)  # don't track stats on BN when updating the mask to avoid volatility
+                self.update_mask()
+            else:  # mask will not be trained. Only net will be trained
+                if self.step_tracked % self.mask_update_freq == self.mask_update_steps + 1:
+                    print('{} stop updating the mask.'.format(datetime.now()))
+                    self.print_mask()
+                    self.track_running_stats(track=True)  # track stats on BN when mask is not updated
+                self.detach_mask()
         else:
-            return False
+            raise Exception('Masks should not be trained or updated in evaluation mode.')
+
     def update_mask(self):
+        if self.training is False:
+            raise Exception('Masks should not be updated in evaluation mode.')
         mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
         lo = hi = 0
         last_conv_mask = None
+        layer=0
         for name, mod in self.net.named_modules():
             if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+                layer+=1
                 hi += mod.out_channels
                 _modules = get_module(model=self.net, name=name)
                 mod.mask = mask[lo:hi].view(-1)  # update mask for each conv
-
-                channel_num=torch.sum(mod.mask!=0)                #code for debug
-                if self.training is True:
-                    if self.step_tracked % self.mask_update_freq ==1 or  self.step_tracked % self.mask_update_freq==self.mask_update_steps:
-                        print(channel_num)                                #print the number of channels without being pruned
-
                 if torch.sum(mod.mask == 0) == mod.out_channels:
-                    print(name+' has been removed')
-                    print(mask.reshape(-1))
-                    # raise Exception('all filters are pruned')
+                    pass
+                    # print('{} layer{},{} has been removed'.format(datetime.now(),layer,name))
+                    # print(mask.reshape(-1))
                 lo = hi
                 last_conv_mask = mod.mask
             else:
@@ -108,23 +121,29 @@ class predicted_mask_net(nn.Module):
                     mod.running_var[last_conv_mask == 0] = 1
                 last_conv_mask = None
 
+    def print_mask(self):
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+                channel_num = torch.sum(mod.mask != 0)
+                print(channel_num)  # print the number of channels without being pruned
+
+    def detach_mask(self):
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+                mod.mask = mod.mask.detach()  # detach masks from computation graph so the extractor will not be updated
+
     def forward(self, input):
-        self.track_running_stats(track=True)
         if self.training is True:
             self.step_tracked += 1
-            if self.mask_need_update():
-                self.track_running_stats(track=False)  # don't track stats on BN when updating the mask to avoid volatility
-                self.update_mask()  # mask only need to be updated when training.
-            else:
-                for name, mod in self.net.named_modules():
-                    if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
-                        mod.mask = mod.mask.detach()  # detach masks from computation graph so the extractor will not be updated
+            self.train_mask()
+            if self.step_tracked==1:
+                self.print_mask()
         return self.net(input)
 
 
 
 class predicted_mask_and_shortcut_net(predicted_mask_net):
-    def __init__(self,net,net_name,dataset_name):
+    def __init__(self,net,net_name,dataset_name,feature_len=15,gcn_rounds=2,only_gcn=False,only_inner_features=False,mask_update_freq=4000,mask_update_steps=400):
         '''
         Use filter feature extractor to extract features from a cnn and predict mask for it. The mask will guide the
         cnn to skip filters when forwarding. Both extractor and cnn are updated through back-propagation.
@@ -138,10 +157,11 @@ class predicted_mask_and_shortcut_net(predicted_mask_net):
         :param mask_update_freq: how often does the extractor being updated. The extractor will be updated every mask_update_freq STEPs!
         :param mask_update_steps: update mask for mask_update_steps STEPs
         '''
-        super(predicted_mask_and_shortcut_net, self).__init__(net, net_name, dataset_name)
-        self.net = self.transform(net, dataset_name)
+        super(predicted_mask_and_shortcut_net, self).__init__(net, net_name, dataset_name, feature_len, gcn_rounds,
+                                                              only_gcn, only_inner_features, mask_update_freq,
+                                                              mask_update_steps)
 
-    def transform(self, net, dataset_name):
+    def transform(self, net):
         def hook(module, input, output):
             map_size[module] = input[0].shape[1]
 
@@ -153,9 +173,9 @@ class predicted_mask_and_shortcut_net(predicted_mask_net):
                 device = mod.weight.device
                 handle += [mod.register_forward_hook(hook)]
 
-        if dataset_name is 'imagenet' or dataset_name is 'tiny_imagenet':
+        if self.dataset_name is 'imagenet' or self.dataset_name is 'tiny_imagenet':
             image = torch.zeros((2, 3, 224, 224)).to(device)
-        elif dataset_name is 'cifar10' or dataset_name is 'cifar100':
+        elif self.dataset_name is 'cifar10' or self.dataset_name is 'cifar100':
             image = torch.zeros((2, 3, 32, 32)).to(device)
         net(image)  # record input feature map sizes of each conv
         for h in handle:

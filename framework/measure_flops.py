@@ -94,9 +94,9 @@ def measure_model_mine(net,dataset_name='imagenet'):
 def measure_model(net, dataset_name='imagenet', print_flop=True):
 
     if dataset_name is 'imagenet'or dataset_name is 'tiny_imagenet':
-        shape=(1,3,224,224)
+        shape=(2,3,224,224)
     elif dataset_name is 'cifar10' or dataset_name is 'cifar100':
-        shape=(1,3,32,32)
+        shape=(2,3,32,32)
 
 
     global count_ops

@@ -6,46 +6,80 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask
 from framework import config as conf
 from framework.train import set_modules_no_grad
-import os
+import os,sys,logger
 os.environ["CUDA_VISIBLE_DEVICES"] = '2'
-
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#todo:训练到后面减少extractor的训练频率
+#检查为什么中间几层是0，他们在extractor中的输入是什么，输出是什么。为什么最后一层的从来不剪？
+#weight-decay是不是改成1e-4?
+#训练schedule
 
-net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')),pretrained=False)
 
-net = net_with_predicted_mask.predicted_mask_net(net, net_name='vgg16_bn', dataset_name='cifar10').to(device)
 
-# net=nn.DataParallel(net)
-# net.eval()
-# net.to(device)
-net.train()
+optimizer = optim.SGD
+weight_decay = {'default':1e-6,'extractor':0}
+momentum = {'default':0.9,'extractor':0}
+learning_rate = {'default': 0.1, 'extractor': 0.1}
+exp_name='vgg16bn_mask_shortcut_1'
+mask_update_freq = 4000
+mask_update_steps = 400
+
+
+
+# net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')),pretrained=False)
+net=vgg.vgg16_bn(dataset_name='cifar10')
+# net = net_with_predicted_mask.predicted_mask_net(net,
+#                                                  net_name='vgg16_bn',
+#                                                  dataset_name='cifar10',
+#                                                  mask_update_steps=mask_update_steps,
+#                                                  mask_update_freq=mask_update_freq)
+
+net = net_with_predicted_mask.predicted_mask_and_shortcut_net(net,
+                                                 net_name='vgg16_bn',
+                                                 dataset_name='cifar10',
+                                                 mask_update_steps=mask_update_steps,
+                                                 mask_update_freq=mask_update_freq)
+# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/tmp/checkpoint/flop=313733786,accuracy=0.87980.tar')
+# net.load_state_dict(checkpoint['state_dict'])
+net=net.to(device)
+
+checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+# save the output to log
+print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+if not os.path.exists(checkpoint_path):
+    os.makedirs(checkpoint_path, exist_ok=True)
+sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+
+print(optimizer,weight_decay,momentum,learning_rate,mask_update_freq,mask_update_steps)
+
+# train.add_forward_hook(net,module_name='net.features.1')
 
 train.train(net=net,
             net_name='vgg16_bn',
-            exp_name='vgg16bn_predicted_0.8_5',
+            exp_name=exp_name,
             dataset_name='cifar10',
             # optimizer=cgd.CGD,
-            optimizer=optim.SGD,
-            weight_decay=0,
-            momentum=0,
 
-            learning_rate=0.01,
-            num_epochs=1000000,
-            batch_size=2048,
+            optimizer=optim.SGD,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            learning_rate=learning_rate,
+
+            num_epochs=350,
+            batch_size=128,
             evaluate_step=5000,
             load_net=True,
             test_net=False,
             num_workers=8,
             # weight_decay=5e-4,
-            learning_rate_decay=False,
+            learning_rate_decay=True,
             learning_rate_decay_epoch=[100,250],
             learning_rate_decay_factor=0.1,
             scheduler_name='MultiStepLR',
             top_acc=1,
             data_parallel=False,
             paint_loss=True,
-            # no_grad=no_grad,
             )
 
 

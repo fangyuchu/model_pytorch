@@ -4,6 +4,7 @@ from transform_conv import conv_to_matrix
 import torch.nn as nn
 from network import vgg,resnet_cifar,resnet,net_with_predicted_mask
 import copy
+from network.modules import conv2d_with_mask_shortcut
 from framework import evaluate
 
 
@@ -42,8 +43,8 @@ class gcn(nn.Module):
             net=copy.deepcopy(net)
         conv_list=[]
         filter_num=[]
-        for mod in net.modules():
-            if isinstance(mod,nn.Conv2d):
+        for name,mod in net.named_modules():
+            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
                 filter_num += [mod.out_channels]
                 conv_list+=[mod]
 
@@ -125,6 +126,8 @@ class gcn(nn.Module):
                 zero_padding=True
             if isinstance(mod,nn.Conv2d):
                 if 'downsample' in name:
+                    #todo: conv with shortcut可能会干扰
+                    raise Exception('see the code')
                     weight_dowmsample = conv_to_matrix(mod)
                     continue
                 conv_list+=[mod]      #a list containing 2-d conv weight matrix
@@ -159,9 +162,18 @@ class gcn(nn.Module):
 
         for i in range(len(conv_list)):
             kernel_size=conv_list[i].kernel_size[0]*conv_list[i].kernel_size[1]
+            old_mean=mean
             mean = mean.repeat(1, kernel_size).view(-1)  # expand each value for 9 times.
             weight_list[i] += mean  # aggregate the mean from previous layer
-            mean = weight_list[i].mean(dim=1).reshape([-1, 1])  # calculate the mean of current layer
+            if isinstance(conv_list[i],conv2d_with_mask_shortcut):
+                if conv_list[i].downsample is None:  # direct shortcut w/o 1x1 conv
+                    mean = weight_list[i].mean(dim=1).reshape([-1, 1]) + old_mean
+                else:  # shortcut with 1x1 conv
+                    weight_downsample = conv_to_matrix(conv_list[i].downsample[0])
+                    dowmsample_mean = (weight_downsample + old_mean.view(-1)).mean(dim=1)
+                    mean = (weight_list[i].mean(dim=1) + dowmsample_mean).reshape([-1, 1])
+            else:
+                mean = weight_list[i].mean(dim=1).reshape([-1, 1])  # calculate the mean of current layer
         information_at_last=mean
         return conv_list,information_at_last                    #information from the last conv
 
