@@ -10,8 +10,6 @@ def conv_to_matrix(conv):
     :param conv: conv module
     :return: 2-d tensor. each row is one filter.
     '''
-    if isinstance(conv,conv2d_with_mask):
-        conv.weight.data=conv.weight*conv.mask.view(-1, 1, 1, 1)
     weight = conv.weight.detach()
     matrix = weight.view(weight.size(0), -1)
     return matrix

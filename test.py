@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from framework import data_loader, train, evaluate,measure_flops
-from network import vgg_channel_weight, vgg,storage,resnet,net_with_predicted_mask,resnet_cifar,net_with_mask_shortcut
+from network import vgg_channel_weight, vgg,storage,resnet,net_with_predicted_mask,resnet_cifar
 from framework import config as conf
 import os,sys
 from filter_characteristic import filter_feature_extractor,predict_dead_filter
@@ -87,16 +87,23 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 mask_update_freq = 4000
-mask_update_steps = 400
+mask_update_steps = 2
 net=vgg.vgg16_bn(dataset_name='cifar10')
 net = net_with_predicted_mask.predicted_mask_and_shortcut_net(net,
                                                  net_name='vgg16_bn',
                                                  dataset_name='cifar10',
                                                  mask_update_steps=mask_update_steps,
-                                                 mask_update_freq=mask_update_freq)
-# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16bn_predictedmask3/checkpoint/flop=313471130,accuracy=0.16720.tar')
-# net.load_state_dict(checkpoint['state_dict'])
+                                                 mask_update_freq=mask_update_freq,
+                                                              flop_expected=5e7)
+checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16bn_mask_shortcut_2/checkpoint/flop=261559818,accuracy=0.93360.tar')
+# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/vgg16bn_mask_shortcut_3_flop5/checkpoint/flop=49822218,accuracy=0.10000.tar')
+net.load_state_dict(checkpoint['state_dict'])
 net=net.to(device)
+
+measure_flops.measure_model(net,'cifar10')
+print()
+
+
 # net.eval()
 
 # evaluate.evaluate_net(net,data_loader=data_loader.create_train_loader(batch_size=1024,num_workers=2,dataset_name='cifar10'),save_net=False)
@@ -115,7 +122,7 @@ net=net.to(device)
 # net=vgg.vgg16_bn(dataset_name='cifar10').to(device)
 train.train(net=net,
             net_name='vgg16_bn',
-            exp_name='tmp',
+            exp_name='test',
             dataset_name='cifar10',
             # optimizer=cgd.CGD,
             optimizer=optim.SGD,

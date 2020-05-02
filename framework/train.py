@@ -312,10 +312,9 @@ def train(
     xaxis_acc=[]
     xaxis=0
     print("{} Start training ".format(datetime.now())+net_name+"...")
-    # add_forward_hook(net, module_name='net.features.4')
     # from network.modules import conv2d_with_mask_shortcut
-    # add_backward_hook(net,conv2d_with_mask_shortcut)
-    # add_backward_hook(net,nn.Linear)
+    # add_forward_hook(net, module_class=conv2d_with_mask_shortcut)
+
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
@@ -348,37 +347,12 @@ def train(
 
             optimizer.zero_grad()
             # forward + backward
-
-            # net.eval()
-            # outputs = net(images)
-            # loss = criterion(outputs, labels)
-
-
             net.train()
             outputs = net(images)
             loss = criterion(outputs, labels)
-
             #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
 
-
-            # loss2=torch.zeros(1).to(images.device)
-            # for name, mod in net.named_modules():
-            #     if isinstance(mod, net_with_predicted_mask.conv2d_with_mask) and 'downsample' not in name:
-            #         loss2-=torch.sum(mod.mask)
-            #
-            # loss=loss+0.001*loss2
-
             loss.backward()
-
-
-            # for name,mod in net.named_modules():
-            #     from network.modules import conv2d_with_mask_shortcut
-            #     if isinstance(mod,conv2d_with_mask_shortcut) or isinstance(mod,nn.Linear) or isinstance(mod,nn.Conv2d):
-            #         grad=mod.weight.grad.detach().cpu().numpy()
-            #         grad_no_zero=grad[grad!=0]
-            #         print(name,grad_no_zero.mean())
-
-
 
             optimizer.step()
 
@@ -422,6 +396,7 @@ def train(
                     ax2.set_ylabel('accuracy')
                     plt.title(exp_name)
                     plt.savefig(os.path.join(root_path,'model_saved',exp_name,'train.png'))
+                    plt.close()
 
                 print('{} continue training'.format(datetime.now()))
         if learning_rate_decay:
@@ -451,6 +426,28 @@ def train(
     writer.close()
     return not success
 
+def add_forward_hook(net,module_class=None,module_name=None):
+    def hook(module, input, output):
+        print(name_of_mod[module])
+        print('input:',input[0].shape)
+        print('output:',output.shape)
+    name_of_mod={}
+    for name,mod in net.named_modules() :
+        if module_class is not None and isinstance(mod,module_class) or\
+                module_name is not None and module_name == name:
+            handle=mod.register_forward_hook(hook)
+            name_of_mod[mod]=name
+
+def check_grad(net,step):
+    print(step)
+    net.print_mask()
+    for name,mod in net.named_modules():
+        from network.modules import conv2d_with_mask_shortcut
+        if isinstance(mod,conv2d_with_mask_shortcut) or isinstance(mod,nn.Linear) or isinstance(mod,nn.Conv2d):
+            grad=mod.weight.grad.detach().cpu().numpy()
+            grad_no_zero=grad[grad!=0]
+            print(name,grad_no_zero.mean())
+    print()
 
 # def show_feature_map(
 #                     net,
@@ -532,17 +529,6 @@ def pixel_transform(feature_maps):
     feature_maps = ratio * (feature_maps - mean) + mean  # 把像素划入0-255
     return feature_maps
 
-def add_forward_hook(net,module_class=None,module_name=None):
-    def hook(module, input, output):
-        print(name_of_mod[module])
-        print('input:',input[0].shape)
-        print('output:',output.shape)
-    name_of_mod={}
-    for name,mod in net.named_modules() :
-        if module_class is not None and isinstance(mod,module_class) or\
-                module_name is not None and module_name == name:
-            handle=mod.register_forward_hook(hook)
-            name_of_mod[mod]=name
 
 
 

@@ -2,7 +2,7 @@ import torch
 from filter_characteristic.graph_convolutional_network import gcn
 import torch.nn as nn
 import transform_conv
-from network import vgg
+from network import vgg,net_with_predicted_mask
 import network.vgg as vgg
 import numpy as np
 from network import storage
@@ -33,9 +33,7 @@ class extractor(nn.Module):
             nn.Linear(in_features,128),
             nn.ReLU(True),
             nn.Linear(128,1,bias=True),
-            # tanh_not_inplace(),
             nn.Hardtanh(inplace=False)
-            # nn.ReLU(True),
         )
         self.normalization=nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
         
@@ -52,11 +50,6 @@ class extractor(nn.Module):
         features=self.normalization(features)
 
         out = self.network(features)
-
-        _,mask_index=torch.topk(torch.abs(out),k=int(0.8*out.shape[0]),dim=0,largest=False)
-        out[mask_index]=0
-
-
         return out
 
     def extract_innerlayer_features(self,net):

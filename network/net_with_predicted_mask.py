@@ -15,7 +15,7 @@ import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 class predicted_mask_net(nn.Module):
-    def __init__(self,net,net_name,dataset_name,feature_len=15,gcn_rounds=2,only_gcn=False,only_inner_features=False,mask_update_freq=4000,mask_update_steps=400):
+    def __init__(self,net,net_name,dataset_name,flop_expected,feature_len=15,gcn_rounds=2,only_gcn=False,only_inner_features=False,mask_update_freq=4000,mask_update_steps=400):
         '''
         Use filter feature extractor to extract features from a cnn and predict mask for it. The mask will guide the
         cnn to skip filters when forwarding. Both extractor and cnn are updated through back-propagation.
@@ -40,12 +40,11 @@ class predicted_mask_net(nn.Module):
         self.mask_update_steps=mask_update_steps
         self.step_tracked=0
         self.net=self.transform(net)#.to(device)
+        self.flop_expected=flop_expected
 
 
     def train(self, mode=True):
         super().train(mode)
-        # if mode is False:
-        #     self.update_mask()  # update the mask when being switched to eval mode
         return self
 
     def eval(self):
@@ -79,8 +78,8 @@ class predicted_mask_net(nn.Module):
     def train_mask(self):
         #update mask and track_running_stats in BN according to current step
         if self.training:
-            if self.step_tracked % self.mask_update_freq <= self.mask_update_steps:
-                if self.step_tracked % self.mask_update_freq == 1:  # mask need to be trained
+            if self.step_tracked % self.mask_update_freq <= self.mask_update_steps:  # mask need to be trained
+                if self.step_tracked % self.mask_update_freq == 1:
                     print('{} start updating the mask.'.format(datetime.now()))
                     self.print_mask()
                     self.track_running_stats(track=False)  # don't track stats on BN when updating the mask to avoid volatility
@@ -98,6 +97,11 @@ class predicted_mask_net(nn.Module):
         if self.training is False:
             raise Exception('Masks should not be updated in evaluation mode.')
         mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
+
+        prune_rate=self.find_prune_rate(mask)
+        _, mask_index = torch.topk(torch.abs(mask), k=int(prune_rate * mask.shape[0]), dim=0, largest=False)
+        mask[mask_index] = 0
+
         lo = hi = 0
         last_conv_mask = None
         layer=0
@@ -107,10 +111,6 @@ class predicted_mask_net(nn.Module):
                 hi += mod.out_channels
                 _modules = get_module(model=self.net, name=name)
                 mod.mask = mask[lo:hi].view(-1)  # update mask for each conv
-                if torch.sum(mod.mask == 0) == mod.out_channels:
-                    pass
-                    # print('{} layer{},{} has been removed'.format(datetime.now(),layer,name))
-                    # print(mask.reshape(-1))
                 lo = hi
                 last_conv_mask = mod.mask
             else:
@@ -120,6 +120,45 @@ class predicted_mask_net(nn.Module):
                     mod.running_mean[last_conv_mask == 0] = 0
                     mod.running_var[last_conv_mask == 0] = 1
                 last_conv_mask = None
+
+    def find_prune_rate(self, mask):
+        '''
+        use binary search to determine the number of filters to prune for a given flops
+        :param mask:
+        :return:
+        '''
+        prune_rate_hi = 1
+        prune_rate_lo = 0
+        pruned_filters = mask.shape[0]  # number of filters being pruned
+
+        while True:
+            prune_rate = (prune_rate_hi + prune_rate_lo) / 2
+            mask_tmp = mask.clone().detach()
+            last_pruned_filters = pruned_filters  # number of filters being pruned in the last time
+            pruned_filters = int(prune_rate * mask.shape[0])
+            if pruned_filters == last_pruned_filters:  # the search reach convergence
+                break
+
+            _, mask_index = torch.topk(torch.abs(mask_tmp), k=pruned_filters, dim=0, largest=False)
+            mask_tmp[mask_index] = 0
+            lo = hi = 0
+            layer = 0
+            for name, mod in self.net.named_modules():
+                if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+                    layer += 1
+                    hi += mod.out_channels
+                    _modules = get_module(model=self.net, name=name)
+                    mod.mask = mask_tmp[lo:hi].view(-1)  # update mask for each con
+                    lo = hi
+
+            flops = measure_flops.measure_model(self, dataset_name=self.dataset_name, print_flop=False)
+            if flops < self.flop_expected:  # need to prune less(a lower prune rate)
+                prune_rate_hi = prune_rate
+            elif flops > self.flop_expected:  # need to prune more(a higher prune rate)
+                prune_rate_lo = prune_rate
+            else:
+                break
+        return prune_rate
 
     def print_mask(self):
         for name, mod in self.net.named_modules():
@@ -143,7 +182,7 @@ class predicted_mask_net(nn.Module):
 
 
 class predicted_mask_and_shortcut_net(predicted_mask_net):
-    def __init__(self,net,net_name,dataset_name,feature_len=15,gcn_rounds=2,only_gcn=False,only_inner_features=False,mask_update_freq=4000,mask_update_steps=400):
+    def __init__(self,net,net_name,dataset_name,flop_expected,feature_len=15,gcn_rounds=2,only_gcn=False,only_inner_features=False,mask_update_freq=4000,mask_update_steps=400):
         '''
         Use filter feature extractor to extract features from a cnn and predict mask for it. The mask will guide the
         cnn to skip filters when forwarding. Both extractor and cnn are updated through back-propagation.
@@ -157,7 +196,7 @@ class predicted_mask_and_shortcut_net(predicted_mask_net):
         :param mask_update_freq: how often does the extractor being updated. The extractor will be updated every mask_update_freq STEPs!
         :param mask_update_steps: update mask for mask_update_steps STEPs
         '''
-        super(predicted_mask_and_shortcut_net, self).__init__(net, net_name, dataset_name, feature_len, gcn_rounds,
+        super(predicted_mask_and_shortcut_net, self).__init__(net, net_name, dataset_name,flop_expected, feature_len, gcn_rounds,
                                                               only_gcn, only_inner_features, mask_update_freq,
                                                               mask_update_steps)
 
@@ -187,3 +226,7 @@ class predicted_mask_and_shortcut_net(predicted_mask_net):
                 _modules[name.split('.')[-1]] = conv2d_with_mask_shortcut(mod, map_size[mod]).to(device)  # replace conv
 
         return net
+
+    def print_mask(self):
+        super().print_mask()
+        measure_flops.measure_model(self.net,self.dataset_name,True)

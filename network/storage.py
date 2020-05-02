@@ -27,6 +27,7 @@ def get_net_information(net,dataset_name,net_name):
         checkpoint['net_type']=type(net)
         checkpoint['feature_len']=net.feature_len
         checkpoint['gcn_rounds']=net.gcn_rounds
+        checkpoint['flop_expected']=net.flop_expected
     # try:
     #     #for predicted_mask_net
     #     #isinstanec(net,predicted_mask_met) is False. I don't know why
@@ -79,9 +80,9 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
 
     if 'net_type' in checkpoint.keys():
         if checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_net:
-            t_net=net_with_predicted_mask.predicted_mask_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
+            t_net=net_with_predicted_mask.predicted_mask_net(net,net_name,dataset_name,checkpoint['flop_expected'],checkpoint['feature_len'],checkpoint['gcn_rounds'])
         elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_and_shortcut_net:
-            t_net=net_with_predicted_mask.predicted_mask_and_shortcut_net(net,net_name,dataset_name,checkpoint['feature_len'],checkpoint['gcn_rounds'])
+            t_net=net_with_predicted_mask.predicted_mask_and_shortcut_net(net,net_name,dataset_name,checkpoint['flop_expected'],checkpoint['feature_len'],checkpoint['gcn_rounds'])
         net=t_net
 
 

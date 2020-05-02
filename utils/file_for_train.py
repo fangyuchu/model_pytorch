@@ -7,22 +7,23 @@ from network import vgg,storage,net_with_predicted_mask
 from framework import config as conf
 from framework.train import set_modules_no_grad
 import os,sys,logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #todo:训练到后面减少extractor的训练频率
-#检查为什么中间几层是0，他们在extractor中的输入是什么，输出是什么。为什么最后一层的从来不剪？
-#weight-decay是不是改成1e-4?
+#todo:考虑开始更新cnn时，先不传梯度，单纯让bn track
+#todo:shortcut是不是应该加到bn和relu后面去？？？？？
 #训练schedule
 
 
 
 optimizer = optim.SGD
-weight_decay = {'default':1e-6,'extractor':0}
+weight_decay = {'default':1e-4,'extractor':0}
 momentum = {'default':0.9,'extractor':0}
 learning_rate = {'default': 0.1, 'extractor': 0.1}
-exp_name='vgg16bn_mask_shortcut_1'
+exp_name='vgg16bn_mask_shortcut_3_flop5'
 mask_update_freq = 4000
 mask_update_steps = 400
+flop_expected=5e7
 
 
 
@@ -35,10 +36,11 @@ net=vgg.vgg16_bn(dataset_name='cifar10')
 #                                                  mask_update_freq=mask_update_freq)
 
 net = net_with_predicted_mask.predicted_mask_and_shortcut_net(net,
-                                                 net_name='vgg16_bn',
-                                                 dataset_name='cifar10',
-                                                 mask_update_steps=mask_update_steps,
-                                                 mask_update_freq=mask_update_freq)
+                                                              net_name='vgg16_bn',
+                                                              dataset_name='cifar10',
+                                                              mask_update_steps=mask_update_steps,
+                                                              mask_update_freq=mask_update_freq,
+                                                              flop_expected=flop_expected)
 # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/tmp/checkpoint/flop=313733786,accuracy=0.87980.tar')
 # net.load_state_dict(checkpoint['state_dict'])
 net=net.to(device)
@@ -51,7 +53,7 @@ if not os.path.exists(checkpoint_path):
 sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
 sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
 
-print(optimizer,weight_decay,momentum,learning_rate,mask_update_freq,mask_update_steps)
+print(optimizer,weight_decay,momentum,learning_rate,mask_update_freq,mask_update_steps,flop_expected)
 
 # train.add_forward_hook(net,module_name='net.features.1')
 
@@ -66,7 +68,7 @@ train.train(net=net,
             momentum=momentum,
             learning_rate=learning_rate,
 
-            num_epochs=350,
+            num_epochs=160,
             batch_size=128,
             evaluate_step=5000,
             load_net=True,
@@ -74,7 +76,7 @@ train.train(net=net,
             num_workers=8,
             # weight_decay=5e-4,
             learning_rate_decay=True,
-            learning_rate_decay_epoch=[100,250],
+            learning_rate_decay_epoch=[80,120],
             learning_rate_decay_factor=0.1,
             scheduler_name='MultiStepLR',
             top_acc=1,

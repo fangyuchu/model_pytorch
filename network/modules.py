@@ -20,8 +20,7 @@ class conv2d_with_mask(nn.modules.Conv2d):
             masked_bias = None
         else:
             masked_bias = self.bias * self.mask.view(-1)
-        # 考虑conv减了之后bn怎么办
-        # 暂时通过bn不track running stats解决
+
         out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,
                                    self.padding, self.dilation, self.groups)
 
