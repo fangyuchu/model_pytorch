@@ -38,19 +38,19 @@ def string_to_module(net, string):
         replace_module = getattr(tmp, tmp_list[2])
     return replace_module
 
-def get_module(model,name):
+
+def get_module(model, name):
     '''
 
     :param model:
     :param name:
     :return: the second last module in name
     '''
-    attr=name.split('.')
-    mod=model
-    for i in range(len(attr)-1):
-        mod=getattr(mod,attr[i])
-
-    return getattr(mod,'_modules')
+    attr = name.split('.')
+    mod = model
+    for i in range(len(attr) - 1):
+        mod = getattr(mod, attr[i])
+    return getattr(mod, '_modules')
 
 def prune_conv(net,net_name,layer_index,filter_index):
     if 'vgg' in net_name:

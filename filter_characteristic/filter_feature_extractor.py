@@ -31,9 +31,11 @@ class extractor(nn.Module):
             in_features=feature_len
         self.network=nn.Sequential(
             nn.Linear(in_features,128),
+            nn.BatchNorm1d(128,track_running_stats=False),
             nn.ReLU(True),
             nn.Linear(128,1,bias=True),
-            nn.Hardtanh(inplace=False)
+            nn.BatchNorm1d(1,track_running_stats=False),
+            nn.Tanh(),
         )
         self.normalization=nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
         

@@ -3,15 +3,18 @@ from torch import nn
 import torch.optim as optim
 from prune import prune_and_train
 from framework import evaluate,data_loader,measure_flops,train
-from network import vgg,storage,net_with_predicted_mask
+from network import vgg,storage,net_with_predicted_mask,resnet_cifar
 from framework import config as conf
 from framework.train import set_modules_no_grad
 import os,sys,logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+os.environ["CUDA_VISIBLE_DEVICES"] = '5'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #todo:训练到后面减少extractor的训练频率
 #todo:考虑开始更新cnn时，先不传梯度，单纯让bn track
-#todo:shortcut是不是应该加到bn和relu后面去？？？？？
+#todo:shortcut是不是应该加到bn和relu后面去？？？？？,加到后面出现数值错误，不予采用,通过grad_clip解决，已采用
+#todo:考虑shortcut的掩码就为所有filter掩码的mean！！！！！！！！,已做
+#todo:查明为什么会出现连续几层被剪完的情况？
+#todo:检查measure flops对resnet正确不正确
 #训练schedule
 
 
@@ -19,30 +22,42 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 optimizer = optim.SGD
 weight_decay = {'default':1e-4,'extractor':0}
 momentum = {'default':0.9,'extractor':0}
-learning_rate = {'default': 0.1, 'extractor': 0.1}
-exp_name='vgg16bn_mask_shortcut_3_flop5'
+learning_rate = {'default': 0.1, 'extractor': 0.01}
+exp_name='resnet56_mask_shortcut_weight_bninextractor_tanh_gradclip_cutafterbn3'
+# exp_name='test'
+
 mask_update_freq = 4000
+
 mask_update_steps = 400
 flop_expected=5e7
+gradient_clip_value=1
 
 
 
 # net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')),pretrained=False)
-net=vgg.vgg16_bn(dataset_name='cifar10')
+# net=vgg.vgg16_bn(dataset_name='cifar10')
 # net = net_with_predicted_mask.predicted_mask_net(net,
 #                                                  net_name='vgg16_bn',
 #                                                  dataset_name='cifar10',
 #                                                  mask_update_steps=mask_update_steps,
 #                                                  mask_update_freq=mask_update_freq)
 
-net = net_with_predicted_mask.predicted_mask_and_shortcut_net(net,
-                                                              net_name='vgg16_bn',
-                                                              dataset_name='cifar10',
-                                                              mask_update_steps=mask_update_steps,
-                                                              mask_update_freq=mask_update_freq,
-                                                              flop_expected=flop_expected)
-# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/tmp/checkpoint/flop=313733786,accuracy=0.87980.tar')
-# net.load_state_dict(checkpoint['state_dict'])
+# net = net_with_predicted_mask.predicted_mask_and_shortcut_net(net,
+#                                                               net_name='vgg16_bn',
+#                                                               dataset_name='cifar10',
+#                                                               mask_update_steps=mask_update_steps,
+#                                                               mask_update_freq=mask_update_freq,
+#                                                               flop_expected=flop_expected)
+
+net=resnet_cifar.resnet56()
+net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net,
+                                                                      net_name='resnet56',
+                                                                      dataset_name='cifar10',
+                                                                      mask_update_steps=mask_update_steps,
+                                                                      mask_update_freq=mask_update_freq,
+                                                                      flop_expected=5e7,
+                                                                      gcn_rounds=1)
+
 net=net.to(device)
 
 checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -53,12 +68,12 @@ if not os.path.exists(checkpoint_path):
 sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
 sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
 
-print(optimizer,weight_decay,momentum,learning_rate,mask_update_freq,mask_update_steps,flop_expected)
+print(optimizer, weight_decay, momentum, learning_rate, mask_update_freq, mask_update_steps, flop_expected, gradient_clip_value)
 
 # train.add_forward_hook(net,module_name='net.features.1')
 
 train.train(net=net,
-            net_name='vgg16_bn',
+            net_name='resnet56',
             exp_name=exp_name,
             dataset_name='cifar10',
             # optimizer=cgd.CGD,
@@ -71,7 +86,7 @@ train.train(net=net,
             num_epochs=160,
             batch_size=128,
             evaluate_step=5000,
-            load_net=True,
+            load_net=False,
             test_net=False,
             num_workers=8,
             # weight_decay=5e-4,
@@ -82,6 +97,8 @@ train.train(net=net,
             top_acc=1,
             data_parallel=False,
             paint_loss=True,
+            save_at_each_step=True,
+            gradient_clip_value=gradient_clip_value
             )
 
 

@@ -6,14 +6,31 @@ import logger
 import sys
 from network import resnet_cifar,storage,vgg
 from torch import nn
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# net=resnet_cifar.resnet56().to(device)
+net=resnet_cifar.resnet56().to(device)
+train.train(net=net,
+            net_name='resnet56',
+            exp_name='resnet56_cifar10_baseline',
+            dataset_name='cifar10',
+            learning_rate=0.1,
+            num_epochs=160,
+            batch_size=128,
+            momentum=0.9,
+            num_workers=2,
+            learning_rate_decay=True,
+            learning_rate_decay_factor=0.1,
+            learning_rate_decay_epoch=[80,120],
+            weight_decay=1e-4,
+            load_net=True
+            )
+
+# net=vgg.vgg16_bn(dataset_name='cifar10').to(device)
 # train.train(net=net,
-#             net_name='resnet56',
-#             exp_name='resnet56_cifar10_baseline_sfp_schedule',
+#             net_name='vgg16_bn',
+#             exp_name='test',
 #             dataset_name='cifar10',
 #             learning_rate=0.1,
 #             num_epochs=200,
@@ -26,23 +43,6 @@ device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #             weight_decay=1e-4,
 #             load_net=True
 #             )
-
-net=vgg.vgg16_bn(dataset_name='cifar10').to(device)
-train.train(net=net,
-            net_name='vgg16_bn',
-            exp_name='test',
-            dataset_name='cifar10',
-            learning_rate=0.1,
-            num_epochs=200,
-            batch_size=128,
-            momentum=0.9,
-            num_workers=2,
-            learning_rate_decay=True,
-            learning_rate_decay_factor=0.2,
-            learning_rate_decay_epoch=[60,120,160],
-            weight_decay=1e-4,
-            load_net=True
-            )
 
 
 

@@ -80,11 +80,19 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
 
     if 'net_type' in checkpoint.keys():
         if checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_net:
-            t_net=net_with_predicted_mask.predicted_mask_net(net,net_name,dataset_name,checkpoint['flop_expected'],checkpoint['feature_len'],checkpoint['gcn_rounds'])
+            t_net = net_with_predicted_mask.predicted_mask_net(net, net_name, dataset_name, checkpoint['flop_expected'],
+                                                               checkpoint['feature_len'], checkpoint['gcn_rounds'])
         elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_and_shortcut_net:
-            t_net=net_with_predicted_mask.predicted_mask_and_shortcut_net(net,net_name,dataset_name,checkpoint['flop_expected'],checkpoint['feature_len'],checkpoint['gcn_rounds'])
-        net=t_net
-
+            t_net = net_with_predicted_mask.predicted_mask_and_shortcut_net(net, net_name, dataset_name,
+                                                                            checkpoint['flop_expected'],
+                                                                            checkpoint['feature_len'],
+                                                                            checkpoint['gcn_rounds'])
+        elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_shortcut_with_weight_net:
+            t_net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net, net_name, dataset_name,
+                                                                                    checkpoint['flop_expected'],
+                                                                                    checkpoint['feature_len'],
+                                                                                    checkpoint['gcn_rounds'])
+        net = t_net
 
 
     if pretrained:

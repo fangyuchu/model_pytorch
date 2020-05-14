@@ -146,6 +146,8 @@ def train(
         paint_loss=False,
         #todo:tmp!!!
         data_parallel=False,
+        save_at_each_step=False,
+        gradient_clip_value=None,
 
 ):
     '''
@@ -177,6 +179,7 @@ def train(
     :param requires_grad: list containing names of the modules that do not need to be trained
     :param scheduler_name
     :param eta_min: for CosineAnnealingLR
+    :param save_at_each_step:save model and input data at each step so the bug can be reproduced
     :return:
     '''
     #todo:在tensorboard里记录实验参数
@@ -192,28 +195,28 @@ def train(
         print(device)
 
     # prepare the data
-    if dataset_name is 'imagenet':
+    if dataset_name == 'imagenet':
         mean = conf.imagenet['mean']
         std = conf.imagenet['std']
         train_set_path = conf.imagenet['train_set_path']
         train_set_size = conf.imagenet['train_set_size']
         validation_set_path = conf.imagenet['validation_set_path']
         default_image_size = conf.imagenet['default_image_size']
-    elif dataset_name is 'cifar10':
+    elif dataset_name == 'cifar10':
         train_set_size = conf.cifar10['train_set_size']
         mean = conf.cifar10['mean']
         std = conf.cifar10['std']
         train_set_path = conf.cifar10['dataset_path']
         validation_set_path = conf.cifar10['dataset_path']
         default_image_size = conf.cifar10['default_image_size']
-    elif dataset_name is 'tiny_imagenet':
+    elif dataset_name == 'tiny_imagenet':
         train_set_size = conf.tiny_imagenet['train_set_size']
         mean = conf.tiny_imagenet['mean']
         std = conf.tiny_imagenet['std']
         train_set_path = conf.tiny_imagenet['train_set_path']
         validation_set_path = conf.tiny_imagenet['validation_set_path']
         default_image_size = conf.tiny_imagenet['default_image_size']
-    elif dataset_name is 'cifar100':
+    elif dataset_name == 'cifar100':
         train_set_size = conf.cifar100['train_set_size']
         mean = conf.cifar100['mean']
         std = conf.cifar100['std']
@@ -242,10 +245,13 @@ def train(
     exp_path=os.path.join(root_path,'model_saved',exp_name)
     checkpoint_path=os.path.join(exp_path,'checkpoint')
     tensorboard_path=os.path.join(exp_path,'tensorboard')
+    crash_path=os.path.join(exp_path,'crash')
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path,exist_ok=True)
     if not os.path.exists(tensorboard_path):
         os.makedirs(tensorboard_path, exist_ok=True)
+    if not os.path.exists(crash_path):
+        os.makedirs(crash_path, exist_ok=True)
 
     #get the latest checkpoint
     lists = os.listdir(checkpoint_path)
@@ -265,9 +271,9 @@ def train(
     #set up summary writer for tensorboard
     writer=SummaryWriter(log_dir=tensorboard_path,
                          purge_step=int(sample_num/batch_size))
-    if dataset_name is 'imagenet'or dataset_name is 'tiny_imagenet':
+    if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
         image=torch.zeros(2,3,224,224).to(device)
-    elif dataset_name is 'cifar10' or dataset_name is 'cifar100':
+    elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
         image=torch.zeros(2,3,32,32).to(device)
 
     # writer.add_graph(net, image)
@@ -352,18 +358,36 @@ def train(
             loss = criterion(outputs, labels)
             #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
 
+            if save_at_each_step:
+                torch.save(images,os.path.join(crash_path,'images.pt'))
+                torch.save(labels,os.path.join(crash_path,'labels.pt'))
+                torch.save(net.state_dict(),os.path.join(crash_path,'net.pt'))
+                torch.save(loss,os.path.join(crash_path,'loss.pt'))
+                torch.save(outputs,os.path.join(crash_path,'outputs.pt'))
+
             loss.backward()
 
-            optimizer.step()
+            if gradient_clip_value is not None:
+                torch.nn.utils.clip_grad_value_(net.parameters(), gradient_clip_value)
 
+            optimizer.step()
             loss_list+=[float(loss.detach())]
             xaxis_loss+=[xaxis]
             writer.add_scalar(tag='status/loss',
                               scalar_value=float(loss.detach()),
                               global_step=int(sample_num / batch_size))
 
-
+            # max=0
+            # max_name=''
             if step%20==0:
+                # for name, mod in net.named_modules():
+                #     if hasattr(mod, 'weight'):
+                #         grad=mod.weight.grad.view(-1).detach().cpu().numpy()
+                #         norm=np.linalg.norm(grad,ord=2)
+                #         if norm>max:
+                #             max=norm
+                #             max_name=name
+                # print(max_name,max)
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
             if step % evaluate_step == 0 and step != 0:
                 accuracy= evaluate.evaluate_net(net, validation_loader,
@@ -429,13 +453,38 @@ def train(
 def add_forward_hook(net,module_class=None,module_name=None):
     def hook(module, input, output):
         print(name_of_mod[module])
-        print('input:',input[0].shape)
-        print('output:',output.shape)
+        # print('input:',input[0].shape)
+        # print('output:',output.shape)
+        # mean=input[0].mean(dim=(0,2,3))
+        # var=input[0].var(dim=(0,2,3))
+        # mod=copy.deepcopy(module)
+        # nn.init.ones_(mod.weight)
+        # nn.init.zeros_(mod.bias)
+        # o=mod.forward(input[0])
+
+        print('max input:',input[0].detach().cpu().numpy().max())
+        print('max output:',output.detach().cpu().numpy().max())
+        print()
     name_of_mod={}
     for name,mod in net.named_modules() :
         if module_class is not None and isinstance(mod,module_class) or\
                 module_name is not None and module_name == name:
             handle=mod.register_forward_hook(hook)
+            name_of_mod[mod]=name
+
+def add_backward_hook(net,module_class=None,module_name=None):
+    def hook(module, grad_input, grad_output):
+        print(name_of_mod[module])
+        # print('input:',input[0].shape)
+        # print('output:',output.shape)
+        print('max input:',grad_input[0].detach().cpu().numpy().max())
+        print('max output:',grad_output[0].detach().cpu().numpy().max())
+        raise Exception('got you')
+    name_of_mod={}
+    for name,mod in net.named_modules() :
+        if module_class is not None and isinstance(mod,module_class) or\
+                module_name is not None and module_name == name:
+            handle=mod.register_backward_hook(hook)
             name_of_mod[mod]=name
 
 def check_grad(net,step):

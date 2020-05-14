@@ -44,15 +44,33 @@ class conv2d_with_mask_shortcut(conv2d_with_mask):
                 nn.BatchNorm2d(conv.out_channels)
             )
         else:
-            self.downsample = None
+            self.downsample = nn.Sequential()  # idendity function
 
     def forward(self, input):
         x = super().forward(input)
-        if self.downsample is not None:
-            x = x + self.downsample(input)
-        else:
-            x = x + input
+        x = x + self.downsample(input)
         return x
+
+
+class block_with_mask_shortcut(conv2d_with_mask_shortcut):
+    def __init__(self, conv, w_in):
+        super(block_with_mask_shortcut, self).__init__(conv,w_in)
+        self.bn = nn.BatchNorm2d(conv.out_channels)  # need to be updated in the net rather than in module
+        shortcut_mask = torch.ones(1)
+        self.register_buffer('shortcut_mask', shortcut_mask)  # register self.mask as buffer in pytorch module
+
+    def forward(self, input):
+        out = super(conv2d_with_mask_shortcut, self).forward(input)
+
+        # out *= self.shortcut_mask
+        # out += self.downsample(input)
+
+        out = out +self.downsample(input)
+        out =out * self.shortcut_mask
+
+        out = self.bn(out)
+
+        return out
 
 
 

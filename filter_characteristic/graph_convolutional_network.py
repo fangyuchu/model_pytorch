@@ -4,7 +4,7 @@ from transform_conv import conv_to_matrix
 import torch.nn as nn
 from network import vgg,resnet_cifar,resnet,net_with_predicted_mask
 import copy
-from network.modules import conv2d_with_mask_shortcut
+from network.modules import conv2d_with_mask_shortcut,block_with_mask_shortcut
 from framework import evaluate
 
 
@@ -15,12 +15,14 @@ class gcn(nn.Module):
         self.out_features=out_features
         self.network=nn.Sequential(
             nn.Linear(in_features,128),
+            nn.BatchNorm1d(128, track_running_stats=False),
             nn.ReLU(True),
             # nn.Dropout(),
             # nn.Linear(128, 128),
             # nn.ReLU(True),
             # nn.Dropout(),
             nn.Linear(128,out_features),
+            nn.BatchNorm1d(out_features, track_running_stats=False)
         )
         self.normalization = nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
     def forward(self, net,net_name,dataset_name, rounds=2):
@@ -83,6 +85,7 @@ class gcn(nn.Module):
             first_conv=True
             for name,mod in net.named_modules():
                 if first_conv and isinstance(mod,nn.Conv2d):                                #first conv in the ResNet
+                    #todo:忘加shortcut的downsample中的conv
                     weight=conv_to_matrix(mod)
                     information_at_last = weight.mean(dim=1).reshape([-1, 1])                 # calculate the mean of current layer
                     first_conv = False
@@ -121,18 +124,17 @@ class gcn(nn.Module):
         weight_dowmsample=None
         zero_padding=False
         conv_list=[]
-        for name,mod in block.named_modules():
-            if 'downsample' in name and isinstance(mod,resnet_cifar.LambdaLayer):                   #for basic block
-                zero_padding=True
-            if isinstance(mod,nn.Conv2d):
-                if 'downsample' in name:
-                    #todo: conv with shortcut可能会干扰
-                    raise Exception('see the code')
-                    weight_dowmsample = conv_to_matrix(mod)
+        for name, mod in block.named_modules():
+            if 'downsample' in name and isinstance(mod, resnet_cifar.LambdaLayer):  # for basic block
+                zero_padding = True
+            if isinstance(mod, nn.Conv2d):
+                if 'downsample' in name:  # shortcut conv for bottleneck or for conv2d_with_mask_shortcut
+                    if 'conv' not in name:  # shortcut conv for bottleneck
+                        weight_dowmsample = conv_to_matrix(mod)
                     continue
-                conv_list+=[mod]      #a list containing 2-d conv weight matrix
+                conv_list += [mod]  # a list containing 2-d conv weight matrix
 
-        _,information_at_last=self.aggregate_convs(conv_list,information_in_front)
+        _, information_at_last = self.aggregate_convs(conv_list, information_in_front)
 
         # shortcut
         if weight_dowmsample is not None:                                                       #with 1x1 conv
@@ -166,7 +168,7 @@ class gcn(nn.Module):
             mean = mean.repeat(1, kernel_size).view(-1)  # expand each value for 9 times.
             weight_list[i] += mean  # aggregate the mean from previous layer
             if isinstance(conv_list[i],conv2d_with_mask_shortcut):
-                if conv_list[i].downsample is None:  # direct shortcut w/o 1x1 conv
+                if len(conv_list[i].downsample) == 0:  # direct shortcut w/o 1x1 conv
                     mean = weight_list[i].mean(dim=1).reshape([-1, 1]) + old_mean
                 else:  # shortcut with 1x1 conv
                     weight_downsample = conv_to_matrix(conv_list[i].downsample[0])
@@ -174,8 +176,9 @@ class gcn(nn.Module):
                     mean = (weight_list[i].mean(dim=1) + dowmsample_mean).reshape([-1, 1])
             else:
                 mean = weight_list[i].mean(dim=1).reshape([-1, 1])  # calculate the mean of current layer
+
         information_at_last=mean
-        return conv_list,information_at_last                    #information from the last conv
+        return conv_list, information_at_last  # information from the last conv
 
 
 

@@ -97,7 +97,7 @@ class VGG_weighted_channel(nn.Module):
     def __init__(self, features, init_weights=True,dataset_name='imagenet'):
         super(VGG_weighted_channel, self).__init__()
         self.features = features
-        if dataset_name is 'imagenet':
+        if dataset_name == 'imagenet':
             self.classifier = nn.Sequential(
                 nn.Linear(512*7*7, 4096),
                 nn.ReLU(True),
@@ -107,7 +107,7 @@ class VGG_weighted_channel(nn.Module):
                 nn.Dropout(),
                 nn.Linear(4096, 1000),
             )
-        elif dataset_name is 'cifar10':
+        elif dataset_name == 'cifar10':
             self.classifier = nn.Sequential(
                 nn.Dropout(),
                 nn.Linear(512 , 512),

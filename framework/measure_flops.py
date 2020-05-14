@@ -16,7 +16,7 @@ def measure_layer(name,layer, x, multi_add=1):
 
         in_channels=layer.in_channels
         out_channels=layer.out_channels
-        if isinstance(layer,conv2d_with_mask_shortcut):
+        if isinstance(layer,conv2d_with_mask):
             out_channels=out_channels-torch.sum(layer.mask == 0).detach().cpu().numpy()
         delta_ops = in_channels * out_channels * layer.kernel_size[0] *  \
                 layer.kernel_size[1] * out_h * out_w // layer.groups * multi_add
@@ -68,9 +68,9 @@ def should_measure(mod):
 
 def measure_model(net, dataset_name='imagenet', print_flop=True):
 
-    if dataset_name is 'imagenet'or dataset_name is 'tiny_imagenet':
+    if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
         shape=(2,3,224,224)
-    elif dataset_name is 'cifar10' or dataset_name is 'cifar100':
+    elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
         shape=(2,3,32,32)
 
 

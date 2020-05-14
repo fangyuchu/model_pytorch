@@ -38,16 +38,13 @@ def validate(val_loader, model,max_data_to_test=99999999,device=None):
         batch_time = AverageMeter()
         top1 = AverageMeter()
         top5 = AverageMeter()
-
         # switch to evaluate mode
         model.eval()
-
         end = time.time()
         s_n=0
         for i, (input, target) in enumerate(val_loader):
             target = target.to(device)
             input = input.to(device)
-
             s_n+=input.shape[0]
             # compute output
             output = model(input)
@@ -55,11 +52,10 @@ def validate(val_loader, model,max_data_to_test=99999999,device=None):
             # measure accuracy and record loss
             prec1, prec5 = accuracy(output.data, target.data, topk=(1, 5))
             #losses.update(loss.data.item(), input.size(0))
-            try:
-                top1.update(prec1.item(), input.size(0))
-                top5.update(prec5.item(), input.size(0))
-            except RuntimeError:
-                print()
+
+            top1.update(prec1.item(), input.size(0))
+            top5.update(prec5.item(), input.size(0))
+
 
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -283,13 +279,13 @@ def find_useless_filters_data_version(net,
             module_list, neural_list = check_ReLU_alive(net=net, neural_dead_times=batch_size, data=random_data)
             del random_data
         else:
-            if dataset_name is 'imagenet':
+            if dataset_name == 'imagenet':
                 train_set_size = conf.imagenet['train_set_size']
-            elif dataset_name is 'cifar10':
+            elif dataset_name == 'cifar10':
                 train_set_size=conf.cifar10['train_set_size']
-            elif dataset_name is 'cifar100':
+            elif dataset_name == 'cifar100':
                 train_set_size=conf.cifar100['train_set_size']
-            elif dataset_name is 'tiny_imagenet':
+            elif dataset_name == 'tiny_imagenet':
                 train_set_size=conf.tiny_imagenet['train_set_size']
             train_loader = data_loader.create_validation_loader(
                                                                 batch_size=batch_size,

@@ -16,9 +16,9 @@ def random_normal(num,dataset_name=None,size=[3,32,32],mean=[0.485, 0.456, 0.406
     '''
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    if dataset_name is 'cifar10':
+    if dataset_name == 'cifar10':
         size=[3,32,32]
-    if dataset_name is 'imagenet':
+    if dataset_name == 'imagenet':
         size=[3,224,224]
 
     def one_tensor(is_image):
