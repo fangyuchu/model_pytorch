@@ -3,37 +3,36 @@ from torch import nn
 import torch.optim as optim
 from prune import prune_and_train
 from framework import evaluate,data_loader,measure_flops,train
-from network import vgg,storage,net_with_predicted_mask,resnet_cifar
+from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar
 from framework import config as conf
 from framework.train import set_modules_no_grad
 import os,sys,logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '5'
+os.environ["CUDA_VISIBLE_DEVICES"] = '7'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#todo:训练到后面减少extractor的训练频率
+#todo:训练到后面减少extractor的训练频率！！！！！！,已做
 #todo:考虑开始更新cnn时，先不传梯度，单纯让bn track
-#todo:shortcut是不是应该加到bn和relu后面去？？？？？,加到后面出现数值错误，不予采用,通过grad_clip解决，已采用
-#todo:考虑shortcut的掩码就为所有filter掩码的mean！！！！！！！！,已做
-#todo:查明为什么会出现连续几层被剪完的情况？
-#todo:检查measure flops对resnet正确不正确
+#todo:考虑加入正则项使得整层全部保留会收到惩罚
+#todo:考虑惩罚变化幅度大的层
+#todo:查看extractor和cnn的grad，看看extractor学习率该设多少,现在cnn的学习率感觉也有点问题，也看一眼,已看，恢复了
 #训练schedule
 
 
 
 optimizer = optim.SGD
-weight_decay = {'default':1e-4,'extractor':0}
-momentum = {'default':0.9,'extractor':0}
-learning_rate = {'default': 0.1, 'extractor': 0.01}
-exp_name='resnet56_mask_shortcut_weight_bninextractor_tanh_gradclip_cutafterbn3'
-# exp_name='test'
+weight_decay = {'default':1e-4,'extractor':1e-4}
+momentum = {'default':0.9,'extractor':0.9}
+learning_rate = {'default': 0.1, 'extractor': 0.1}
+exp_name='test'
+# exp_name='resnet56_predicted_mask_and_shortcut_net_tfs_pruneFirstConv_mask80_3'
+
 
 mask_update_freq = 4000
 
 mask_update_steps = 400
-flop_expected=5e7
+flop_expected=6.75e7
 gradient_clip_value=1
-
-
-
+learning_rate_decay_epoch = [80+i for i in [160, 240]]
+num_epochs=320+80
 # net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')),pretrained=False)
 # net=vgg.vgg16_bn(dataset_name='cifar10')
 # net = net_with_predicted_mask.predicted_mask_net(net,
@@ -50,13 +49,24 @@ gradient_clip_value=1
 #                                                               flop_expected=flop_expected)
 
 net=resnet_cifar.resnet56()
+net=resnet_cifar.resnet56(num_classes=10).to(device)
+
 net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net,
                                                                       net_name='resnet56',
                                                                       dataset_name='cifar10',
                                                                       mask_update_steps=mask_update_steps,
                                                                       mask_update_freq=mask_update_freq,
-                                                                      flop_expected=5e7,
+                                                                      flop_expected=flop_expected,
                                                                       gcn_rounds=1)
+
+# net=net_with_predicted_mask.predicted_mask_and_shortcut_net(net,
+#                                                             net_name='resnet56',
+#                                                             dataset_name='cifar10',
+#                                                             flop_expected=flop_expected,
+#                                                             gcn_rounds=1,
+#                                                             mask_update_steps=mask_update_steps,
+#                                                             mask_update_freq=mask_update_freq,
+#                                                             )
 
 net=net.to(device)
 
@@ -76,14 +86,13 @@ train.train(net=net,
             net_name='resnet56',
             exp_name=exp_name,
             dataset_name='cifar10',
-            # optimizer=cgd.CGD,
 
-            optimizer=optim.SGD,
+            optimizer=optimizer,
             weight_decay=weight_decay,
             momentum=momentum,
             learning_rate=learning_rate,
 
-            num_epochs=160,
+            num_epochs=num_epochs,
             batch_size=128,
             evaluate_step=5000,
             load_net=False,
@@ -91,7 +100,7 @@ train.train(net=net,
             num_workers=8,
             # weight_decay=5e-4,
             learning_rate_decay=True,
-            learning_rate_decay_epoch=[80,120],
+            learning_rate_decay_epoch=learning_rate_decay_epoch,
             learning_rate_decay_factor=0.1,
             scheduler_name='MultiStepLR',
             top_acc=1,

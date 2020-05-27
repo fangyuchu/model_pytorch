@@ -6,14 +6,17 @@ import logger
 import sys
 from network import resnet_cifar,storage,vgg
 from torch import nn
+from network import resnet_cifar
 os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-net=resnet_cifar.resnet56().to(device)
+# net=resnet_cifar.resnet56().to(device)
+net=resnet_cifar.resnet56(num_classes=10).to(device)
+
 train.train(net=net,
             net_name='resnet56',
-            exp_name='resnet56_cifar10_baseline',
+            exp_name='resnet56_baseline_sfp_heSchedule_1',
             dataset_name='cifar10',
             learning_rate=0.1,
             num_epochs=160,
@@ -22,7 +25,9 @@ train.train(net=net,
             num_workers=2,
             learning_rate_decay=True,
             learning_rate_decay_factor=0.1,
-            learning_rate_decay_epoch=[80,120],
+            # learning_rate_decay_epoch=[150,225],
+            learning_rate_decay_epoch=[80, 120],
+
             weight_decay=1e-4,
             load_net=True
             )

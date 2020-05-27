@@ -13,24 +13,22 @@ def measure_layer(name,layer, x, multi_add=1):
                     layer.stride[0] + 1)
         out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) //
                     layer.stride[1] + 1)
-
         in_channels=layer.in_channels
         out_channels=layer.out_channels
         if isinstance(layer,conv2d_with_mask):
             out_channels=out_channels-torch.sum(layer.mask == 0).detach().cpu().numpy()
         delta_ops = in_channels * out_channels * layer.kernel_size[0] *  \
                 layer.kernel_size[1] * out_h * out_w // layer.groups * multi_add
-
     ### ops_linear
-    elif type_name in ['Linear']:
+    elif isinstance(layer,nn.Linear):
         weight_ops = layer.weight.numel() * multi_add
         bias_ops = layer.bias.numel()
         delta_ops = weight_ops + bias_ops
 
-    # elif type_name in ['BatchNorm2d']:
-    #     normalize_ops = x.numel()
-    #     scale_shift = normalize_ops
-    #     delta_ops = normalize_ops + scale_shift
+    elif isinstance(layer,nn.BatchNorm2d):
+        normalize_ops = x.numel()
+        scale_shift = normalize_ops
+        delta_ops = normalize_ops + scale_shift
     #
     # ### ops_nothing
     # elif type_name in ['Dropout2d', 'DropChannel', 'Dropout']:
@@ -62,6 +60,8 @@ def should_measure(mod):
         return True
     elif isinstance(mod,nn.Linear):
         return True
+    elif isinstance(mod,nn.BatchNorm2d):
+        return True
     else:
         return False
 
@@ -85,25 +85,6 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
             measure_layer(name,m, x)
             return m.old_forward(x)
         return lambda_forward
-
-    # def modify_forward(model):
-    #     for child in model.children():
-    #         if should_measure(child):
-    #             # 新增一个old_forward属性保存默认的forward函数
-    #             # 便于计算flops结束后forward函数的恢复
-    #             child.old_forward = child.forward
-    #             child.forward = new_forward(child)
-    #         else:
-    #             modify_forward(child)
-
-    # def restore_forward(model):
-    #     for child in model.children():
-    #         # 对修改后的forward函数进行恢复
-    #         if is_leaf(child) and hasattr(child, 'old_forward'):
-    #             child.forward = child.old_forward
-    #             child.old_forward = None
-    #         else:
-    #             restore_forward(child)
 
     def modify_forward(model):
         for name,mod in model.named_modules():

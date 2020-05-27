@@ -34,6 +34,7 @@ def create_train_loader(
             ]), download=True),
             batch_size=batch_size, shuffle=True,
             num_workers=num_workers, pin_memory=True)
+
     elif dataset_name == 'cifar100':
         if dataset_path is None:
             dataset_path=conf.cifar100['dataset_path']

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from framework import data_loader, train, evaluate,measure_flops
-from network import vgg_channel_weight, vgg,storage,resnet,net_with_predicted_mask,resnet_cifar,modules
+from network import vgg_channel_weight, vgg,storage,resnet,net_with_predicted_mask,resnet_cifar,modules,resnet_cifar
 from framework import config as conf
 import os,sys
 from filter_characteristic import filter_feature_extractor,predict_dead_filter
@@ -13,7 +13,7 @@ import cgd
 os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
+# print()
 
 #
 # a=resnet_cifar.resnet56().to(device)
@@ -100,6 +100,9 @@ mask_update_steps = 400
 
 
 net=resnet_cifar.resnet56()
+# net=vgg.vgg16_bn(dataset_name='cifar10')
+# net=resnet_cifar.resnet20()
+net=resnet_cifar.resnet56(num_classes=10)
 net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net,
                                                  net_name='resnet56',
                                                  dataset_name='cifar10',
@@ -107,7 +110,8 @@ net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net,
                                                  mask_update_freq=mask_update_freq,
                                                               flop_expected=5e7,
                                                                       gcn_rounds=1)
-# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_mask_shortcut_weight_extractorlr0.01_shortcut_in_gcn/checkpoint/flop=50133642,accuracy=0.88030.tar')
+print()
+# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_mask_shortcut_weight_bninextractor_tanh_gradclip_cutafterbn3/checkpoint/flop=49940106,accuracy=0.86410.tar')
 # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_mask_shortcut_weight_extractorlr0.01_shortcut_convshortcut_in_gcn/checkpoint/flop=50078346,accuracy=0.50720.tar')
 
 # net.load_state_dict(checkpoint['state_dict'])
@@ -165,8 +169,7 @@ net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net,
 # for name,mod in net.named_modules():
 #     if hasattr(mod,'weight'):
 #         print(name, mod.weight.detach().cpu().numpy().max())
-net.to(device)
-# print()
+print()
 # measure_flops.measure_model(net,dataset_name='cifar10')
 
 # evaluate.evaluate_net(net,data_loader=data_loader.create_train_loader(batch_size=128,num_workers=0,dataset_name='cifar10'),save_net=False)
@@ -201,6 +204,21 @@ net.to(device)
 #             )
 
 print()
+# train.add_hook(net,module_name='extractor.gcn.network.0')
+# train.add_hook(net,module_name='extractor.gcn.network.3')
+# train.add_hook(net,module_name='extractor.network.0')
+# train.add_hook(net,module_name='extractor.network.3')
+# train.add_hook(net,module_name='net.layer1.block6.conv1')
+# train.add_hook(net,module_name='net.layer1.block0.conv1')
+# train.add_hook(net,module_name='net.conv1.downsample.0')
+
+#
+# net=resnet_cifar.resnet56()
+# train.add_hook(net,module_name='conv1')
+# train.add_hook(net,module_name='layer1.block0.conv1')
+# train.add_hook(net,module_name='layer1.block6.conv1')
+# train.add_hook(net,module_name='layer3.block4.conv2')
+
 # print()
 #
 # net=resnet.resnet50()
@@ -236,6 +254,12 @@ print()
 # import cgd
 #
 # net=vgg.vgg16_bn(dataset_name='cifar10').to(device)
+# net=resnet_cifar.resnet56()
+
+# from network import resnet_cifar_zoo
+# net=resnet_cifar_zoo.resnet56(num_classes=10)
+net.to(device)
+
 train.train(net=net,
             net_name='resnet56',
             exp_name='tmp',
@@ -248,7 +272,7 @@ train.train(net=net,
             # momentum=0,
 
             learning_rate={'default': 0.1, 'extractor': 0.1},
-            num_epochs=350,
+            num_epochs=160,
             batch_size=128,
             evaluate_step=1600,
             load_net=False,
@@ -256,7 +280,7 @@ train.train(net=net,
             num_workers=8,
             # weight_decay=5e-4,
             learning_rate_decay=True,
-            learning_rate_decay_epoch=[100,200],
+            learning_rate_decay_epoch=[80,120],
             learning_rate_decay_factor=0.1,
             scheduler_name='MultiStepLR',
             top_acc=1,

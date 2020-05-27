@@ -49,6 +49,7 @@ class extractor(nn.Module):
             features=torch.cat((crosslayer_features,innerlayer_features),dim=1)
         else:
             features=innerlayer_features
+
         features=self.normalization(features)
 
         out = self.network(features)

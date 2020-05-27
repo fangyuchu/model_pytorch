@@ -85,9 +85,11 @@ class gcn(nn.Module):
             first_conv=True
             for name,mod in net.named_modules():
                 if first_conv and isinstance(mod,nn.Conv2d):                                #first conv in the ResNet
-                    #todo:忘加shortcut的downsample中的conv
                     weight=conv_to_matrix(mod)
                     information_at_last = weight.mean(dim=1).reshape([-1, 1])                 # calculate the mean of current layer
+                    if isinstance(mod,conv2d_with_mask_shortcut):                           #first conv2d_with_mask_shortcut has conv in downsample
+                        downsample=mod.downsample[0].weight.mean(dim=1).reshape([-1,1])
+                        information_at_last=information_at_last/2+downsample/2
                     first_conv = False
                 if isinstance(mod,resnet.Bottleneck):
                     _,information_at_last=self.aggregate_block(mod,information_at_last)
@@ -130,6 +132,7 @@ class gcn(nn.Module):
             if isinstance(mod, nn.Conv2d):
                 if 'downsample' in name:  # shortcut conv for bottleneck or for conv2d_with_mask_shortcut
                     if 'conv' not in name:  # shortcut conv for bottleneck
+                        raise Exception('check if this is right. why downsample inside conv?')
                         weight_dowmsample = conv_to_matrix(mod)
                     continue
                 conv_list += [mod]  # a list containing 2-d conv weight matrix
@@ -138,13 +141,14 @@ class gcn(nn.Module):
 
         # shortcut
         if weight_dowmsample is not None:                                                       #with 1x1 conv
-            weight_dowmsample += information_in_front.repeat(1, 1).view(-1)
-            information_at_last+=weight_dowmsample.mean(dim=1).reshape([-1, 1])
+            weight_dowmsample =(weight_dowmsample+ information_in_front.repeat(1, 1).view(-1))/2
+            information_at_last=(information_at_last+ weight_dowmsample.mean(dim=1).reshape([-1, 1]))/2
+            raise Exception('check if this is right for bottleneck')
         elif zero_padding is True:                                                              #with zero padding
             pad_length=information_at_last.shape[0]-information_in_front.shape[0]
-            information_at_last += torch.cat((information_in_front, torch.zeros(pad_length,1).to(device)), 0)
+            information_at_last =(information_at_last+ torch.cat((information_in_front, torch.zeros(pad_length,1).to(device)), 0))/2
         else:                                                                                   #identity map
-            information_at_last+=information_in_front
+            information_at_last=(information_at_last+information_in_front)/2
 
         return conv_list,information_at_last
 
@@ -162,18 +166,34 @@ class gcn(nn.Module):
         for conv in conv_list:
             weight_list+=[conv_to_matrix(conv)]
 
+        # for i in range(len(conv_list)):
+        #     kernel_size=conv_list[i].kernel_size[0]*conv_list[i].kernel_size[1]
+        #     old_mean=mean
+        #     mean = mean.repeat(1, kernel_size).view(-1)  # expand each value for 9 times.
+        #     weight_list[i] += mean  # aggregate the mean from previous layer
+        #     if isinstance(conv_list[i],conv2d_with_mask_shortcut):
+        #         if len(conv_list[i].downsample) == 0:  # direct shortcut w/o 1x1 conv
+        #             mean = weight_list[i].mean(dim=1).reshape([-1, 1]) + old_mean
+        #         else:  # shortcut with 1x1 conv
+        #             weight_downsample = conv_to_matrix(conv_list[i].downsample[0])
+        #             dowmsample_mean = (weight_downsample + old_mean.view(-1)).mean(dim=1)
+        #             mean = (weight_list[i].mean(dim=1) + dowmsample_mean).reshape([-1, 1])
+        #     else:
+        #         mean = weight_list[i].mean(dim=1).reshape([-1, 1])  # calculate the mean of current layer
+
         for i in range(len(conv_list)):
             kernel_size=conv_list[i].kernel_size[0]*conv_list[i].kernel_size[1]
             old_mean=mean
             mean = mean.repeat(1, kernel_size).view(-1)  # expand each value for 9 times.
             weight_list[i] += mean  # aggregate the mean from previous layer
+            weight_list[i]=weight_list[i]/2+mean/2
             if isinstance(conv_list[i],conv2d_with_mask_shortcut):
                 if len(conv_list[i].downsample) == 0:  # direct shortcut w/o 1x1 conv
-                    mean = weight_list[i].mean(dim=1).reshape([-1, 1]) + old_mean
+                    mean = weight_list[i].mean(dim=1).reshape([-1, 1])/2 + old_mean/2
                 else:  # shortcut with 1x1 conv
                     weight_downsample = conv_to_matrix(conv_list[i].downsample[0])
-                    dowmsample_mean = (weight_downsample + old_mean.view(-1)).mean(dim=1)
-                    mean = (weight_list[i].mean(dim=1) + dowmsample_mean).reshape([-1, 1])
+                    dowmsample_mean = (weight_downsample + old_mean.view(-1)).mean(dim=1)/2
+                    mean = (weight_list[i].mean(dim=1) + dowmsample_mean).reshape([-1, 1])/2
             else:
                 mean = weight_list[i].mean(dim=1).reshape([-1, 1])  # calculate the mean of current layer
 

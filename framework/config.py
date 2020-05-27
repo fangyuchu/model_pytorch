@@ -52,8 +52,8 @@ imagenet['default_image_size']=224
 cifar10=dict()
 cifar10['num_class']=10
 cifar10['train_set_size']=50000
-cifar10['mean']=[0.485, 0.456, 0.406]
-cifar10['std']=[0.229, 0.224, 0.225]
+cifar10['mean']=[x / 255 for x in [125.3, 123.0, 113.9]]
+cifar10['std']=[x / 255 for x in [63.0, 62.1, 66.7]]
 cifar10['dataset_path']=os.path.join(root_path,'dataset/cifar10')
 cifar10['validation_set_size']=10000
 cifar10['default_image_size']=32
@@ -62,8 +62,8 @@ cifar10['default_image_size']=32
 cifar100=dict()
 cifar100['num_class']=100
 cifar100['train_set_size']=50000
-cifar100['mean']=[0.485, 0.456, 0.406]
-cifar100['std']=[0.229, 0.224, 0.225]
+cifar100['mean']=[0.5071, 0.4867, 0.4408]
+cifar100['std']=[0.2675, 0.2565, 0.2761]
 cifar100['dataset_path']=os.path.join(root_path,'dataset/cifar100')
 cifar100['validation_set_size']=10000
 cifar100['default_image_size']=32
@@ -95,14 +95,15 @@ evaluate_step=4000
 # lr_decay_factor=0.1
 # decay_epoch=[80,120]
 #num_epoch=160
+
 #soft filter pruning
 # lr=0.1
-# lr_decay_factor=0.2
-# decay_epoch=[60,120,160]
-# weight_decay=1e-4
+# lr_decay_factor=0.1
+# decay_epoch=[150,225]
+# weight_decay=5e-4
 # momentum=0.9
 # batch_size=128
-#num_epoch=200
+#num_epoch=300
 
 #my schedule
 # num_epochs=450,

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
 import numpy as np
-from network import vgg,net_with_predicted_mask
+from network import vgg,net_with_predicted_mask,modules
 import os
 from datetime import datetime
 import math
@@ -322,6 +322,19 @@ def train(
     # add_forward_hook(net, module_class=conv2d_with_mask_shortcut)
 
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
+
+        #change update freq for net with mask
+        if epoch==80:
+            print('mask_update_freq=8000')
+            net.mask_update_freq=999999999
+        elif epoch==160:
+            print('mask_update_freq=99999999')
+            net.mask_update_freq=99999999
+        elif epoch==240:
+            print('mask_update_freq=INF')
+            net.mask_update_freq=9999999
+
+
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
@@ -358,6 +371,14 @@ def train(
             loss = criterion(outputs, labels)
             #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
 
+            # block_penalty=torch.zeros(1).to(net.extractor.network[0].weight.device)
+            # for name,mod in net.named_modules():
+            #     if isinstance(mod,modules.block_with_mask_shortcut):
+            #         block_penalty=block_penalty+mod.shortcut_mask.abs()
+            #
+            # loss=loss+0.0005*block_penalty
+
+
             if save_at_each_step:
                 torch.save(images,os.path.join(crash_path,'images.pt'))
                 torch.save(labels,os.path.join(crash_path,'labels.pt'))
@@ -366,6 +387,8 @@ def train(
                 torch.save(outputs,os.path.join(crash_path,'outputs.pt'))
 
             loss.backward()
+
+
 
             if gradient_clip_value is not None:
                 torch.nn.utils.clip_grad_value_(net.parameters(), gradient_clip_value)
@@ -377,17 +400,8 @@ def train(
                               scalar_value=float(loss.detach()),
                               global_step=int(sample_num / batch_size))
 
-            # max=0
-            # max_name=''
+
             if step%20==0:
-                # for name, mod in net.named_modules():
-                #     if hasattr(mod, 'weight'):
-                #         grad=mod.weight.grad.view(-1).detach().cpu().numpy()
-                #         norm=np.linalg.norm(grad,ord=2)
-                #         if norm>max:
-                #             max=norm
-                #             max_name=name
-                # print(max_name,max)
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
             if step % evaluate_step == 0 and step != 0:
                 accuracy= evaluate.evaluate_net(net, validation_loader,
@@ -485,6 +499,17 @@ def add_backward_hook(net,module_class=None,module_name=None):
         if module_class is not None and isinstance(mod,module_class) or\
                 module_name is not None and module_name == name:
             handle=mod.register_backward_hook(hook)
+            name_of_mod[mod]=name
+
+def add_hook(net,module_class=None,module_name=None):
+    def hook(grad):
+        print(module_name,grad.abs().max(),grad.abs().mean())
+
+    name_of_mod={}
+    for name,mod in net.named_modules() :
+        if module_class is not None and isinstance(mod,module_class) or\
+                module_name is not None and module_name == name:
+            handle=mod.weight.register_hook(hook)
             name_of_mod[mod]=name
 
 def check_grad(net,step):

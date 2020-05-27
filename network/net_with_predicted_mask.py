@@ -46,6 +46,8 @@ class predicted_mask_net(nn.Module):
         self.net = self.transform(net)  # .to(device)
         self.flop_expected = flop_expected
         self.loader =None
+        self.set_bn_momentum(momentum=0.5)
+
 
     def train(self, mode=True):
         super().train(mode)
@@ -102,8 +104,17 @@ class predicted_mask_net(nn.Module):
             raise Exception('Masks should not be updated in evaluation mode.')
         mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
 
-        prune_rate = self.find_prune_rate(mask)
-        _, mask_index = torch.topk(torch.abs(mask), k=int(prune_rate * mask.shape[0]), dim=0, largest=False)
+        mask_clone=mask.detach().clone()
+
+        # if 'resnet' in self.net_name:#preserve all filters in first conv for resnet
+        #     for name,mod in self.net.named_modules():
+        #         if isinstance(mod,nn.Conv2d):
+        #             out_channels=mod.out_channels
+        #             mask_clone[:out_channels]=1
+        #             break
+
+        prune_rate = self.find_prune_rate(mask_clone)
+        _, mask_index = torch.topk(torch.abs(mask_clone), k=int(prune_rate * mask.shape[0]), dim=0, largest=False)
         index=torch.ones(mask.shape).to(mask.device)
         index[mask_index]=0
         mask=mask*index
@@ -145,6 +156,15 @@ class predicted_mask_net(nn.Module):
         #     else:
         #         break
 
+    def set_bn_momentum(self,momentum):
+        '''
+        set the momentum of BatchNorm2d in net
+        :param momentum:
+        :return:
+        '''
+        for name,mod in self.net.named_modules():
+            if isinstance(mod,nn.BatchNorm2d):
+                mod.momentum=momentum
 
 
     def find_prune_rate(self, mask):
@@ -284,7 +304,6 @@ class predicted_mask_shortcut_with_weight_net(predicted_mask_net):
                                                                       feature_len, gcn_rounds,
                                                                       only_gcn, only_inner_features, mask_update_freq,
                                                                       mask_update_steps)
-        self.set_bn_momentum(momentum=0.5)
 
 
 
@@ -329,15 +348,7 @@ class predicted_mask_shortcut_with_weight_net(predicted_mask_net):
         return net
 
 
-    def set_bn_momentum(self,momentum):
-        '''
-        set the momentum of BatchNorm2d in net
-        :param momentum:
-        :return:
-        '''
-        for name,mod in self.net.named_modules():
-            if isinstance(mod,nn.BatchNorm2d):
-                mod.momentum=momentum
+
 
 
     def update_mask(self):
