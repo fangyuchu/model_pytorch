@@ -41,6 +41,7 @@ def draw_masked_net(net):
         for j in range(max_out_channels):
             if layer_mask[i][j] == -2:  # placeholder
                 pass
+            #todo:这里是不是有点问题
             elif layer_mask[i][j] == 0:  # pruned filter
                 # (left bottom), width,height,color,transparency?, fill the square# (left bottom), width,height,color,transparency?, fill the square
                 rect = plt.Rectangle((x, y), square_w, square_h, color='b', alpha=0.3,fill=False)

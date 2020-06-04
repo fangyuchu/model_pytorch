@@ -1,0 +1,125 @@
+确认的手段：
+bn_momentum 0.1
+extractor和cnn同lr
+先训练10个epoch的完整网络，然后在10~80个epoch中每10个epoch训练1个epoch的掩码
+采用sgd
+shotrcut_mask改成mask的绝对值的mean，一定程度上有助于稳定网络
+batchsize=128
+grad_clip=1
+
+
+还在进行的
+weight_decay 5e-4
+block_penalty,怎么避免震荡，同时又不能出现太极端的剪法
+#todo：shortcut mask在结构确定之后是不是可以去掉
+#todo:所有mask在结构确定之后就自由更新
+似乎最稳定的acc相对比较高
+
+
+
+不采用的
+blp设为（0.9 or 0.1）-shortcut_mask;会导致把后面全剪完
+adam收敛太慢，520个epoch都没收敛
+加大batchsize，对结果没有改进
+不剪第一层，之前实现有bug才导致第一层剪完网络crash，现已更正
+
+
+
+
+he schedule baseline
+    weight decay 1e-4
+    0.9121,0.9251,0.9226,0.9313,0.9216,0.9202
+    weight decay 5e-4
+    0.9380,0.9307,0.9267,0.9358,0.9293,0.9382
+sfp schedule baseline
+    weight decay 5e-4
+    0.9436,0.9410,0.9396,0.9399,0.9405
+
+
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_warmup10_adam_1 和2 没收敛，第二档lr可以延长一点
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_warmup10_sgd_1/flop=67391114,accuracy=0.91170.tar
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_warmup10_sgd_2/flop=67510922,accuracy=0.88680.tar
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_heschedule_weightdecay1_blPenalty_target2_3/flop=67520138,accuracy=0.91660.tar 网络结构比较均衡，大部分shortcut_mask在0.2上下
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_heschedule_weightdecay1_blPenalty_target5_2/flop=67474058,accuracy=0.92050.tar 网络比较均衡，大部分shortcut_mask在0.5上下
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_warmup10_sgd_blp0.5_1/flop=67363466,accuracy=0.92770.tar 网络结构比较均衡，训练掩码中的震荡也比较少;和baseline的loss比，感觉是过拟合了
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_warmup10_sgd_blp0.5_2/flop=67492490,accuracy=0.89370.tar 网络结构只保留了前面的层;loss看起来也比上面大一点点
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_warmup10_sgd_blpDynamic_1/flop=67529354,accuracy=0.91160.tar blp设为（0.9 or 0.1）-shortcut_mask;网络结构只保留了前面的层;
+
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_mask80_warmup10_sgd_blpDynamic_2/flop=67483274,accuracy=0.90720.tar 网络结构基本只保留了前面的层;
+
+#todo:确认bn_momentum 0.1；extractor和cnn同lr；先训练10个epoch的完整网络，然后在10~80个epoch中每10个epoch训练1个epoch的掩码
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_0.5_1/flop=67418762,accuracy=0.91620.tar
+[4, 16, 16, 9, 9, 9, 10, 7, 9, 3, 10, 8, 9, 2, 10, 4, 13, 5, 13, 12, 20, 14, 19, 8, 19, 12, 21, 11, 20, 10, 23, 17, 21, 12, 23, 14, 25, 39, 46, 21, 34, 25, 37, 25, 37, 20, 32, 24, 33, 20, 28, 35, 35, 22, 25]
+loss和val acc的曲线和baseline相似；但loss下降的没有baseline多，似乎还没收敛？
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_0.5_2/flop=67483274,accuracy=0.90870.tar
+[7, 6, 7, 7, 9, 6, 9, 9, 12, 3, 8, 7, 11, 5, 10, 8, 8, 8, 8, 16, 14, 15, 13, 0, 0, 15, 32, 32, 32, 32, 32, 31, 29, 32, 32, 3, 15, 0, 0, 8, 14, 1, 3, 8, 14, 25, 17, 38, 34, 40, 52, 53, 56, 58, 37]
+
+adam组
+resnet56_predicted_mask_shortcut_with_weight_noFirstConv_wd5_adam_blpenalty0.5_128bs_absShortcutMask_1/flop=67437194,accuracy=0.84720.tar
+[16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 26, 32, 32, 32, 32, 32, 32, 32, 32, 32, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64]
+lr decay epoch [220, 360]; num epoch 520;还是没有收敛，adam速度太慢了，放弃了
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_adam_blpenalty0.5_2/flop=67501706,accuracy=0.86310.tar
+[3, 3, 4, 4, 6, 2, 6, 4, 5, 2, 5, 4, 6, 6, 10, 7, 6, 4, 6, 3, 9, 5, 12, 9, 15, 8, 13, 6, 19, 10, 15, 3, 12, 12, 12, 8, 18, 7, 64, 46, 61, 63, 64, 64, 20, 64, 64, 64, 64, 64, 64, 64, 64, 63, 64]
+同上
+
+batchsize=512组
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_512bs_1/flop=67492490,accuracy=0.92050.tar
+[6, 6, 9, 9, 8, 5, 7, 4, 7, 6, 7, 4, 9, 7, 10, 5, 9, 9, 12, 23, 27, 16, 24, 20, 16, 18, 15, 18, 13, 16, 15, 13, 17, 18, 14, 12, 15, 52, 36, 33, 25, 36, 29, 44, 35, 45, 34, 36, 43, 37, 25, 29, 36, 43, 36]
+loss降在0.01以内了
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_512bs_2/flop=67464842,accuracy=0.91840.tar
+[11, 6, 8, 9, 5, 6, 6, 5, 10, 9, 7, 9, 8, 12, 8, 7, 7, 11, 9, 28, 16, 18, 14, 17, 15, 9, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 53, 52, 64, 54, 60, 54, 63, 54, 53, 55, 59, 52, 58, 60, 56, 59, 58]
+
+abs shortcut mask组
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_128bs_absShortcutMask_1/flop=67464842,accuracy=0.92090.tar
+[5, 6, 6, 4, 8, 8, 10, 5, 9, 8, 12, 8, 10, 7, 8, 7, 10, 5, 10, 17, 18, 13, 14, 17, 25, 15, 20, 5, 16, 12, 17, 9, 19, 9, 16, 9, 18, 38, 41, 31, 29, 28, 33, 23, 36, 19, 30, 33, 50, 51, 43, 52, 49, 59, 46]
+loss没有降到0.01以内，mask能相对保证的比以前稳定一点
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_128bs_absShortcutMask_2/flop=67492490,accuracy=0.91520.tar
+[8, 7, 7, 5, 10, 5, 9, 6, 3, 9, 8, 7, 8, 10, 9, 7, 10, 4, 13, 17, 18, 15, 19, 17, 21, 11, 23, 7, 18, 6, 20, 6, 20, 3, 22, 6, 14, 35, 42, 30, 49, 17, 37, 24, 37, 30, 33, 15, 35, 42, 57, 61, 58, 63, 51]
+同上
+
+不剪第一层组
+resnet56_predicted_mask_shortcut_with_weight_noFirstConv_wd5_sgd_blpenalty0.5_128bs_1/flop=67492490,accuracy=0.91310.tar
+[16, 0, 0, 1, 6, 9, 10, 8, 11, 7, 11, 8, 12, 10, 14, 7, 14, 9, 12, 21, 25, 21, 29, 21, 28, 21, 29, 19, 27, 20, 26, 17, 22, 7, 15, 6, 17, 19, 17, 17, 17, 15, 10, 10, 7, 11, 6, 15, 13, 7, 22, 64, 64, 64, 64]
+loss没降到0.01以内
+resnet56_predicted_mask_shortcut_with_weight_noFirstConv_wd5_sgd_blpenalty0.5_128bs_2/flop=67474058,accuracy=0.91690.tar
+[16, 10, 11, 10, 11, 5, 9, 6, 10, 7, 9, 7, 6, 8, 8, 1, 4, 1, 4, 2, 11, 6, 13, 11, 15, 11, 19, 9, 19, 14, 22, 15, 24, 19, 26, 19, 28, 32, 42, 42, 44, 40, 46, 40, 50, 36, 50, 37, 46, 26, 39, 25, 40, 29, 29]
+
+以上的实验都存在如下的bug，最明显的问题就是mask全0时，该层就输出0，所以第一层剪掉网络就crash了
+out = out +self.downsample(input)
+out =out * self.shortcut_mask
+
+
+#todo:确认;bn_momentum 0.1;同lr=0.1;在10~80个epoch中每10个epoch训练1个epoch的掩码;采用sgd;shotrcut_mask=mask的绝对值的mean;batchsize=128;grad_clip=1
+no block penalty组
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenaltyNo_5/flop=67510922,accuracy=0.92560.tar
+[8, 10, 8, 14, 9, 9, 11, 10, 9, 3, 4, 10, 7, 0, 0, 4, 6, 0, 0, 22, 8, 7, 2, 0, 0, 0, 0, 0, 0, 0, 0, 7, 11, 14, 17, 17, 27, 58, 49, 35, 60, 53, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64]
+网络结构在训练时相对比较稳定、变化较小，loss曲线在初期很平滑；val acc在0.01阶段有比较明显的下滑（类似过拟合）；loss最终在0.02上下;后面几层的shortcut_mask接近1；
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenaltyNo_6/flop=67464842,accuracy=0.90540.tar
+[7, 4, 8, 4, 8, 6, 13, 9, 13, 5, 11, 6, 13, 3, 11, 4, 12, 2, 8, 11, 14, 12, 19, 13, 16, 7, 12, 11, 15, 7, 17, 8, 14, 7, 18, 10, 20, 35, 40, 45, 52, 37, 50, 35, 52, 26, 58, 29, 54, 33, 45, 39, 49, 32, 51]
+网络还是有一定震荡，loss在初期也是大幅震荡，loss在0.04以上，是不是继续训练会有更好的结果？？？
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenaltyNo_7/flop=67501706,accuracy=0.91450.tar
+[7, 6, 9, 9, 12, 10, 14, 10, 14, 6, 15, 7, 14, 7, 14, 8, 15, 12, 15, 16, 19, 22, 18, 15, 25, 16, 18, 11, 25, 20, 19, 11, 23, 6, 19, 8, 13, 27, 23, 15, 18, 15, 12, 10, 7, 5, 5, 2, 17, 14, 25, 14, 53, 64, 64]
+掩码训练后期网络较稳定，前期大幅震荡；loss在0.04以上
+
+block penalty 0.5组
+4组训练mask时，总loss均在0.5左右
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_6/flop=67446410,accuracy=0.90470.tar
+[7, 8, 6, 2, 5, 2, 4, 5, 6, 6, 5, 7, 3, 5, 6, 2, 3, 5, 2, 26, 25, 27, 20, 27, 14, 22, 13, 25, 15, 24, 15, 29, 18, 25, 12, 28, 17, 64, 43, 49, 35, 52, 32, 48, 27, 44, 26, 44, 33, 52, 25, 53, 29, 39, 26]
+block_loss在0.05左右，大概是总loss的1/10；loss在0.04以上
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_7/flop=67529354,accuracy=0.92020.tar
+[16, 15, 15, 15, 15, 13, 15, 12, 16, 7, 15, 4, 9, 9, 6, 8, 8, 4, 16, 27, 10, 7, 9, 13, 11, 7, 10, 5, 10, 8, 11, 0, 0, 15, 18, 12, 24, 55, 43, 40, 43, 28, 36, 23, 37, 24, 29, 10, 22, 9, 40, 42, 42, 44, 36]
+block_loss在0.09左右，大概是总loss的1/5；loss在0.03以上
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_8/flop=67354250,accuracy=0.91360.tar
+[7, 6, 11, 6, 9, 9, 11, 7, 9, 8, 11, 7, 12, 8, 9, 1, 10, 3, 9, 12, 18, 16, 15, 8, 19, 12, 14, 14, 22, 9, 19, 11, 17, 20, 22, 15, 14, 37, 36, 16, 34, 28, 42, 28, 37, 30, 53, 25, 52, 26, 48, 31, 51, 34, 37]
+block_loss在0.04左右；loss大部分在0.04以上
+resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_9/flop=67538570,accuracy=0.91460.tar
+[3, 4, 5, 6, 8, 9, 13, 5, 12, 8, 11, 7, 15, 8, 12, 6, 12, 3, 13, 13, 32, 15, 19, 11, 21, 6, 19, 11, 17, 9, 21, 8, 22, 12, 21, 6, 21, 33, 34, 19, 32, 28, 47, 16, 36, 25, 43, 26, 48, 29, 48, 28, 44, 26, 32]
+block_loss在0.044左右；loss大部分在0.04以上

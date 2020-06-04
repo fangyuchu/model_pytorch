@@ -2,22 +2,16 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
-import numpy as np
-from network import vgg,net_with_predicted_mask,modules
+from network import modules
 import os
 from datetime import datetime
 import math
-from PIL import Image
 import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA           #加载PCA算法包
 from framework import data_loader, measure_flops, evaluate, config as conf
 from math import ceil
-import logger
-import sys
-import copy
 from network import storage
 from torch.utils.tensorboard import SummaryWriter
-
+from framework.draw import draw_masked_net
 
 
 def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
@@ -182,7 +176,10 @@ def train(
     :param save_at_each_step:save model and input data at each step so the bug can be reproduced
     :return:
     '''
-    #todo:在tensorboard里记录实验参数
+    params = dict(locals())  # aquire all input params
+    for k in list(params.keys()):
+        params[k]=str(params[k])
+
     torch.autograd.set_detect_anomaly(True)
     success = True  # if the trained net reaches target accuracy
     # gpu or not
@@ -277,6 +274,8 @@ def train(
         image=torch.zeros(2,3,32,32).to(device)
 
     # writer.add_graph(net, image)
+    for k in params.keys():
+        writer.add_text(tag=k,text_string=params[k])
 
     if test_net:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
@@ -322,19 +321,6 @@ def train(
     # add_forward_hook(net, module_class=conv2d_with_mask_shortcut)
 
     for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
-
-        #change update freq for net with mask
-        if epoch==80:
-            print('mask_update_freq=8000')
-            net.mask_update_freq=999999999
-        elif epoch==160:
-            print('mask_update_freq=99999999')
-            net.mask_update_freq=99999999
-        elif epoch==240:
-            print('mask_update_freq=INF')
-            net.mask_update_freq=9999999
-
-
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
@@ -371,13 +357,33 @@ def train(
             loss = criterion(outputs, labels)
             #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
 
-            # block_penalty=torch.zeros(1).to(net.extractor.network[0].weight.device)
-            # for name,mod in net.named_modules():
-            #     if isinstance(mod,modules.block_with_mask_shortcut):
-            #         block_penalty=block_penalty+mod.shortcut_mask.abs()
-            #
-            # loss=loss+0.0005*block_penalty
+            if net.mask_training_start_epoch<=net.current_epoch<=net.mask_training_stop_epoch:
+                if (net.step_tracked==1 or net.step_tracked==0) and net.mask_updating is True:
+                    fig=draw_masked_net(net)
+                    writer.add_figure(tag='net structure',figure=fig,global_step=int(sample_num / batch_size))
 
+                # target_block_mask=0.5
+                # block_penalty=torch.zeros(1).to(net.extractor.network[0].weight.device)
+                # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
+                # for name,mod in net.named_modules():
+                #     if isinstance(mod,modules.block_with_mask_shortcut):
+                #         mask_abs=mod.shortcut_mask.abs()
+                #         # if mask_abs<=0.5 and last_conv_prune is False:
+                #         #     target_block_mask=0.1
+                #         #     last_conv_prune=True
+                #         # else:
+                #         #     target_block_mask=0.9
+                #         #     last_conv_prune=False
+                #         block_penalty=block_penalty+(target_block_mask-mask_abs).abs()
+                # alpha=7.5e-3
+                # if step==0:
+                #     writer.add_text(tag='alpha',text_string=str(alpha))
+                #     writer.add_text(tag='target_block_mask', text_string=str(target_block_mask))
+                # weighted_block_penalty=alpha*block_penalty
+                # writer.add_scalar(tag='weighted_block_penalty',
+                #                   scalar_value=weighted_block_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # loss=loss+weighted_block_penalty
 
             if save_at_each_step:
                 torch.save(images,os.path.join(crash_path,'images.pt'))
@@ -403,6 +409,7 @@ def train(
 
             if step%20==0:
                 print('{} loss is {}'.format(datetime.now(),float(loss.data)))
+
             if step % evaluate_step == 0 and step != 0:
                 accuracy= evaluate.evaluate_net(net, validation_loader,
                                                 save_net=True,
@@ -413,6 +420,7 @@ def train(
                                                 top_acc=top_acc,
                                                 net_name=net_name,
                                                 exp_name=exp_name)
+
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
@@ -422,7 +430,7 @@ def train(
                 xaxis_acc+=[xaxis]
                 writer.add_scalar(tag='status/val_acc',
                                   scalar_value=accuracy,
-                                  global_step=int(sample_num / batch_size))
+                                  global_step=epoch)
 
                 if paint_loss:
                     fig , ax1 =plt.subplots()

@@ -9,67 +9,65 @@ from framework.train import set_modules_no_grad
 import os,sys,logger
 os.environ["CUDA_VISIBLE_DEVICES"] = '7'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#todo:训练到后面减少extractor的训练频率！！！！！！,已做
-#todo:考虑开始更新cnn时，先不传梯度，单纯让bn track
-#todo:考虑加入正则项使得整层全部保留会收到惩罚
 #todo:考虑惩罚变化幅度大的层
-#todo:查看extractor和cnn的grad，看看extractor学习率该设多少,现在cnn的学习率感觉也有点问题，也看一眼,已看，恢复了
 #训练schedule
 
 
 
 optimizer = optim.SGD
-weight_decay = {'default':1e-4,'extractor':1e-4}
-momentum = {'default':0.9,'extractor':0.9}
 learning_rate = {'default': 0.1, 'extractor': 0.1}
-exp_name='test'
-# exp_name='resnet56_predicted_mask_and_shortcut_net_tfs_pruneFirstConv_mask80_3'
+weight_decay = {'default':5e-4,'extractor':5e-4}
+momentum = {'default':0.9,'extractor':0.9}
+# optimizer = optim.Adam
+# learning_rate = {'default': 0.01, 'extractor': 0.01}
+exp_name='resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_9'
+
+# exp_name='tmp'
 
 
-mask_update_freq = 4000
+mask_update_freq = 10
+mask_update_epochs = 1
+batch_size=128
+mask_training_start_epoch=10
+mask_training_stop_epoch=80
 
-mask_update_steps = 400
+
 flop_expected=6.75e7
 gradient_clip_value=1
-learning_rate_decay_epoch = [80+i for i in [160, 240]]
-num_epochs=320+80
-# net = storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path, 'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')),pretrained=False)
-# net=vgg.vgg16_bn(dataset_name='cifar10')
-# net = net_with_predicted_mask.predicted_mask_net(net,
-#                                                  net_name='vgg16_bn',
-#                                                  dataset_name='cifar10',
-#                                                  mask_update_steps=mask_update_steps,
-#                                                  mask_update_freq=mask_update_freq)
 
-# net = net_with_predicted_mask.predicted_mask_and_shortcut_net(net,
-#                                                               net_name='vgg16_bn',
-#                                                               dataset_name='cifar10',
-#                                                               mask_update_steps=mask_update_steps,
-#                                                               mask_update_freq=mask_update_freq,
-#                                                               flop_expected=flop_expected)
 
-net=resnet_cifar.resnet56()
+
+learning_rate_decay_epoch = [mask_training_stop_epoch+2*i for i in [80,120]]
+num_epochs=160*2+mask_training_stop_epoch
+
+# learning_rate_decay_epoch = [mask_training_stop_epoch+2*i for i in [70,140]]
+# num_epochs=220*2+mask_training_stop_epoch
+
 net=resnet_cifar.resnet56(num_classes=10).to(device)
 
 net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net,
                                                                       net_name='resnet56',
                                                                       dataset_name='cifar10',
-                                                                      mask_update_steps=mask_update_steps,
+                                                                      mask_update_epochs=mask_update_epochs,
                                                                       mask_update_freq=mask_update_freq,
                                                                       flop_expected=flop_expected,
-                                                                      gcn_rounds=1)
+                                                                      gcn_rounds=2,
+                                                                      mask_training_start_epoch=mask_training_start_epoch,
+                                                                      mask_training_stop_epoch=mask_training_stop_epoch,
+                                                                      batch_size=batch_size
+                                                                      )
 
-# net=net_with_predicted_mask.predicted_mask_and_shortcut_net(net,
-#                                                             net_name='resnet56',
-#                                                             dataset_name='cifar10',
-#                                                             flop_expected=flop_expected,
-#                                                             gcn_rounds=1,
-#                                                             mask_update_steps=mask_update_steps,
-#                                                             mask_update_freq=mask_update_freq,
-#                                                             )
+# checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenaltyNo_5/checkpoint/flop=67510922,accuracy=0.92560.tar')
+# net.load_state_dict(checkpoint['state_dict'])
+# net.current_epoch=81
+#
+# learning_rate = {'default': 0.001, 'extractor': 0.001}
+# learning_rate_decay_epoch = [5]
+# num_epochs=1000
+# exp_name='resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenaltyNo_5_train'
+
 
 net=net.to(device)
-
 checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
 # save the output to log
 print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
@@ -78,7 +76,7 @@ if not os.path.exists(checkpoint_path):
 sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
 sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
 
-print(optimizer, weight_decay, momentum, learning_rate, mask_update_freq, mask_update_steps, flop_expected, gradient_clip_value)
+print(optimizer, weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
 
 # train.add_forward_hook(net,module_name='net.features.1')
 
@@ -93,7 +91,7 @@ train.train(net=net,
             learning_rate=learning_rate,
 
             num_epochs=num_epochs,
-            batch_size=128,
+            batch_size=batch_size,
             evaluate_step=5000,
             load_net=False,
             test_net=False,
@@ -106,7 +104,7 @@ train.train(net=net,
             top_acc=1,
             data_parallel=False,
             paint_loss=True,
-            save_at_each_step=True,
+            save_at_each_step=False,
             gradient_clip_value=gradient_clip_value
             )
 

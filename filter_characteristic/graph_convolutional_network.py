@@ -127,7 +127,7 @@ class gcn(nn.Module):
         zero_padding=False
         conv_list=[]
         for name, mod in block.named_modules():
-            if 'downsample' in name and isinstance(mod, resnet_cifar.LambdaLayer):  # for basic block
+            if 'downsample' in name and isinstance(mod, resnet_cifar.DownsampleA):  # for basic block
                 zero_padding = True
             if isinstance(mod, nn.Conv2d):
                 if 'downsample' in name:  # shortcut conv for bottleneck or for conv2d_with_mask_shortcut

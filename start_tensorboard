@@ -1,0 +1,7 @@
+
+
+
+
+conda activate pytorch
+name='resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenaltyNo_5'
+tensorboard --logdir="/home/victorfang/model_pytorch/data/model_saved/${name}/tensorboard"

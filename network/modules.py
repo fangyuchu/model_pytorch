@@ -65,8 +65,8 @@ class block_with_mask_shortcut(conv2d_with_mask_shortcut):
         # out *= self.shortcut_mask
         # out += self.downsample(input)
 
-        out = out +self.downsample(input)
         out =out * self.shortcut_mask
+        out = out +self.downsample(input)
 
         out = self.bn(out)
 
