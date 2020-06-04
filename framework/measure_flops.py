@@ -73,6 +73,10 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
     elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
         shape=(2,3,32,32)
 
+    if isinstance(net, nn.DataParallel):
+        net_entity = net.module
+    else:
+        net_entity = net
 
     global count_ops
     data = torch.zeros(shape)
@@ -101,17 +105,16 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
                 mod.forward = mod.old_forward
                 mod.old_forward = None
 
-    modify_forward(net)
+    modify_forward(net_entity)
     # forward过程中对全局的变量count_ops进行更新
-    net.eval()
-    net.forward(data)
-    restore_forward(net)
+    net_entity.eval()
+    net_entity.forward(data)
+    restore_forward(net_entity)
     if print_flop:
         print('flop_num:{}'.format(count_ops))
     count_ops_tmp=int(count_ops)
     count_ops=0
     return count_ops_tmp
-
 if __name__ == '__main__':
     net = vgg.vgg16_bn(pretrained=True)
     net.classifier = nn.Sequential(

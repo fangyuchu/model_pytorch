@@ -11,8 +11,19 @@ import matplotlib.pyplot as plt
 import cgd
 import logger
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
-os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+net=resnet.resnet50(pretrained=True)
+
+net=nn.DataParallel(net)
+net.to(device)
+measure_flops.measure_model(net, 'imagenet', print_flop=True)
+evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=1024,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
+# a=[0.3 for i in range(13)]
+
+
 
 optimizer = optim.SGD
 learning_rate = {'default': 0.1, 'extractor': 0.1}
