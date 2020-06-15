@@ -268,7 +268,7 @@ class predictor:
                           min_weight_fraction_leaf=0.0, n_estimators=100,
                           n_iter_no_change=None, presort='auto',
                           random_state=None, subsample=1.0, tol=0.0001,
-                          validation_fraction=0.1, verbose=0, warm_start=False)
+                          test_fraction=0.1, verbose=0, warm_start=False)
         elif name is 'random_forest':
             self.regressor=ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
                       max_features='sqrt', max_leaf_nodes=None,
@@ -597,14 +597,14 @@ if __name__ == "__main__":
     #              learning_rate_init=0.1, max_iter=1000, momentum=0.9,
     #              n_iter_no_change=10, nesterovs_momentum=True, power_t=0.5,
     #              random_state=None, shuffle=True, solver='sgd', tol=0.0001,
-    #              validation_fraction=0.1, verbose=False, warm_start=False)
+    #              test_fraction=0.1, verbose=False, warm_start=False)
     # model=MLPRegressor(activation='relu', alpha=0, batch_size='auto', beta_1=0.9,
     #          beta_2=0.999, early_stopping=False, epsilon=1e-08,
     #          hidden_layer_sizes=170, learning_rate='constant',
     #          learning_rate_init=0.01, max_iter=1000, momentum=0.9,
     #          n_iter_no_change=10, nesterovs_momentum=True, power_t=0.5,
     #          random_state=None, shuffle=True, solver='adam', tol=0.0001,
-    #          validation_fraction=0.1, verbose=False, warm_start=False)
+    #          test_fraction=0.1, verbose=False, warm_start=False)
     # # model.fit(stat_train, filter_label_train)
     # param_grid = {
     #     'hidden_layer_sizes':[100,120,170,150],
@@ -704,7 +704,7 @@ if __name__ == "__main__":
                           min_weight_fraction_leaf=0.0, n_estimators=1000,
                           n_iter_no_change=None, presort='auto',
                           random_state=None, subsample=1.0, tol=0.0001,
-                          validation_fraction=0.1, verbose=0, warm_start=False)
+                          test_fraction=0.1, verbose=0, warm_start=False)
 
     # param_grid = {
     #     'n_estimators': [50,100,500,1000,1200],#[100* i for i in range(1, 10, 2)],
@@ -821,7 +821,7 @@ if __name__ == "__main__":
     #                        min_weight_fraction_leaf=0.0, n_estimators=500,
     #                        n_iter_no_change=None, presort='auto',
     #                        random_state=None, subsample=1.0, tol=0.0001,
-    #                        validation_fraction=0.1, verbose=0,
+    #                        test_fraction=0.1, verbose=0,
     #                        warm_start=False)
     #
     # param_grid = {
@@ -922,7 +922,7 @@ if __name__ == "__main__":
     # x_tensor = torch.tensor(train_x, dtype=torch.float32).to(device)
     #
     #
-    # #validation data
+    # #test data
     # val_x_tensor=torch.tensor(val_x,dtype=torch.float32).to(device)
     # val_y_tensor=torch.tensor(val_y,dtype=torch.long).to(device)
     #

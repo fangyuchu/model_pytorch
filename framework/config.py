@@ -42,9 +42,9 @@ imagenet['label_offset']=1                                          #offset of t
 imagenet['mean']=[0.485, 0.456, 0.406]
 imagenet['std']=[0.229, 0.224, 0.225]
 imagenet['train_set_size']=1271167
-imagenet['validation_set_size']=50000
+imagenet['test_set_size']=50000
 imagenet['train_set_path']=os.path.join(root_path,'dataset/imagenet/train')
-imagenet['validation_set_path']=os.path.join(root_path,'dataset/imagenet/validation')
+imagenet['test_set_path']=os.path.join(root_path,'dataset/imagenet/test')
 #(array([0.47068703, 0.44848716, 0.39994222], dtype=float32), array([0.28111452, 0.27503234, 0.28819305], dtype=float32))
 
 imagenet['default_image_size']=224
@@ -54,8 +54,9 @@ cifar10['num_class']=10
 cifar10['train_set_size']=50000
 cifar10['mean']=[x / 255 for x in [125.3, 123.0, 113.9]]
 cifar10['std']=[x / 255 for x in [63.0, 62.1, 66.7]]
-cifar10['dataset_path']=os.path.join(root_path,'dataset/cifar10')
-cifar10['validation_set_size']=10000
+cifar10['train_set_path']=os.path.join(root_path,'dataset/cifar10')
+cifar10['test_set_path']=os.path.join(root_path,'dataset/cifar10')
+cifar10['test_set_size']=10000
 cifar10['default_image_size']=32
 
 #cifar100
@@ -64,8 +65,9 @@ cifar100['num_class']=100
 cifar100['train_set_size']=50000
 cifar100['mean']=[0.5071, 0.4867, 0.4408]
 cifar100['std']=[0.2675, 0.2565, 0.2761]
-cifar100['dataset_path']=os.path.join(root_path,'dataset/cifar100')
-cifar100['validation_set_size']=10000
+cifar100['train_set_path']=os.path.join(root_path,'dataset/cifar100')
+cifar100['test_set_path']=os.path.join(root_path,'dataset/cifar100')
+cifar100['test_set_size']=10000
 cifar100['default_image_size']=32
 
 #tiny_imagenet
@@ -76,8 +78,8 @@ tiny_imagenet['mean']=[0.485, 0.456, 0.406]
 tiny_imagenet['std']=[0.229, 0.224, 0.225]
 tiny_imagenet['train_set_path']=os.path.join(root_path,'dataset/tiny_imagenet/train')
 tiny_imagenet['train+val_set_path']=os.path.join(root_path,'dataset/tiny_imagenet/train+val')
-tiny_imagenet['validation_set_path']=os.path.join(root_path,'dataset/tiny_imagenet/val')
-tiny_imagenet['validation_set_size']=10000
+tiny_imagenet['test_set_path']=os.path.join(root_path,'dataset/tiny_imagenet/val')
+tiny_imagenet['test_set_size']=10000
 tiny_imagenet['default_image_size']=224
 
 #model saving params

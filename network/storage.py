@@ -133,7 +133,7 @@ if __name__ == "__main__":
     c=get_net_information(net=net,dataset_name='cifar10',net_name='resnet56')
     net=restore_net(checkpoint,True)
     from framework import evaluate,data_loader
-    evaluate.evaluate_net(net,data_loader.create_validation_loader(512,4,'cifar10'),False)
+    evaluate.evaluate_net(net, data_loader.create_test_loader(512, 4, 'cifar10'), False)
     # c=get_net_information(net=net,dataset_name=dataset_name,net_name='resnet50')
 
 

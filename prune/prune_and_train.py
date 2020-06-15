@@ -28,7 +28,7 @@ def prune_inactive_neural_with_regressor(net,
                                          flop_expected=None,
                                          dataset_name='imagenet',
                                          use_random_data=False,
-                                         validation_loader=None,
+                                         test_loader=None,
                                          batch_size=conf.batch_size,
                                          num_workers=conf.num_workers,
                                          optimizer=optim.Adam,
@@ -60,7 +60,7 @@ def prune_inactive_neural_with_regressor(net,
     :param flop_expected:
     :param dataset_name:
     :param use_random_data:
-    :param validation_loader:
+    :param test_loader:
     :param batch_size:
     :param num_workers:
     :param optimizer:
@@ -98,7 +98,7 @@ def prune_inactive_neural_with_regressor(net,
         'flop_expected:{}\n' 
         'dataset_name:{}\n' 
         'use_random_data:{}\n' 
-        'validation_loader:{}\n' 
+        'test_loader:{}\n' 
         'batch_size:{}\n' 
         'num_workers:{}\n' 
         'optimizer:{}\n' 
@@ -115,7 +115,7 @@ def prune_inactive_neural_with_regressor(net,
         'max_training_round:{}\n'
         'round:{}\n'
           .format(net, net_name,exp_name, target_accuracy, prune_rate,predictor_name,load_regressor,round_for_train,tar_acc_gradual_decent,
-                  flop_expected,dataset_name,use_random_data,validation_loader,batch_size,num_workers,optimizer,learning_rate,
+                  flop_expected,dataset_name,use_random_data,test_loader,batch_size,num_workers,optimizer,learning_rate,
                   evaluate_step,num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
                   weight_decay,learning_rate_decay_epoch,top_acc,max_training_round,round))
     print(kwargs)
@@ -128,8 +128,8 @@ def prune_inactive_neural_with_regressor(net,
     else:
         print(device)
 
-    if validation_loader is None:
-        validation_loader = data_loader.create_validation_loader(
+    if test_loader is None:
+        test_loader = data_loader.create_test_loader(
                                                                  batch_size=batch_size,
                                                                  num_workers=num_workers,
                                                                  dataset_name=dataset_name,
@@ -137,7 +137,7 @@ def prune_inactive_neural_with_regressor(net,
 
     flop_original_net = measure_flops.measure_model(net, dataset_name)
     original_accuracy = evaluate.evaluate_net(net=net,
-                                              data_loader=validation_loader,
+                                              data_loader=test_loader,
                                               save_net=False,
                                               top_acc=top_acc,
                                               dataset_name=dataset_name,
@@ -298,7 +298,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
                                                 flop_expected=None,
                                                 dataset_name='imagenet',
                                                 use_random_data=False,
-                                                validation_loader=None,
+                                                test_loader=None,
                                                 batch_size=conf.batch_size,
                                                 num_workers=conf.num_workers,
                                                 optimizer=optim.Adam,
@@ -330,7 +330,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     :param flop_expected:
     :param dataset_name:
     :param use_random_data:
-    :param validation_loader:
+    :param test_loader:
     :param batch_size:
     :param num_workers:
     :param optimizer:
@@ -368,7 +368,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
     print('flop_expected:',flop_expected)
     print('dataset_name:',dataset_name)
     print('use_random_data:',use_random_data)
-    print('validation_loader:',validation_loader)
+    print('test_loader:',test_loader)
     print('batch_size:',batch_size)
     print('num_workers:',num_workers)
     print('optimizer:',optimizer)
@@ -396,14 +396,14 @@ def prune_inactive_neural_with_regressor_resnet(net,
         print(device)
     net.to(device)
     '''加载数据集'''
-    if validation_loader is None:
-        validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
-                                                                 num_workers=num_workers,
-                                                                 dataset_name=dataset_name)
+    if test_loader is None:
+        test_loader = data_loader.create_test_loader(batch_size=batch_size,
+                                                           num_workers=num_workers,
+                                                           dataset_name=dataset_name)
 
     flop_original_net = measure_flops.measure_model(net, dataset_name)
     original_accuracy = evaluate.evaluate_net(net=net,
-                                              data_loader=validation_loader,
+                                              data_loader=test_loader,
                                               save_net=False,
                                               dataset_name=dataset_name,
                                               top_acc=top_acc
@@ -570,7 +570,7 @@ def prune_inactive_neural_with_extractor(net,
                                          tar_acc_gradual_decent=False,
                                          flop_expected=None,
                                          dataset_name='imagenet',
-                                         validation_loader=None,
+                                         test_loader=None,
                                          batch_size=conf.batch_size,
                                          num_workers=conf.num_workers,
                                          optimizer=optim.Adam,
@@ -608,7 +608,7 @@ def prune_inactive_neural_with_extractor(net,
     :param flop_expected:
     :param dataset_name:
     :param use_random_data:
-    :param validation_loader:
+    :param test_loader:
     :param batch_size:
     :param num_workers:
     :param optimizer:
@@ -645,7 +645,7 @@ def prune_inactive_neural_with_extractor(net,
     print('tar_acc_gradual_decent:',tar_acc_gradual_decent)
     print('flop_expected:',flop_expected)
     print('dataset_name:',dataset_name)
-    print('validation_loader:',validation_loader)
+    print('test_loader:',test_loader)
     print('batch_size:',batch_size)
     print('num_workers:',num_workers)
     print('optimizer:',optimizer)
@@ -677,10 +677,10 @@ def prune_inactive_neural_with_extractor(net,
         print(device)
     net.to(device)
     '''加载数据集'''
-    if validation_loader is None:
-        validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
-                                                                 num_workers=num_workers,
-                                                                 dataset_name=dataset_name)
+    if test_loader is None:
+        test_loader = data_loader.create_test_loader(batch_size=batch_size,
+                                                           num_workers=num_workers,
+                                                           dataset_name=dataset_name)
 
 
     if 'vgg' in net_name:
@@ -713,7 +713,7 @@ def prune_inactive_neural_with_extractor(net,
         original_net=nn.DataParallel(original_net)
     flop_original_net = measure_flops.measure_model(original_net, dataset_name,print_flop=True)
     original_accuracy = evaluate.evaluate_net(net=original_net,
-                                              data_loader=validation_loader,
+                                              data_loader=test_loader,
                                               save_net=False,
                                               dataset_name=dataset_name,
                                               top_acc=top_acc
@@ -911,7 +911,7 @@ def find_best_net(flop,dir):
 #                                          round_to_train_freq=5,
 #                                          flop_expected=None,
 #                                          dataset_name='imagenet',
-#                                          validation_loader=None,
+#                                          test_loader=None,
 #                                          batch_size=conf.batch_size,
 #                                          num_workers=conf.num_workers,
 #                                          optimizer=optim.Adam,
@@ -944,7 +944,7 @@ def find_best_net(flop,dir):
 #     :param flop_expected:
 #     :param dataset_name:
 #     :param use_random_data:
-#     :param validation_loader:
+#     :param test_loader:
 #     :param batch_size:
 #     :param num_workers:
 #     :param optimizer:
@@ -978,7 +978,7 @@ def find_best_net(flop,dir):
 #     print('roung_to_train_freq:',round_to_train_freq)
 #     print('flop_expected:',flop_expected)
 #     print('dataset_name:',dataset_name)
-#     print('validation_loader:',validation_loader)
+#     print('test_loader:',test_loader)
 #     print('batch_size:',batch_size)
 #     print('num_workers:',num_workers)
 #     print('optimizer:',optimizer)
@@ -1009,8 +1009,8 @@ def find_best_net(flop,dir):
 #     net.to(device)
 #     data_parallel=isinstance(net,nn.DataParallel)
 #     '''加载数据集'''
-#     if validation_loader is None:
-#         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+#     if test_loader is None:
+#         test_loader = data_loader.create_test_loader(batch_size=batch_size,
 #                                                                  num_workers=num_workers,
 #                                                                  dataset_name=dataset_name)
 #
@@ -1183,7 +1183,7 @@ def find_best_net(flop,dir):
 #                                                 flop_expected=None,
 #                                                 dataset_name='imagenet',
 #                                                 use_random_data=False,
-#                                                 validation_loader=None,
+#                                                 test_loader=None,
 #                                                 batch_size=conf.batch_size,
 #                                                 num_workers=conf.num_workers,
 #                                                 optimizer=optim.Adam,
@@ -1214,7 +1214,7 @@ def find_best_net(flop,dir):
 #     :param flop_expected:
 #     :param dataset_name:
 #     :param use_random_data:
-#     :param validation_loader:
+#     :param test_loader:
 #     :param batch_size:
 #     :param num_workers:
 #     :param optimizer:
@@ -1251,7 +1251,7 @@ def find_best_net(flop,dir):
 #     print('flop_expected:',flop_expected)
 #     print('dataset_name:',dataset_name)
 #     print('use_random_data:',use_random_data)
-#     print('validation_loader:',validation_loader)
+#     print('test_loader:',test_loader)
 #     print('batch_size:',batch_size)
 #     print('num_workers:',num_workers)
 #     print('optimizer:',optimizer)
@@ -1278,14 +1278,14 @@ def find_best_net(flop,dir):
 #         print(device)
 #     net.to(device)
 #     '''加载数据集'''
-#     if validation_loader is None:
-#         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+#     if test_loader is None:
+#         test_loader = data_loader.create_test_loader(batch_size=batch_size,
 #                                                                  num_workers=num_workers,
 #                                                                  dataset_name=dataset_name)
 #
 #     flop_original_net = measure_flops.measure_model(net, dataset_name)
 #     original_accuracy = evaluate.evaluate_net(net=net,
-#                                               data_loader=validation_loader,
+#                                               data_loader=test_loader,
 #                                               save_net=False,
 #                                               dataset_name=dataset_name,
 #                                               )
@@ -1472,7 +1472,7 @@ def find_best_net(flop,dir):
 #                                      neural_dead_times_decay=0.95,
 #                                      dataset_name='imagenet',
 #                                      use_random_data=False,
-#                                      validation_loader=None,
+#                                      test_loader=None,
 #                                      batch_size=conf.batch_size,
 #                                      num_workers=conf.num_workers,
 #                                      optimizer=optim.Adam,
@@ -1503,7 +1503,7 @@ def find_best_net(flop,dir):
 #     :param neural_dead_times_decay:
 #     :param dataset_name:
 #     :param use_random_data:
-#     :param validation_loader:
+#     :param test_loader:
 #     :param batch_size:
 #     :param num_workers:
 #     :param optimizer:
@@ -1539,7 +1539,7 @@ def find_best_net(flop,dir):
 #           'filter_FIRE_decay:{}\n'
 #           'neural_dead_times_decay:{}\n'
 #           'dataset_name:{}\n'
-#           'validation_loader:{}\n'
+#           'test_loader:{}\n'
 #           'batch_size:{}\n'
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
@@ -1557,7 +1557,7 @@ def find_best_net(flop,dir):
 #                   predictor_name,round_for_train,
 #                   tar_acc_gradual_decent,
 #                   flop_expected, filter_FIRE_decay,
-#                   neural_dead_times_decay, dataset_name, validation_loader, batch_size, num_workers, optimizer,
+#                   neural_dead_times_decay, dataset_name, test_loader, batch_size, num_workers, optimizer,
 #                   learning_rate, evaluate_step,
 #                   num_epoch, filter_preserve_ratio, max_filters_pruned_for_one_time,min_filters_pruned_for_one_time, learning_rate_decay,
 #                   learning_rate_decay_factor,
@@ -1572,8 +1572,8 @@ def find_best_net(flop,dir):
 #     else:
 #         print(device)
 # 
-#     if validation_loader is None:
-#         validation_loader = data_loader.create_validation_loader(
+#     if test_loader is None:
+#         test_loader = data_loader.create_test_loader(
 #                                                                  batch_size=batch_size,
 #                                                                  num_workers=num_workers,
 #                                                                  dataset_name=dataset_name,
@@ -1581,7 +1581,7 @@ def find_best_net(flop,dir):
 # 
 #     flop_original_net = measure_flops.measure_model(net, dataset_name)
 #     original_accuracy = evaluate.evaluate_net(net=net,
-#                                               data_loader=validation_loader,
+#                                               data_loader=test_loader,
 #                                               save_net=False,
 #                                               dataset_name=dataset_name,
 #                                               )
@@ -1708,7 +1708,7 @@ def find_best_net(flop,dir):
 #                       neural_dead_times_decay=0.95,
 #                       dataset_name='imagenet',
 #                       use_random_data=False,
-#                       validation_loader=None,
+#                       test_loader=None,
 #                       batch_size=conf.batch_size,
 #                       num_workers=conf.num_workers,
 #                       optimizer=optim.Adam,
@@ -1736,7 +1736,7 @@ def find_best_net(flop,dir):
 #     :param neural_dead_times_decay:float, decay rate for ndt in each round of pruning
 #     :param dataset_name:
 #     :param use_random_data:bool, if true, generated data which fits normal distribution will be used to calculate dead filters.
-#     :param validation_loader:
+#     :param test_loader:
 #     :param batch_size:
 #     :param num_workers:
 #     :param optimizer:
@@ -1769,7 +1769,7 @@ def find_best_net(flop,dir):
 #           'filter_FIRE_decay:{}\n'
 #           'neural_dead_times_decay:{}\n'
 #           'dataset_name:{}\n'
-#           'validation_loader:{}\n'
+#           'test_loader:{}\n'
 #           'batch_size:{}\n'
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
@@ -1784,7 +1784,7 @@ def find_best_net(flop,dir):
 #           'learning_rate_decay_epoch:{}'
 #           .format(net,net_name,use_random_data,neural_dead_times,filter_FIRE,target_accuracy,tar_acc_gradual_decent,
 #                   flop_expected,filter_FIRE_decay,
-#                   neural_dead_times_decay,dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,evaluate_step,
+#                   neural_dead_times_decay,dataset_name,test_loader,batch_size,num_workers,optimizer,learning_rate,evaluate_step,
 #                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
 #                   weight_decay,learning_rate_decay_epoch))
 #     print(kwargs)
@@ -1796,15 +1796,15 @@ def find_best_net(flop,dir):
 #     else:
 #         print(device)
 # 
-#     if validation_loader is None :
-#         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+#     if test_loader is None :
+#         test_loader = data_loader.create_test_loader(batch_size=batch_size,
 #                                                                  num_workers=num_workers,
 #                                                                  dataset_name=dataset_name,
 #                                                                  )
 # 
 #     flop_original_net= measure_flops.measure_model(net, dataset_name)
 #     original_accuracy= evaluate.evaluate_net(net=net,
-#                                              data_loader=validation_loader,
+#                                              data_loader=test_loader,
 #                                              save_net=False,
 #                                              dataset_name=dataset_name,
 #                                              )
@@ -1932,7 +1932,7 @@ def find_best_net(flop,dir):
 #                                           ord=2)  # prune the model
 #             print('{} layer {} pruned'.format(datetime.now(), i))
 #
-#             validation_loader = data_loader.create_validation_loader(dataset_path=conf.imagenet['validation_set_path'],
+#             test_loader = data_loader.create_test_loader(dataset_path=conf.imagenet['test_set_path'],
 #                                                                      default_image_size=224,
 #                                                                      mean=conf.imagenet['mean'],
 #                                                                      std=conf.imagenet['std'],
@@ -1941,7 +1941,7 @@ def find_best_net(flop,dir):
 #                                                                      dataset_name='imagenet')
 #             net_name = 'vgg16_bn,gradual_pruned'
 #             checkpoint_path = conf.root_path + net_name + '/checkpoint'
-#             accuracy = evaluate.evaluate_net(net, validation_loader,
+#             accuracy = evaluate.evaluate_net(net, test_loader,
 #                                              save_net=True,
 #                                              checkpoint_path=checkpoint_path,
 #                                              sample_num=0,
@@ -1974,7 +1974,7 @@ def find_best_net(flop,dir):
 #                  neural_dead_times_decay=0.95,  # no use
 #                  dataset_name='imagenet',
 #                  use_random_data=False,
-#                  validation_loader=None,
+#                  test_loader=None,
 #                  batch_size=conf.batch_size,
 #                  num_workers=conf.num_workers,
 #                  optimizer=optim.Adam,
@@ -2013,7 +2013,7 @@ def find_best_net(flop,dir):
 #           'filter_FIRE_decay:{}\n'
 #           'neural_dead_times_decay:{}\n'
 #           'dataset_name:{}\n'
-#           'validation_loader:{}\n'
+#           'test_loader:{}\n'
 #           'batch_size:{}\n'
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
@@ -2031,7 +2031,7 @@ def find_best_net(flop,dir):
 #                                                 predictor_name, round_for_train,
 #                                                 tar_acc_gradual_decent,
 #                                                 flop_expected, filter_FIRE_decay,
-#                                                 neural_dead_times_decay, dataset_name, validation_loader, batch_size,
+#                                                 neural_dead_times_decay, dataset_name, test_loader, batch_size,
 #                                                 num_workers, optimizer,
 #                                                 learning_rate, evaluate_step,
 #                                                 num_epoch, filter_preserve_ratio, max_filters_pruned_for_one_time,
@@ -2048,14 +2048,14 @@ def find_best_net(flop,dir):
 #         print(device)
 #     net.to(device)
 #     '''加载数据集'''
-#     if validation_loader is None:
-#         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+#     if test_loader is None:
+#         test_loader = data_loader.create_test_loader(batch_size=batch_size,
 #                                                                  num_workers=num_workers,
 #                                                                  dataset_name=dataset_name)
 #
 #     flop_original_net = measure_flops.measure_model(net, dataset_name)
 #     original_accuracy = evaluate.evaluate_net(net=net,
-#                                               data_loader=validation_loader,
+#                                               data_loader=test_loader,
 #                                               save_net=False,
 #                                               dataset_name=dataset_name,
 #                                               )
@@ -2248,7 +2248,7 @@ def find_best_net(flop,dir):
 #                       flop_expected=None,
 #                       dataset_name='imagenet',
 #                       use_random_data=False,
-#                       validation_loader=None,
+#                       test_loader=None,
 #                       batch_size=conf.batch_size,
 #                       num_workers=conf.num_workers,
 #                       optimizer=optim.Adam,
@@ -2273,7 +2273,7 @@ def find_best_net(flop,dir):
 #     :param flop_expected: int: expected flop after net pruned. will only work when tar_acc_gradual_decent is true
 #     :param dataset_name:
 #     :param use_random_data:bool, if true, generated data which fits normal distribution will be used to calculate dead filters.
-#     :param validation_loader:
+#     :param test_loader:
 #     :param batch_size:
 #     :param num_workers:
 #     :param optimizer:
@@ -2303,7 +2303,7 @@ def find_best_net(flop,dir):
 #           'tar_acc_gradual_decent:{}\n'
 #           'flop_expected:{}\n'
 #           'dataset_name:{}\n'
-#           'validation_loader:{}\n'
+#           'test_loader:{}\n'
 #           'batch_size:{}\n'
 #           'num_workers:{}\n'
 #           'optimizer:{}\n'
@@ -2318,7 +2318,7 @@ def find_best_net(flop,dir):
 #           'learning_rate_decay_epoch:{}'
 #           .format(net,net_name,use_random_data,prune_rate,target_accuracy,tar_acc_gradual_decent,
 #                   flop_expected,
-#                   dataset_name,validation_loader,batch_size,num_workers,optimizer,learning_rate,evaluate_step,
+#                   dataset_name,test_loader,batch_size,num_workers,optimizer,learning_rate,evaluate_step,
 #                   num_epoch,filter_preserve_ratio,max_filters_pruned_for_one_time,learning_rate_decay,learning_rate_decay_factor,
 #                   weight_decay,learning_rate_decay_epoch))
 #     print(kwargs)
@@ -2331,15 +2331,15 @@ def find_best_net(flop,dir):
 #     else:
 #         print(device)
 #
-#     if validation_loader is None :
-#         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+#     if test_loader is None :
+#         test_loader = data_loader.create_test_loader(batch_size=batch_size,
 #                                                                  num_workers=num_workers,
 #                                                                  dataset_name=dataset_name,
 #                                                                  )
 #
 #     flop_original_net= measure_flops.measure_model(net, dataset_name)
 #     original_accuracy= evaluate.evaluate_net(net=net,
-#                                              data_loader=validation_loader,
+#                                              data_loader=test_loader,
 #                                              save_net=False,
 #                                              dataset_name=dataset_name,
 #                                              )
@@ -2445,7 +2445,7 @@ def find_best_net(flop,dir):
 #                            final_filter_num=[15,34,54,68,131,140,127,166,75,69,44,52,52],
 #                            tar_acc_gradual_decent=False,
 #                            flop_expected=None,
-#                            validation_loader=None,
+#                            test_loader=None,
 #                            dataset_name='cifar10',
 #                            batch_size=conf.batch_size,
 #                            num_workers=conf.num_workers,
@@ -2468,7 +2468,7 @@ def find_best_net(flop,dir):
 #     :param final_filter_num:
 #     :param tar_acc_gradual_decent:
 #     :param flop_expected:
-#     :param validation_loader:
+#     :param test_loader:
 #     :param dataset_name:
 #     :param batch_size:
 #     :param num_workers:
@@ -2496,7 +2496,7 @@ def find_best_net(flop,dir):
 #           'final_filter_num:{}\n'
 #           'tar_acc_gradual_decent:{}\n'
 #           'flop_expected:{}\n'
-#           'validation_loader:{}\n'
+#           'test_loader:{}\n'
 #           'dataset_name:{}\n'
 #           'batch_size:{}\n'
 #           'num_workers:{}\n'
@@ -2509,7 +2509,7 @@ def find_best_net(flop,dir):
 #           'weight_decay:{}\n'
 #           'learning_rate_decay_epoch:{}'
 #           .format(net, net_name,   target_accuracy,
-#                   round_of_prune,final_filter_num,tar_acc_gradual_decent,flop_expected,validation_loader,
+#                   round_of_prune,final_filter_num,tar_acc_gradual_decent,flop_expected,test_loader,
 #                   dataset_name, batch_size, num_workers, optimizer,
 #                   learning_rate, evaluate_step,
 #                   num_epoch, learning_rate_decay,
@@ -2525,15 +2525,15 @@ def find_best_net(flop,dir):
 #     else:
 #         print(device)
 #
-#     if validation_loader is None :
-#         validation_loader = data_loader.create_validation_loader(batch_size=batch_size,
+#     if test_loader is None :
+#         test_loader = data_loader.create_test_loader(batch_size=batch_size,
 #                                                                  num_workers=num_workers,
 #                                                                  dataset_name=dataset_name,
 #                                                                  )
 #
 #     flop_original_net = measure_flops.measure_model(net, dataset_name)
 #     original_accuracy = evaluate.evaluate_net(net=net,
-#                                               data_loader=validation_loader,
+#                                               data_loader=test_loader,
 #                                               save_net=False,
 #                                               dataset_name=dataset_name,
 #                                               )

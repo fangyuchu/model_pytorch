@@ -9,73 +9,63 @@ import os
 import os.path
 import numpy as np
 import sys
+from torch.utils.data.sampler import SubsetRandomSampler
+
 
 
 def create_train_loader(
                     batch_size,
                     num_workers,
-                    dataset_path=None,
                     mean=[0.485, 0.456, 0.406],
                     std=[0.229, 0.224, 0.225],
                     dataset_name='',
                     default_image_size=224,
+        validation_ratio=0.1,
 ):
+    mean=getattr(conf,dataset_name)['mean']
+    std = getattr(conf, dataset_name)['std']
+    dataset_path=getattr(conf,dataset_name)['train_set_path']
+
+    #create indices to split train and val set
+    train_set_size = getattr(conf,dataset_name)['train_set_size']
+    indices = list(range(train_set_size))
+    split = int(np.floor(validation_ratio * train_set_size))
+    # np.random.seed(random_seed)
+    np.random.shuffle(indices)
+    train_idx, valid_idx = indices[split:], indices[:split]
+    train_sampler = SubsetRandomSampler(train_idx)
+    val_sampler = SubsetRandomSampler(valid_idx)
+
     if dataset_name == 'cifar10':
-        if dataset_path is None:
-            dataset_path=conf.cifar10['dataset_path']
-        mean=conf.cifar10['mean']
-        std=conf.cifar10['std']
-        data_loader = torch.utils.data.DataLoader(
-            datasets.CIFAR10(root=dataset_path, train=True, transform=transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, 4),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=mean, std=std),
-            ]), download=True),
-            batch_size=batch_size, shuffle=True,
-            num_workers=num_workers, pin_memory=True)
+        folder = datasets.CIFAR10(root=dataset_path, train=True,
+                                  transform=transforms.Compose([
+                                      transforms.RandomHorizontalFlip(),
+                                      transforms.RandomCrop(32, 4),
+                                      transforms.ToTensor(),
+                                      transforms.Normalize(mean=mean, std=std),
+                                  ]), download=True),
 
     elif dataset_name == 'cifar100':
-        if dataset_path is None:
-            dataset_path=conf.cifar100['dataset_path']
-        mean=conf.cifar100['mean']
-        std=conf.cifar100['std']
-        data_loader = torch.utils.data.DataLoader(
-            # CIFAR100(root=dataset_path, train=True, transform=transforms.Compose([
-            #     transforms.RandomHorizontalFlip(),
-            #     transforms.RandomCrop(32, 4),
-            #     transforms.ToTensor(),
-            #     transforms.Normalize(mean=mean, std=std),
-            # ]), download=True),
-            datasets.CIFAR100(root=dataset_path, train=True, transform=transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, 4),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=mean, std=std),
-            ]), download=True),
-            batch_size=batch_size, shuffle=True,
-            num_workers=num_workers, pin_memory=True)
+        folder = datasets.CIFAR100(root=dataset_path, train=True,
+                                   transform=transforms.Compose([
+                                       transforms.RandomHorizontalFlip(),
+                                       transforms.RandomCrop(32, 4),
+                                       transforms.ToTensor(),
+                                       transforms.Normalize(mean=mean, std=std),
+                                   ]), download=True),
     else:
-        if dataset_name == 'imagenet' and dataset_path is None:
-            dataset_path=conf.imagenet['train_set_path']
-            mean=conf.imagenet['mean']
-            std=conf.imagenet['std']
-        if dataset_name == 'tiny_imagenet' and dataset_path is None:
-            dataset_path=conf.tiny_imagenet['train_set_path']
-            # dataset_path=conf.tiny_imagenet['train+val_set_path']
-            mean=conf.tiny_imagenet['mean']
-            std=conf.tiny_imagenet['std']
-        transform = transforms.Compose([
-            transforms.RandomResizedCrop(default_image_size),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=mean, std=std),
-        ])
-        folder = datasets.ImageFolder(dataset_path, transform)
-        data_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, shuffle=True, num_workers=num_workers,pin_memory=True)
-    return data_loader
+        folder = datasets.ImageFolder(root=dataset_path,
+                                      transform=transforms.Compose([
+                                          transforms.RandomResizedCrop(default_image_size),
+                                          transforms.RandomHorizontalFlip(),
+                                          transforms.ToTensor(),
+                                          transforms.Normalize(mean=mean, std=std),
+                                      ]))
+    train_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers,pin_memory=True)
+    val_loader=torch.utils.data.DataLoader(folder, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers,pin_memory=True)
+    return train_loader,val_loader
 
-def create_validation_loader(
+def create_test_loader(
         batch_size,
         num_workers,
         dataset_name,
@@ -131,9 +121,9 @@ def create_validation_loader(
             if dataset_name =='imagenet_trainset':
                 dataset_path=conf.imagenet['train_set_path']
             if dataset_name == 'imagenet' and dataset_path is None:
-                dataset_path=conf.imagenet['validation_set_path']
+                dataset_path=conf.imagenet['test_set_path']
             if dataset_name == 'tiny_imagenet' and dataset_path is None:
-                dataset_path = conf.tiny_imagenet['validation_set_path']
+                dataset_path = conf.tiny_imagenet['test_set_path']
             if dataset_name == 'tiny_imagenet_trainset':
                 dataset_path = conf.tiny_imagenet['train_set_path']
 

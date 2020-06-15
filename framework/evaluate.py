@@ -242,7 +242,7 @@ def find_useless_filters_data_version(net,
                                       max_data_to_test=10000,
                       ):
     '''
-    use validation set or random generated data to find useless filters in net
+    use test set or random generated data to find useless filters in net
     :param net:
     :param batch_size:
     :param dataset_name:
@@ -287,7 +287,7 @@ def find_useless_filters_data_version(net,
                 train_set_size=conf.cifar100['train_set_size']
             elif dataset_name == 'tiny_imagenet':
                 train_set_size=conf.tiny_imagenet['train_set_size']
-            train_loader = data_loader.create_validation_loader(
+            train_loader = data_loader.create_test_loader(
                                                                 batch_size=batch_size,
                                                                 num_workers=8,
                                                                 dataset_name=dataset_name+'_trainset',

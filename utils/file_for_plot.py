@@ -22,7 +22,7 @@ def dead_neural_rate():
     net.load_state_dict(checkpoint['state_dict'])
 
     # net=create_net.vgg_cifar10()
-    val_loader= data_loader.create_validation_loader(batch_size=1000, num_workers=6, dataset_name='cifar10')
+    val_loader= data_loader.create_test_loader(batch_size=1000, num_workers=6, dataset_name='cifar10')
     # train_loader=data_loader.create_train_loader(batch_size=1600,num_workers=6,dataset_name='cifar10')
     #
     relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=10000, data_loader=val_loader)
@@ -63,8 +63,8 @@ def plot_dead_neuron_filter_number(neural_dead_times=8000,dataset_name='cifar10'
     neural_list_imagenet=checkpoint['neural_list']
 
 
-    loader= data_loader.create_validation_loader(batch_size=100, num_workers=1, dataset_name=dataset_name)
-    # loader=data_loader.create_validation_loader(batch_size=1000,num_workers=8,dataset_name='cifar10_trainset')
+    loader= data_loader.create_test_loader(batch_size=100, num_workers=1, dataset_name=dataset_name)
+    # loader=data_loader.create_test_loader(batch_size=1000,num_workers=8,dataset_name='cifar10_trainset')
 
     relu_list_vgg,neural_list_vgg= evaluate.check_ReLU_alive(net=vgg16, neural_dead_times=neural_dead_times, data_loader=loader, max_data_to_test=10000)
     relu_list_resnet,neural_list_resnet= evaluate.check_ReLU_alive(net=resnet56, neural_dead_times=neural_dead_times, data_loader=loader, max_data_to_test=10000)
@@ -187,7 +187,7 @@ def plot_dead_filter_num_with_different_fdt():
     net = resnet_cifar.resnet56().to(device)
     net.load_state_dict(checkpoint['state_dict'])
 
-    val_loader= data_loader.create_validation_loader(batch_size=500, num_workers=6, dataset_name='cifar10')
+    val_loader= data_loader.create_test_loader(batch_size=500, num_workers=6, dataset_name='cifar10')
     relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=8000, data_loader=val_loader)
 
 
@@ -284,14 +284,14 @@ def speed_up_pruned_net():
                 net_original.to(d)
                 net_pruned.to(d)
 
-                dl= data_loader.create_validation_loader(batch_size=bs, num_workers=num_worker, dataset_name='cifar10')
+                dl= data_loader.create_test_loader(batch_size=bs, num_workers=num_worker, dataset_name='cifar10')
                 start_time=time.time()
                 evaluate.evaluate_net(net=net_original, data_loader=dl, save_net=False, device=d)
                 end_time=time.time()
                 time_original.append(end_time-start_time)
                 del dl
 
-                dl= data_loader.create_validation_loader(batch_size=bs, num_workers=num_worker, dataset_name='cifar10')
+                dl= data_loader.create_test_loader(batch_size=bs, num_workers=num_worker, dataset_name='cifar10')
                 start_time=time.time()
                 evaluate.evaluate_net(net=net_pruned, data_loader=dl, save_net=False, device=d)
                 end_time=time.time()

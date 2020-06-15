@@ -184,7 +184,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # net=torch.nn.DataParallel(net)              #多gpu训练
 #
 # # import evaluate
-# # evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=24,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
+# # evaluate.evaluate_net(net=net,data_loader=data_loader.create_test_loader(batch_size=24,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
 #
 # measure_flops.measure_model(net, 'imagenet', print_flop=True)
 # a=[0.3 for i in range(13)]
@@ -278,7 +278,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # net=torch.nn.DataParallel(net)
 # from framework import evaluate
 # from framework import data_loader
-# # evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
+# # evaluate.evaluate_net(net,data_loader=data_loader.create_test_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
 #
 # measure_flops.measure_model(net, 'cifar10', print_flop=True)
 # prune_and_train.prune_inactive_neural_with_regressor(net=net,
@@ -316,7 +316,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # print(torch.cuda.is_available())
 # net=storage.restore_net(checkpoint=torch.load(os.path.join(conf.root_path,'baseline/vgg16_bn_cifar10,accuracy=0.941.tar')))
 #
-# # evaluate.evaluate_net(net,data_loader=data_loader.create_validation_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
+# # evaluate.evaluate_net(net,data_loader=data_loader.create_test_loader(batch_size=256,num_workers=4,dataset_name='cifar10'),save_net=False)
 #
 # measure_flops.measure_model(net, 'cifar10', print_flop=True)
 # prune_and_train.prune_inactive_neural_with_regressor(net=net,

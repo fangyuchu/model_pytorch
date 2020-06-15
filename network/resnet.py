@@ -240,7 +240,7 @@ def resnet152(pretrained=False, **kwargs):
 #     net=storage.restore_net(checkpoint=checkpoint,pretrained=True)
 #     # net=nn.DataParallel(net)
 #     evaluate.evaluate_net(net=net,
-#                           data_loader=data_loader.create_validation_loader(512,8,'tiny_imagenet'),
+#                           data_loader=data_loader.create_test_loader(512,8,'tiny_imagenet'),
 #                           save_net=False,
 #                           dataset_name='tiny_imagenet')
 #

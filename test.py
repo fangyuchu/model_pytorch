@@ -11,19 +11,15 @@ import matplotlib.pyplot as plt
 import cgd
 import logger
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-net=resnet.resnet50(pretrained=True)
+data_loader.create_train_loader(batch_size=512,num_workers=0,dataset_name='cifar10')
 
-net=nn.DataParallel(net)
-net.to(device)
-measure_flops.measure_model(net, 'imagenet', print_flop=True)
-evaluate.evaluate_net(net=net,data_loader=data_loader.create_validation_loader(batch_size=1024,num_workers=8,dataset_name='imagenet'),save_net=False,dataset_name='imagenet')
-# a=[0.3 for i in range(13)]
-
-
+net=resnet.resnet50(pretrained=False).cuda()
+measure_flops.measure_model(net=net,dataset_name='imagenet',print_flop=True)
+print()
 
 optimizer = optim.SGD
 learning_rate = {'default': 0.1, 'extractor': 0.1}
@@ -31,13 +27,13 @@ weight_decay = {'default':5e-4,'extractor':5e-4}
 momentum = {'default':0.9,'extractor':0.9}
 # optimizer = optim.Adam
 # learning_rate = {'default': 0.01, 'extractor': 0.01}
-exp_name='resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenaltyNo_smTrain_4'
+exp_name='tmp'
 
 mask_update_freq = 10
 mask_update_epochs = 1
 batch_size=128
-mask_training_start_epoch=10
-mask_training_stop_epoch=80
+mask_training_start_epoch=1
+mask_training_stop_epoch=2
 
 
 flop_expected=6.75e7
@@ -62,9 +58,6 @@ net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net,
                                                                       mask_training_stop_epoch=mask_training_stop_epoch,
                                                                       batch_size=batch_size
                                                                       )
-
-
-
 
 net=net.to(device)
 checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -105,35 +98,35 @@ train.train(net=net,
             save_at_each_step=False,
             gradient_clip_value=gradient_clip_value
             )
-
-for name,mod in net.named_modules():
-    if isinstance(mod,modules.block_with_mask_shortcut):
-        mod.shortcut_mask=nn.Parameter(mod.shortcut_mask,requires_grad=True)
-
-train.train(net=net,
-            net_name='resnet56',
-            exp_name=exp_name,
-            dataset_name='cifar10',
-
-            optimizer=optimizer,
-            weight_decay=weight_decay,
-            momentum=momentum,
-            learning_rate=learning_rate,
-
-            num_epochs=320,
-            batch_size=batch_size,
-            evaluate_step=5000,
-            load_net=False,
-            test_net=False,
-            num_workers=8,
-            # weight_decay=5e-4,
-            learning_rate_decay=True,
-            learning_rate_decay_epoch=[160,240],
-            learning_rate_decay_factor=0.1,
-            scheduler_name='MultiStepLR',
-            top_acc=1,
-            data_parallel=False,
-            paint_loss=True,
-            save_at_each_step=False,
-            gradient_clip_value=gradient_clip_value
-            )
+#
+# for name,mod in net.named_modules():
+#     if isinstance(mod,modules.block_with_mask_shortcut):
+#         mod.shortcut_mask=nn.Parameter(mod.shortcut_mask,requires_grad=True)
+#
+# train.train(net=net,
+#             net_name='resnet56',
+#             exp_name=exp_name,
+#             dataset_name='cifar10',
+#
+#             optimizer=optimizer,
+#             weight_decay=weight_decay,
+#             momentum=momentum,
+#             learning_rate=learning_rate,
+#
+#             num_epochs=320,
+#             batch_size=batch_size,
+#             evaluate_step=5000,
+#             load_net=False,
+#             test_net=False,
+#             num_workers=8,
+#             # weight_decay=5e-4,
+#             learning_rate_decay=True,
+#             learning_rate_decay_epoch=[160,240],
+#             learning_rate_decay_factor=0.1,
+#             scheduler_name='MultiStepLR',
+#             top_acc=1,
+#             data_parallel=False,
+#             paint_loss=True,
+#             save_at_each_step=False,
+#             gradient_clip_value=gradient_clip_value
+#             )

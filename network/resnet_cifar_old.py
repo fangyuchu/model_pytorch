@@ -245,7 +245,7 @@ if __name__ == "__main__":
     # net=storage.restore_net(checkpoint=checkpoint,pretrained=True)
     # net=nn.DataParallel(net)
     evaluate.evaluate_net(net=net,
-                          data_loader=data_loader.create_validation_loader(512,8,'cifar100'),
+                          data_loader=data_loader.create_test_loader(512, 8, 'cifar100'),
                           save_net=False,
                           dataset_name='cifar100')
 

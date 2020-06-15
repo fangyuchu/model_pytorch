@@ -7,7 +7,7 @@ from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifa
 from framework import config as conf
 from framework.train import set_modules_no_grad
 import os,sys,logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '7'
+os.environ["CUDA_VISIBLE_DEVICES"] = '6'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #todo:考虑惩罚变化幅度大的层
 #训练schedule
@@ -20,19 +20,22 @@ weight_decay = {'default':5e-4,'extractor':5e-4}
 momentum = {'default':0.9,'extractor':0.9}
 # optimizer = optim.Adam
 # learning_rate = {'default': 0.01, 'extractor': 0.01}
-exp_name='resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenalty0.5_9'
-
+exp_name='resnet56_predicted_mask_shortcut_with_weight_0.5blpenalty_prune40_longTrain_1'
+description=exp_name+'  '+'训练schedule放大3倍,剪40%，其余设置和“resnet56_predicted_mask_shortcut_with_weight_pruneFirstConv_wd5_sgd_blpenaltyNo_5/flop=67510922,accuracy=0.92560.tar”一样'
 # exp_name='tmp'
 
 
 mask_update_freq = 10
 mask_update_epochs = 1
-batch_size=128
 mask_training_start_epoch=10
 mask_training_stop_epoch=80
+# mask_update_freq = 20
+# mask_update_epochs = 20
+# mask_training_start_epoch=10
+# mask_training_stop_epoch=32
 
-
-flop_expected=6.75e7
+batch_size=128
+flop_expected=8.1e7
 gradient_clip_value=1
 
 
@@ -83,6 +86,7 @@ print(optimizer, weight_decay, momentum, learning_rate, mask_update_freq, mask_u
 train.train(net=net,
             net_name='resnet56',
             exp_name=exp_name,
+            description=description,
             dataset_name='cifar10',
 
             optimizer=optimizer,
