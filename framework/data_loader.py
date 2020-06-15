@@ -26,6 +26,32 @@ def create_train_loader(
     std = getattr(conf, dataset_name)['std']
     dataset_path=getattr(conf,dataset_name)['train_set_path']
 
+    if dataset_name == 'cifar10':
+        folder = datasets.CIFAR10(root=dataset_path, train=True,
+                                  transform=transforms.Compose([
+                                      transforms.RandomHorizontalFlip(),
+                                      transforms.RandomCrop(32, 4),
+                                      transforms.ToTensor(),
+                                      transforms.Normalize(mean=mean, std=std),
+                                  ]), download=True)
+
+    elif dataset_name == 'cifar100':
+        folder = datasets.CIFAR100(root=dataset_path, train=True,
+                                   transform=transforms.Compose([
+                                       transforms.RandomHorizontalFlip(),
+                                       transforms.RandomCrop(32, 4),
+                                       transforms.ToTensor(),
+                                       transforms.Normalize(mean=mean, std=std),
+                                   ]), download=True)
+    else:
+        folder = datasets.ImageFolder(root=dataset_path,
+                                      transform=transforms.Compose([
+                                          transforms.RandomResizedCrop(default_image_size),
+                                          transforms.RandomHorizontalFlip(),
+                                          transforms.ToTensor(),
+                                          transforms.Normalize(mean=mean, std=std),
+                                      ]))
+
     #create indices to split train and val set
     train_set_size = getattr(conf,dataset_name)['train_set_size']
     indices = list(range(train_set_size))
@@ -35,32 +61,6 @@ def create_train_loader(
     train_idx, valid_idx = indices[split:], indices[:split]
     train_sampler = SubsetRandomSampler(train_idx)
     val_sampler = SubsetRandomSampler(valid_idx)
-
-    if dataset_name == 'cifar10':
-        folder = datasets.CIFAR10(root=dataset_path, train=True,
-                                  transform=transforms.Compose([
-                                      transforms.RandomHorizontalFlip(),
-                                      transforms.RandomCrop(32, 4),
-                                      transforms.ToTensor(),
-                                      transforms.Normalize(mean=mean, std=std),
-                                  ]), download=True),
-
-    elif dataset_name == 'cifar100':
-        folder = datasets.CIFAR100(root=dataset_path, train=True,
-                                   transform=transforms.Compose([
-                                       transforms.RandomHorizontalFlip(),
-                                       transforms.RandomCrop(32, 4),
-                                       transforms.ToTensor(),
-                                       transforms.Normalize(mean=mean, std=std),
-                                   ]), download=True),
-    else:
-        folder = datasets.ImageFolder(root=dataset_path,
-                                      transform=transforms.Compose([
-                                          transforms.RandomResizedCrop(default_image_size),
-                                          transforms.RandomHorizontalFlip(),
-                                          transforms.ToTensor(),
-                                          transforms.Normalize(mean=mean, std=std),
-                                      ]))
     train_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers,pin_memory=True)
     val_loader=torch.utils.data.DataLoader(folder, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers,pin_memory=True)
     return train_loader,val_loader
