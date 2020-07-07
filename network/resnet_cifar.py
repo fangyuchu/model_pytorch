@@ -63,7 +63,7 @@ class BasicBlock(nn.Module):
 
         basicblock = self.conv_a(x)
         basicblock = self.bn_a(basicblock)
-        basicblock = F.relu(basicblock, inplace=True)
+        basicblock = F.relu(basicblock, inplace=False)
 
         basicblock = self.conv_b(basicblock)
         basicblock = self.bn_b(basicblock)
@@ -71,7 +71,8 @@ class BasicBlock(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(x)
 
-        return F.relu(residual + basicblock, inplace=True)
+        return F.relu(residual + basicblock, inplace=False)
+
 
 
 class CifarResNet(nn.Module):
@@ -98,13 +99,23 @@ class CifarResNet(nn.Module):
 
         self.conv_1_3x3 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn_1 = nn.BatchNorm2d(16)
-
         self.inplanes = 16
         self.stage_1 = self._make_layer(block, 16, layer_blocks, 1)
         self.stage_2 = self._make_layer(block, 32, layer_blocks, 2)
         self.stage_3 = self._make_layer(block, 64, layer_blocks, 2)
-        self.avgpool = nn.AvgPool2d(8)
         self.classifier = nn.Linear(64 * block.expansion, num_classes)
+
+        # self.inplanes = 20
+        # self.conv_1_3x3 = nn.Conv2d(3, 20, kernel_size=3, stride=1, padding=1, bias=False)
+        # self.bn_1 = nn.BatchNorm2d(20)
+        # self.relu1 = nn.ReLU(True)
+        # self.stage_1 = self._make_layer(block, 20, layer_blocks, stride=1)
+        # self.stage_2 = self._make_layer(block, 40, layer_blocks, stride=2)
+        # self.stage_3 = self._make_layer(block, 80, layer_blocks, stride=2)
+        # self.classifier = nn.Linear(80, num_classes)
+
+        self.avgpool = nn.AvgPool2d(8)
+
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -133,7 +144,7 @@ class CifarResNet(nn.Module):
 
     def forward(self, x):
         x = self.conv_1_3x3(x)
-        x = F.relu(self.bn_1(x), inplace=True)
+        x = F.relu(self.bn_1(x), inplace=False)
         x = self.stage_1(x)
         x = self.stage_2(x)
         x = self.stage_3(x)

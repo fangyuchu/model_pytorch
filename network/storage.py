@@ -1,5 +1,6 @@
 import torch.nn as nn
 from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg,net_with_predicted_mask
+from network.modules import conv2d_with_mask
 import re
 from prune import prune_module
 import torch
@@ -20,7 +21,11 @@ def get_net_information(net,dataset_name,net_name):
     structure=[]                                                                                #number of filters for each conv
     for name,mod in net.named_modules():
         if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
-            structure+=[mod.out_channels]
+            if isinstance(mod,conv2d_with_mask):
+                structure+=[int(torch.sum(mod.mask != 0))]
+            else:
+                structure+=[mod.out_channels]
+
     checkpoint['structure']=structure
 
     if isinstance(net,net_with_predicted_mask.predicted_mask_net):
@@ -28,6 +33,8 @@ def get_net_information(net,dataset_name,net_name):
         checkpoint['feature_len']=net.feature_len
         checkpoint['gcn_rounds']=net.gcn_rounds
         checkpoint['flop_expected']=net.flop_expected
+        if isinstance(net,net_with_predicted_mask.predicted_mask_and_variable_shortcut_net):
+            checkpoint['add_shortcut_ratio']=net.get_shortcut_ratio()
     # try:
     #     #for predicted_mask_net
     #     #isinstanec(net,predicted_mask_met) is False. I don't know why
@@ -61,38 +68,44 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
         raise Exception('Unsupported net type:'+net_name)
 
     #prune the network according to checkpoint['structure']
-    # if 'net_type' not in checkpoint.keys():
-    num_layer=0
-    for name,mod in net.named_modules():
-        if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
-            index=[i for i in range(mod.out_channels-structure[num_layer])]
-            if 'vgg' in net_name:
-                net= prune_module.prune_conv_layer_vgg(model=net, layer_index=num_layer, filter_index=index)
-            elif 'resnet' in net_name:
-                net=prune_module.prune_conv_layer_resnet(net=net,
-                                                         layer_index=num_layer,
-                                                         filter_index=index,
-                                                         )
-            num_layer+=1
+    if 'net_type' not in checkpoint.keys():
+        num_layer=0
+        for name,mod in net.named_modules():
+            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+                index=[i for i in range(mod.out_channels-structure[num_layer])]
+                if 'vgg' in net_name:
+                    net= prune_module.prune_conv_layer_vgg(model=net, layer_index=num_layer, filter_index=index)
+                elif 'resnet' in net_name:
+                    net=prune_module.prune_conv_layer_resnet(net=net,
+                                                             layer_index=num_layer,
+                                                             filter_index=index,
+                                                             )
+                num_layer+=1
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net.to(device)
 
     if 'net_type' in checkpoint.keys():
         if checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_net:
-            t_net = net_with_predicted_mask.predicted_mask_net(net, net_name, dataset_name, checkpoint['flop_expected'],
-                                                               checkpoint['feature_len'], checkpoint['gcn_rounds'])
-        elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_and_shortcut_net:
-            t_net = net_with_predicted_mask.predicted_mask_and_shortcut_net(net, net_name, dataset_name,
-                                                                            checkpoint['flop_expected'],
-                                                                            checkpoint['feature_len'],
-                                                                            checkpoint['gcn_rounds'])
+            net = net_with_predicted_mask.predicted_mask_net(net, net_name, dataset_name, checkpoint['flop_expected'],
+                                                             checkpoint['feature_len'], checkpoint['gcn_rounds'])
+        elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_and_variable_shortcut_net:
+            net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net=net, net_name=net_name,
+                                                                                   add_shortcut_ratio=checkpoint[
+                                                                                       'add_shortcut_ratio'],
+                                                                                   dataset_name=dataset_name,
+                                                                                   flop_expected=checkpoint[
+                                                                                       'flop_expected'],
+                                                                                   feature_len=checkpoint[
+                                                                                       'feature_len'],
+                                                                                   gcn_rounds=checkpoint['gcn_rounds'])
+            net.set_structure(checkpoint['structure'])
+
         elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_shortcut_with_weight_net:
-            t_net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net, net_name, dataset_name,
+            net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net, net_name, dataset_name,
                                                                                     checkpoint['flop_expected'],
                                                                                     checkpoint['feature_len'],
                                                                                     checkpoint['gcn_rounds'])
-        net = t_net
 
 
     if pretrained:
