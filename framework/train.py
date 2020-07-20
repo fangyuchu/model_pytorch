@@ -14,15 +14,15 @@ from torch.utils.tensorboard import SummaryWriter
 from framework.draw import draw_masked_net
 
 
-def exponential_decay_learning_rate(optimizer, sample_num, train_set_size,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
+def exponential_decay_learning_rate(optimizer, sample_num, num_train,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
     """Sets the learning rate to the initial LR decayed by learning_rate_decay_factor every decay_steps"""
-    current_epoch=ceil(sample_num/train_set_size)
-    if learning_rate_decay_factor>1:
-        learning_rate_decay_factor=1/learning_rate_decay_factor             #to prevent the mistake
-    if current_epoch in learning_rate_decay_epoch and sample_num-(train_set_size*(current_epoch-1))<=batch_size:
+    current_epoch = ceil(sample_num / num_train)
+    if learning_rate_decay_factor > 1:
+        learning_rate_decay_factor = 1 / learning_rate_decay_factor  # to prevent the mistake
+    if current_epoch in learning_rate_decay_epoch and sample_num - (num_train * (current_epoch - 1)) <= batch_size:
         for param_group in optimizer.param_groups:
-            param_group['lr'] = param_group['lr']*learning_rate_decay_factor
-            lr=param_group['lr']
+            param_group['lr'] = param_group['lr'] * learning_rate_decay_factor
+            lr = param_group['lr']
         print('{} learning rate at present is {}'.format(datetime.now(), lr))
 
 
@@ -33,7 +33,7 @@ def set_learning_rate(optimizer,lr):
 def set_modules_no_grad(net, module_no_grad):
     '''
     :param net:
-    :param module_no_grad: module name which need to be trained
+    :param module_no_grad: module name which doesn't need to be trained
     :return: a dict containing parameter names that don't need grad
     '''
     requires_grad_dict=dict()
@@ -115,8 +115,6 @@ def train(
         exp_name='',
         description='',
         dataset_name='imagenet',
-        train_loader=None,
-        # test_loader=None,
         learning_rate=conf.learning_rate,
         num_epochs=conf.num_epochs,
         batch_size=conf.batch_size,
@@ -124,7 +122,6 @@ def train(
         load_net=True,
         test_net=False,
         root_path=conf.root_path,
-        # checkpoint_path=None,
         momentum=conf.momentum,
         num_workers=conf.num_workers,
         learning_rate_decay=False,
@@ -143,6 +140,7 @@ def train(
         data_parallel=False,
         save_at_each_step=False,
         gradient_clip_value=None,
+        train_val_split_ratio=0.1
 
 ):
     '''
@@ -194,18 +192,14 @@ def train(
         print(device)
 
     # prepare the data
-    train_set_size=getattr(conf,dataset_name)['train_set_size']
-    if train_loader is None:
-        train_loader,val_loader = data_loader.create_train_loader(batch_size=batch_size,
-                                                       num_workers=num_workers,
-                                                       dataset_name=dataset_name)
-    # if test_loader is None:
-    #     test_loader = data_loader.create_test_loader(batch_size=batch_size,
-    #                                                  num_workers=num_workers,
-    #                                                  dataset_name=dataset_name)
+    train_set_size = getattr(conf, dataset_name)['train_set_size']
+    num_train = train_set_size - int(train_set_size * train_val_split_ratio)
+    # if train_loader is None:
+    train_loader, val_loader = data_loader.create_train_loader(batch_size=batch_size,
+                                                               num_workers=num_workers,
+                                                               dataset_name=dataset_name,
+                                                               train_val_split_ratio=train_val_split_ratio)
 
-
-    # if checkpoint_path is None:
     exp_path=os.path.join(root_path,'model_saved',exp_name)
     checkpoint_path=os.path.join(exp_path,'checkpoint')
     tensorboard_path=os.path.join(exp_path,'tensorboard')
@@ -262,8 +256,8 @@ def train(
             return success
 
     #ensure the net will be evaluated despite the inappropriate evaluate_step
-    if evaluate_step>math.ceil(train_set_size / batch_size)-1:
-        evaluate_step= math.ceil(train_set_size / batch_size) - 1
+    if evaluate_step>math.ceil(num_train / batch_size)-1:
+        evaluate_step= math.ceil(num_train / batch_size) - 1
 
 
     optimizer=prepare_optimizer(net, optimizer, momentum, learning_rate, weight_decay ,requires_grad)
@@ -272,12 +266,12 @@ def train(
             scheduler = lr_scheduler.MultiStepLR(optimizer,
                                                  milestones=learning_rate_decay_epoch,
                                                  gamma=learning_rate_decay_factor,
-                                                 last_epoch=ceil(sample_num/train_set_size))
+                                                 last_epoch=ceil(sample_num/num_train))
         elif scheduler_name == 'CosineAnnealingLR':
             scheduler=lr_scheduler.CosineAnnealingLR(optimizer,
                                                      num_epochs,
                                                      eta_min=eta_min,
-                                                     last_epoch=ceil(sample_num/train_set_size))
+                                                     last_epoch=ceil(sample_num/num_train))
     loss_list=[]
     acc_list=[]
     xaxis_loss=[]
@@ -291,7 +285,7 @@ def train(
         if isinstance(mod,modules.conv2d_with_mask):
             mask_last_step+=[mod.mask.clone().detach()]
 
-    for epoch in range(math.floor(sample_num/train_set_size),num_epochs):
+    for epoch in range(math.floor(sample_num/num_train),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()
         # one epoch for one loop
@@ -301,7 +295,7 @@ def train(
             # data=old_data                 #the loss should decrease if the net is defined properly
 
             xaxis+=1
-            if sample_num / train_set_size==epoch+1:               #one epoch of training finished
+            if sample_num / num_train==epoch+1:               #one epoch of training finished
                 accuracy= evaluate.evaluate_net(net, val_loader,
                                                 save_net=True,
                                                 checkpoint_path=checkpoint_path,
@@ -333,39 +327,50 @@ def train(
                     fig = draw_masked_net(net)
                     writer.add_figure(tag='net structure', figure=fig, global_step=int(sample_num / batch_size))
 
-                target_block_mask = 0.5
-                block_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
-                last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
-                i = 0
-                for name, mod in net.named_modules():
-                    if isinstance(mod, modules.block_with_mask_shortcut):
-                        mask_abs = mod.shortcut_mask.abs()
-                        # if mask_abs<=0.5 and last_conv_prune is False:
-                        #     target_block_mask=0.1
-                        #     last_conv_prune=True
-                        # else:
-                        #     target_block_mask=0.9
-                        #     last_conv_prune=False
-                        block_penalty = block_penalty + (target_block_mask - mask_abs).abs()
-
-                    # if isinstance(mod,modules.conv2d_with_mask):
-                    #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
-                    #     mask_last_step[i]=mod.mask.clone().detach()
-                    #     i+=1
-                alpha = 7.5e-3
-                if step == 0:
-                    writer.add_text(tag='alpha', text_string=str(alpha))
-                    writer.add_text(tag='target_block_mask', text_string=str(target_block_mask))
-                weighted_block_penalty = alpha * block_penalty
-                writer.add_scalar(tag='weighted_block_penalty',
-                                  scalar_value=weighted_block_penalty,
-                                  global_step=int(sample_num / batch_size))
-                loss = loss + weighted_block_penalty
+                # # target_block_mask = 0.5
+                # # block_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
+                # # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
+                # i = 0
+                # positive_penalty=torch.zeros(1).to(net.extractor.network[0].weight.device)
+                # negative_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
+                # for name, mod in net.named_modules():
+                #     if isinstance(mod, modules.conv2d_with_mask):
+                #         # mask_abs = mod.shortcut_mask.abs()
+                #         mask_mean=torch.mean(mod.mask.abs())
+                #         if 'conv_a' in name:#mask_mean<=0.5:# and last_conv_prune is False:
+                #             target_mask_mean=0
+                #             positive_penalty= positive_penalty+(target_mask_mean - mask_mean).abs()
+                #             # last_conv_prune=True
+                #         else:
+                #             target_mask_mean=1
+                #             negative_penalty = negative_penalty + (target_mask_mean - mask_mean).abs()
+                #             # last_conv_prune=False
+                #         # block_penalty = block_penalty + (target_mask_mean - mask_mean).abs()
+                #     balance_factor=float(positive_penalty/negative_penalty)
+                #     block_penalty=positive_penalty+balance_factor*negative_penalty
+                #     # if isinstance(mod,modules.conv2d_with_mask):
+                #     #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
+                #     #     mask_last_step[i]=mod.mask.clone().detach()
+                #     #     i+=1
+                # alpha = 0.2
+                # if step == 0:
+                #     writer.add_text(tag='alpha', text_string=str(alpha))
+                #     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
+                # weighted_block_penalty = alpha * block_penalty
+                #
+                # writer.add_scalar(tag='block_penalty',
+                #                   scalar_value=block_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # writer.add_scalar(tag='weighted_block_penalty',
+                #                   scalar_value=weighted_block_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # loss = loss + weighted_block_penalty
 
             if save_at_each_step:
+                torch.save(net,os.path.join(crash_path, 'net.pt'))
                 torch.save(images, os.path.join(crash_path, 'images.pt'))
                 torch.save(labels, os.path.join(crash_path, 'labels.pt'))
-                torch.save(net.state_dict(), os.path.join(crash_path, 'net.pt'))
+                torch.save(net.state_dict(), os.path.join(crash_path, 'state_dict.pt'))
                 torch.save(loss, os.path.join(crash_path, 'loss.pt'))
                 torch.save(outputs, os.path.join(crash_path, 'outputs.pt'))
 
@@ -459,12 +464,13 @@ def add_forward_hook(net,module_class=None,module_name=None):
         # o=mod.forward(input[0])
 
         print('max input:',input[0].detach().cpu().numpy().max())
+        print('min input:',input[0].detach().cpu().numpy().min())
         print('max output:',output.detach().cpu().numpy().max())
         print()
     name_of_mod={}
     for name,mod in net.named_modules() :
         if module_class is not None and isinstance(mod,module_class) or\
-                module_name is not None and module_name == name:
+                module_name is not None and module_name in name:
             handle=mod.register_forward_hook(hook)
             name_of_mod[mod]=name
 
@@ -498,8 +504,8 @@ def check_grad(net,step):
     print(step)
     net.print_mask()
     for name,mod in net.named_modules():
-        from network.modules import conv2d_with_mask_shortcut
-        if isinstance(mod,conv2d_with_mask_shortcut) or isinstance(mod,nn.Linear) or isinstance(mod,nn.Conv2d):
+        from network.modules import block_with_mask_shortcut
+        if isinstance(mod, block_with_mask_shortcut) or isinstance(mod, nn.Linear) or isinstance(mod, nn.Conv2d):
             grad=mod.weight.grad.detach().cpu().numpy()
             grad_no_zero=grad[grad!=0]
             print(name,grad_no_zero.mean())
@@ -586,7 +592,364 @@ def pixel_transform(feature_maps):
     return feature_maps
 
 
+def train_extractor_network(
+        net,
+        net_name,
+        exp_name='',
+        description='',
+        dataset_name='imagenet',
+        learning_rate=conf.learning_rate,
+        num_epochs=conf.num_epochs,
+        batch_size=conf.batch_size,
+        evaluate_step=conf.evaluate_step,
+        load_net=True,
+        test_net=False,
+        root_path=conf.root_path,
+        momentum=conf.momentum,
+        num_workers=conf.num_workers,
+        learning_rate_decay=False,
+        learning_rate_decay_factor=conf.learning_rate_decay_factor,
+        learning_rate_decay_epoch=conf.learning_rate_decay_epoch,
+        weight_decay=conf.weight_decay,
+        target_accuracy=1.0,
+        optim_method_net=optim.SGD,
+        optim_method_extractor=optim.SGD,
 
+        top_acc=1,
+        criterion=nn.CrossEntropyLoss(),  # 损失函数默为交叉熵，多用于多分类问题
+        requires_grad=True,
+        scheduler_name='MultiStepLR',
+        eta_min=0,
+        paint_loss=False,
+        # todo:tmp!!!
+        data_parallel=False,
+        save_at_each_step=False,
+        gradient_clip_value=None,
+        train_val_split_ratio=0.1
+
+):
+    '''
+
+    :param net: net to be trained
+    :param net_name: name of the net
+    :param exp_name: name of the experiment
+    :param description: a short description of what this experiment is doing
+    :param dataset_name: name of the dataset
+    :param train_loader: data_loader for training. If not provided, a data_loader will be created based on dataset_name
+    :param test_loader: data_loader for test. If not provided, a data_loader will be created based on dataset_name
+    :param learning_rate: initial learning rate
+    :param learning_rate_decay: boolean, if true, the learning rate will decay based on the params provided.
+    :param learning_rate_decay_factor: float. learning_rate*=learning_rate_decay_factor, every time it decay.
+    :param learning_rate_decay_epoch: list[int], the specific epoch that the learning rate will decay.
+    :param num_epochs: max number of epochs for training
+    :param batch_size:
+    :param evaluate_step: how often will the net be tested on test set. At least one test every epoch is guaranteed
+    :param load_net: boolean, whether loading net from previous checkpoint. The newest checkpoint will be selected.
+    :param test_net:boolean, if true, the net will be tested before training.
+    :param root_path:
+    :param checkpoint_path:
+    :param momentum:
+    :param num_workers:
+    :param weight_decay:
+    :param target_accuracy:float, the training will stop once the net reached target accuracy
+    :param top_acc: can be 1 or 5
+    :param criterion： loss function
+    :param requires_grad: list containing names of the modules that do not need to be trained
+    :param scheduler_name
+    :param eta_min: for CosineAnnealingLR
+    :param save_at_each_step:save model and input data at each step so the bug can be reproduced
+    :return:
+    '''
+    params = dict(locals())  # aquire all input params
+    for k in list(params.keys()):
+        params[k]=str(params[k])
+
+    torch.autograd.set_detect_anomaly(True)
+    success = True  # if the trained net reaches target accuracy
+    # gpu or not
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print('using: ', end='')
+    if torch.cuda.is_available():
+        print(torch.cuda.device_count(), ' * ', end='')
+        print(torch.cuda.get_device_name(torch.cuda.current_device()))
+    else:
+        print(device)
+
+    # prepare the data
+    train_set_size = getattr(conf, dataset_name)['train_set_size']
+    num_train = train_set_size - int(train_set_size * train_val_split_ratio)
+    # if train_loader is None:
+    train_loader, val_loader = data_loader.create_train_loader(batch_size=batch_size,
+                                                               num_workers=num_workers,
+                                                               dataset_name=dataset_name,
+                                                               train_val_split_ratio=train_val_split_ratio)
+
+    exp_path=os.path.join(root_path,'model_saved',exp_name)
+    checkpoint_path=os.path.join(exp_path,'checkpoint')
+    tensorboard_path=os.path.join(exp_path,'tensorboard')
+    crash_path=os.path.join(exp_path,'crash')
+    if not os.path.exists(checkpoint_path):
+        os.makedirs(checkpoint_path,exist_ok=True)
+    if not os.path.exists(tensorboard_path):
+        os.makedirs(tensorboard_path, exist_ok=True)
+    if not os.path.exists(crash_path):
+        os.makedirs(crash_path, exist_ok=True)
+
+    #get the latest checkpoint
+    lists = os.listdir(checkpoint_path)
+    file_new=checkpoint_path
+    if len(lists)>0:
+        lists.sort(key=lambda fn: os.path.getmtime(checkpoint_path + "/" + fn))  # 按时间排序
+        file_new = os.path.join(checkpoint_path, lists[-1])  # 获取最新的文件保存到file_new
+
+    sample_num=0
+    if os.path.isfile(file_new):
+        if load_net:
+            checkpoint = torch.load(file_new)
+            print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
+            net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
+            sample_num = checkpoint['sample_num']
+
+    #set up summary writer for tensorboard
+    writer=SummaryWriter(log_dir=tensorboard_path,
+                         purge_step=int(sample_num/batch_size))
+    if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
+        image=torch.zeros(2,3,224,224).to(device)
+    elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
+        image=torch.zeros(2,3,32,32).to(device)
+
+    # writer.add_graph(net, image)
+    for k in params.keys():
+        writer.add_text(tag=k,text_string=params[k])
+
+    if test_net:
+        print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
+        accuracy= evaluate.evaluate_net(net, val_loader,
+                                        save_net=True,
+                                        checkpoint_path=checkpoint_path,
+                                        sample_num=sample_num,
+                                        target_accuracy=target_accuracy,
+                                        dataset_name=dataset_name,
+                                        top_acc=top_acc,
+                                        net_name=net_name,
+                                        exp_name=exp_name
+                                        )
+
+        if accuracy >= target_accuracy:
+            print('{} net reached target accuracy.'.format(datetime.now()))
+            return success
+
+    #ensure the net will be evaluated despite the inappropriate evaluate_step
+    if evaluate_step>math.ceil(num_train / batch_size)-1:
+        evaluate_step= math.ceil(num_train / batch_size) - 1
+
+    optimizer_net=prepare_optimizer(net.net, optim_method_net, momentum, learning_rate, weight_decay ,requires_grad)
+    # optimizer_net=prepare_optimizer(net.net, optim.Adam, momentum, 0.01, weight_decay ,set_modules_no_grad(net.net,['weight','bias']))
+    optimizer_extractor=prepare_optimizer(net, optim_method_extractor, momentum, learning_rate, weight_decay ,requires_grad)
+    # optimizer_extractor=prepare_optimizer(net, optim.SGD, momentum, 0.1, weight_decay ,requires_grad)
+    if learning_rate_decay:
+        if scheduler_name =='MultiStepLR':
+            scheduler_net = lr_scheduler.MultiStepLR(optimizer_net,
+                                                 milestones=learning_rate_decay_epoch,
+                                                 gamma=learning_rate_decay_factor,
+                                                 last_epoch=ceil(sample_num/num_train))
+            scheduler_extractor = lr_scheduler.MultiStepLR(optimizer_extractor,
+                                                 milestones=learning_rate_decay_epoch,
+                                                 gamma=learning_rate_decay_factor,
+                                                 last_epoch=ceil(sample_num/num_train))
+
+    loss_list=[]
+    acc_list=[]
+    xaxis_loss=[]
+    xaxis_acc=[]
+    xaxis=0
+    print("{} Start training ".format(datetime.now())+net_name+"...")
+    for epoch in range(math.floor(sample_num/num_train),num_epochs):
+        print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
+        net.train()
+        # one epoch for one loop
+        for step, data in enumerate(train_loader, 0):
+            # if step==0 and epoch==0:      # debug code
+            #     old_data=data             #use the same batch of data over and over again
+            # data=old_data                 #the loss should decrease if the net is defined properly
+
+            xaxis+=1
+            if sample_num / num_train==epoch+1:               #one epoch of training finished
+                accuracy= evaluate.evaluate_net(net, val_loader,
+                                                save_net=True,
+                                                checkpoint_path=checkpoint_path,
+                                                sample_num=sample_num,
+                                                target_accuracy=target_accuracy,
+                                                dataset_name=dataset_name,
+                                                top_acc=top_acc,
+                                                net_name=net_name,
+                                                exp_name=exp_name)
+                if accuracy>=target_accuracy:
+                    print('{} net reached target accuracy.'.format(datetime.now()))
+                    return success
+                break
+
+            # 准备数据
+            images, labels = data
+            images, labels = images.to(device), labels.to(device)
+            sample_num += int(images.shape[0])
+
+            if net.mask_training_start_epoch <= net.current_epoch < net.mask_training_stop_epoch:
+                if (net.current_epoch - net.mask_training_start_epoch) % net.mask_update_freq < net.mask_update_epochs:  # mask need to be trained
+                    optimizer=optimizer_extractor
+                    scheduler=scheduler_extractor
+                else:
+                    optimizer=optimizer_net
+                    scheduler=scheduler_net
+            else:
+                if net.current_epoch == net.mask_training_stop_epoch:
+                    optimizer_net=prepare_optimizer(net.net, optim_method_net, momentum, learning_rate, weight_decay ,requires_grad)
+                    if scheduler_name == 'MultiStepLR':
+                        scheduler_net = lr_scheduler.MultiStepLR(optimizer_net,
+                                                             milestones=learning_rate_decay_epoch,
+                                                             gamma=learning_rate_decay_factor,
+                                                             last_epoch=ceil(sample_num / num_train))
+
+                optimizer=optimizer_net
+                scheduler = scheduler_net
+
+            # optimizer.zero_grad()
+            net.zero_grad()
+            # forward + backward
+            net.train()
+            outputs = net(images)
+            loss = criterion(outputs, labels)
+            #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
+
+            if net.mask_training_start_epoch <= net.current_epoch < net.mask_training_stop_epoch:
+                if (net.step_tracked == 1 or net.step_tracked == 0) and net.mask_updating is True:
+                    fig = draw_masked_net(net)
+                    writer.add_figure(tag='net structure', figure=fig, global_step=int(sample_num / batch_size))
+
+                # target_block_mask = 0.5
+                # block_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
+                # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
+                # i = 0
+                # positive_penalty=torch.zeros(1).to(net.extractor.network[0].weight.device)
+                # negative_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
+                # for name, mod in net.named_modules():
+                #     if isinstance(mod, modules.conv2d_with_mask):
+                #         # mask_abs = mod.shortcut_mask.abs()
+                #         mask_mean=torch.mean(mod.mask.abs())
+                #         if 'conv_a' in name:#mask_mean<=0.5:# and last_conv_prune is False:
+                #             target_mask_mean=0
+                #             positive_penalty= positive_penalty+(target_mask_mean - mask_mean).abs()
+                #             # last_conv_prune=True
+                #         else:
+                #             target_mask_mean=1
+                #             negative_penalty = negative_penalty + (target_mask_mean - mask_mean).abs()
+                #             # last_conv_prune=False
+                #         # block_penalty = block_penalty + (target_mask_mean - mask_mean).abs()
+                #     balance_factor=float(positive_penalty/negative_penalty)
+                #     block_penalty=positive_penalty+balance_factor*negative_penalty
+                #     # if isinstance(mod,modules.conv2d_with_mask):
+                #     #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
+                #     #     mask_last_step[i]=mod.mask.clone().detach()
+                #     #     i+=1
+                # alpha = 0.2
+                # if step == 0:
+                #     writer.add_text(tag='alpha', text_string=str(alpha))
+                #     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
+                # weighted_block_penalty = alpha * block_penalty
+                #
+                # writer.add_scalar(tag='block_penalty',
+                #                   scalar_value=block_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # writer.add_scalar(tag='weighted_block_penalty',
+                #                   scalar_value=weighted_block_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # loss = loss + weighted_block_penalty
+
+            if save_at_each_step:
+                torch.save(net,os.path.join(crash_path, 'net.pt'))
+                torch.save(images, os.path.join(crash_path, 'images.pt'))
+                torch.save(labels, os.path.join(crash_path, 'labels.pt'))
+                torch.save(net.state_dict(), os.path.join(crash_path, 'state_dict.pt'))
+                torch.save(loss, os.path.join(crash_path, 'loss.pt'))
+                torch.save(outputs, os.path.join(crash_path, 'outputs.pt'))
+
+            # net.net.stage_1[0].conv_a.mask.retain_grad()
+            loss.backward()
+
+            if gradient_clip_value is not None:
+                torch.nn.utils.clip_grad_value_(net.parameters(), gradient_clip_value)
+
+            optimizer.step()
+            loss_list += [float(loss.detach())]
+            xaxis_loss += [xaxis]
+            writer.add_scalar(tag='status/loss',
+                              scalar_value=float(loss.detach()),
+                              global_step=int(sample_num / batch_size))
+
+            if step % 20 == 0:
+                print('{} loss is {}'.format(datetime.now(), float(loss.data)))
+
+            if step % evaluate_step == 0 and step != 0:
+                accuracy = evaluate.evaluate_net(net, val_loader,
+                                                 save_net=True,
+                                                 checkpoint_path=checkpoint_path,
+                                                 sample_num=sample_num,
+                                                 target_accuracy=target_accuracy,
+                                                 dataset_name=dataset_name,
+                                                 top_acc=top_acc,
+                                                 net_name=net_name,
+                                                 exp_name=exp_name)
+
+                if accuracy >= target_accuracy:
+                    print('{} net reached target accuracy.'.format(datetime.now()))
+                    return success
+                accuracy = float(accuracy)
+
+                acc_list += [accuracy]
+                xaxis_acc += [xaxis]
+                writer.add_scalar(tag='status/val_acc',
+                                  scalar_value=accuracy,
+                                  global_step=epoch)
+
+                if paint_loss:
+                    fig, ax1 = plt.subplots()
+                    ax2 = ax1.twinx()
+                    ax1.plot(xaxis_loss, loss_list, 'g')
+                    ax2.plot(xaxis_acc, acc_list, 'b')
+                    ax1.set_xlabel('step')
+                    ax1.set_ylabel('loss')
+                    ax2.set_ylabel('accuracy')
+                    plt.title(exp_name)
+                    plt.savefig(os.path.join(root_path, 'model_saved', exp_name, 'train.png'))
+                    plt.close()
+
+                print('{} continue training'.format(datetime.now()))
+        if learning_rate_decay:
+            scheduler.step()
+            print(optimizer.state_dict()['param_groups'][0]['lr'])
+
+    print("{} Training finished. Saving net...".format(datetime.now()))
+    flop_num = measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
+    accuracy = evaluate.evaluate_net(net, val_loader,
+                                     save_net=True,
+                                     checkpoint_path=checkpoint_path,
+                                     sample_num=sample_num,
+                                     target_accuracy=target_accuracy,
+                                     dataset_name=dataset_name,
+                                     top_acc=top_acc,
+                                     net_name=net_name,
+                                     exp_name=exp_name)
+    accuracy = float(accuracy)
+    checkpoint = {
+        'highest_accuracy': accuracy,
+        'state_dict': net.state_dict(),
+        'sample_num': sample_num,
+        'flop_num': flop_num}
+    checkpoint.update(storage.get_net_information(net, dataset_name, net_name))
+    torch.save(checkpoint, '%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num, accuracy))
+    print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
+    writer.close()
+    return not success
 
 
 

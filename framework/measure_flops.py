@@ -1,14 +1,20 @@
 import torch
 from network import vgg
+from network.net_with_predicted_mask import predicted_mask_and_variable_shortcut_net
 import torch.nn as nn
 import copy
 import numpy as np
-from network.modules import conv2d_with_mask,conv2d_with_mask_shortcut
+from network.modules import conv2d_with_mask,block_with_mask_shortcut,conv2d_with_mask_and_variable_shortcut
 count_ops = 0
 
 def measure_layer(name,layer, x, multi_add=1):
-    type_name = str(layer)[:str(layer).find('(')].strip()
-    if isinstance(layer,nn.Conv2d):
+    # print(name)
+    if isinstance(layer,conv2d_with_mask_and_variable_shortcut):
+        if layer.flops is None:
+            print('Sorry about this crap code.')
+            raise Exception('Measure flops by using self.measure_net_flops in predicted_mask_and_variable_shortcut_net.')
+        delta_ops=layer.flops
+    elif isinstance(layer,nn.Conv2d):
         out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) //
                     layer.stride[0] + 1)
         out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) //
@@ -17,18 +23,23 @@ def measure_layer(name,layer, x, multi_add=1):
         out_channels=layer.out_channels
         if isinstance(layer,conv2d_with_mask):
             out_channels=out_channels-torch.sum(layer.mask == 0).detach().cpu().numpy()
+
         delta_ops = in_channels * out_channels * layer.kernel_size[0] *  \
                 layer.kernel_size[1] * out_h * out_w // layer.groups * multi_add
-    ### ops_linear
+        # print(name,in_channels,out_channels,delta_ops)
+    ## ops_linear
     elif isinstance(layer,nn.Linear):
         weight_ops = layer.weight.numel() * multi_add
         bias_ops = layer.bias.numel()
         delta_ops = weight_ops + bias_ops
-
+    #
     elif isinstance(layer,nn.BatchNorm2d):
         normalize_ops = x.numel()
         scale_shift = normalize_ops
         delta_ops = normalize_ops + scale_shift
+    # elif isinstance(layer,nn.ReLU):
+    #     delta_ops=x.numel()
+
     #
     # ### ops_nothing
     # elif type_name in ['Dropout2d', 'DropChannel', 'Dropout']:
@@ -56,22 +67,20 @@ def is_leaf(module):
 #     return False
 
 def should_measure(mod):
-    if isinstance(mod,nn.Conv2d):
-        return True
-    elif isinstance(mod,nn.Linear):
-        return True
-    elif isinstance(mod,nn.BatchNorm2d):
+    if isinstance(mod,nn.Conv2d) or isinstance(mod,nn.Linear) or isinstance(mod,nn.BatchNorm2d):
         return True
     else:
         return False
 
 
 def measure_model(net, dataset_name='imagenet', print_flop=True):
+    if isinstance(net,predicted_mask_and_variable_shortcut_net):
+        return net.measure_self_flops()
 
     if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
-        shape=(2,3,224,224)
+        shape=(1,3,224,224)
     elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
-        shape=(2,3,32,32)
+        shape=(1,3,32,32)
 
     if isinstance(net, nn.DataParallel):
         net_entity = net.module

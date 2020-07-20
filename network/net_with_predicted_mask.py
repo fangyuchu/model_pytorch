@@ -1,6 +1,6 @@
 from filter_characteristic import filter_feature_extractor
 from prune.prune_module import get_module
-from network.modules import conv2d_with_mask, block_with_mask_shortcut, block_with_mask_weighted_shortcut,conv2d_with_mask_and_variable_shortcut
+from network.modules import conv2d_with_mask, block_with_mask_shortcut, block_with_mask_weighted_shortcut,conv2d_with_mask_and_variable_shortcut,named_conv_list
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,12 +9,13 @@ from datetime import datetime
 import math
 import matplotlib.pyplot as plt
 from framework import data_loader, measure_flops, evaluate, train, config as conf
-import torchsnooper
-from network import storage
+# import torchsnooper
+from network import storage,resnet_cifar,resnet
 import os,sys
 import numpy as np
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+
 
 class predicted_mask_net(nn.Module):
     def __init__(self, net, net_name, dataset_name, flop_expected, feature_len=15, gcn_rounds=2, only_gcn=False,
@@ -150,7 +151,7 @@ class predicted_mask_net(nn.Module):
             if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
                 hi += mod.out_channels
                 _modules = get_module(model=self.net, name=name)
-                mod.mask = mask[lo:hi].view(-1)  # update mask for each conv
+                mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
                 lo = hi
                 last_conv_mask = mod.mask
             else:
@@ -200,7 +201,8 @@ class predicted_mask_net(nn.Module):
                     layer += 1
                     hi += mod.out_channels
                     _modules = get_module(model=self.net, name=name)
-                    mod.mask = mask_tmp[lo:hi].view(-1)  # update mask for each con
+                    # mod.mask = mask_tmp[lo:hi].view(-1)  # update mask for each con
+                    mod.set_mask(mask_tmp[lo:hi].view(-1))
                     lo = hi
 
             flops = measure_flops.measure_model(self, dataset_name=self.dataset_name, print_flop=False)
@@ -286,7 +288,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                                                                        batch_size=batch_size,
                                                                        mask_training_start_epoch=mask_training_start_epoch,
                                                                        mask_training_stop_epoch=mask_training_stop_epoch)
-        self.change_shortcut_ratio(add_shortcut_ratio)
+        self.pruned=False
 
 
     def transform(self, net):
@@ -315,157 +317,407 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 _modules[name.split('.')[-1]] = conv2d_with_mask_and_variable_shortcut(mod, map_size[mod], self.__add_shortcut_ratio).to(device)  # replace conv with a block
         return net
 
-    def change_shortcut_ratio(self,ratio):
-        self.__add_shortcut_ratio=ratio
-        for name,mod in self.net.named_modules():
-            if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
-                mod.add_shortcut_ratio=ratio
+    # def change_shortcut_ratio(self,ratio):
+    #     self.__add_shortcut_ratio=ratio
+    #     for name,mod in self.net.named_modules():
+    #         if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+    #             mod.add_shortcut_ratio=ratio
     def get_shortcut_ratio(self):
         return self.__add_shortcut_ratio
-
-    def find_prune_num(self, mask, delta=5e5):
+    def find_prune_num(self, mask, delta=5e5,start_prune_num=700):
         '''
 
         determine the number of filters to prune for a given flops
-        f(prune_rate) represents the flops of network w.r.t prune_rate.
-        The flops first decreases along prune_rate and increases afterwards(due to added shortcut ) and then decrease to zero.
+        f(prune_rate) represents the flops of network w.r.t prune_rate. It's not monotonically decreasing.
         So this code try to find the target prune_rate in the left
         :param mask:
         :param delta: tolerance of flops between net's flops and expected flops
+        :param start_prune_num: initial number of filters to prune
         :return:
         '''
-        # total_flops=
         is_training = self.training
-        conv_layer_index = []
-        in_c = []
-        num_conv = []
-        conv_list = []
-        conv_flop = []
-        conv_inf = []
-        bn_flop_reduction=[]
-        layer = -1
-        for name, mod in self.net.named_modules():
-            if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
-                layer += 1
-                conv_layer_index += [layer for i in range(mod.out_channels)]
+        mask = np.abs(mask.clone().view(-1).detach().cpu().numpy())
+        out_channel_list=[]
+        conv_list=[]
+        for name,mod in self.net.named_modules():
+            if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+                mod.compute_flops(mod.in_channels,mod.out_channels)
+                out_channel_list += [mod.out_channels]
                 conv_list += [mod]
-                in_c += [mod.in_channels]
-                num_conv += [mod.out_channels]
-                conv_inf += [{'shortcut': False, 'static_oc': False}]  # static_oc stands for static out_channels
-                if 'conv_a' not in name:
-                    conv_inf[-1]['static_oc'] = True
-                conv_flop += [mod.compute_flops(mod.in_channels, mod.out_channels)]
-                bn_flop_reduction+=[0]
-        total_flops = measure_flops.measure_model(self.net, self.dataset_name, False)
-        total_maskconv_flop = sum(conv_flop)
-        total_nonmaskconv_flop = total_flops - total_maskconv_flop  # total flops of non_conv layer
-        mask = np.abs(mask.clone().detach().cpu().numpy())
-
-        prune_num = 0
+        total_flop = self.measure_self_flops(num_filter_unmasked=out_channel_list)
+        if abs(total_flop - self.flop_expected)<=delta:
+            return 0
+        prune_num = start_prune_num - 1
+        top_k_idx = mask.argsort()[0:prune_num]  # find the top k smallest mask
+        mask[top_k_idx] = 999  # set mask to 999 to simulate that this mask is set to 0
         while prune_num < len(mask):
             prune_num += 1
             mask_index = np.argmin(mask)
             mask[mask_index] = 999  # simulate that this mask is set to 0
-            layer = conv_layer_index[mask_index]
-            conv = conv_list[layer]
-            next_conv = conv_list[layer + 1] if layer < len(conv_list) - 1 else None
-            num_conv[layer] -= 1
-
-            # judge if the input number of feature maps also decreases one in the next layer
-            conv_ratio_filter_masked = 1 - num_conv[layer] / conv.out_channels
-            if conv_ratio_filter_masked < conv.add_shortcut_ratio:  # no shortcut needed
-                if conv_inf[layer]['static_oc'] is False:  # current conv can be pruned
-                    in_c[layer + 1] -= 1  # in_channel of next layer decrease one
-                    bn_flop_reduction[layer]+=conv.w_out*conv.w_out*2# bn after conv can skip one feature map of calculation
-                else:  # current conv is only masked
-                    pass  # in_channel of next layer remains same
-            else:  # shortcut is needed
-                if conv_inf[layer]['shortcut'] is False:  # a new shortcut will be added
-                    conv_inf[layer]['shortcut'] = True
-                    conv_inf[layer]['static_oc'] = True
-                    total_nonmaskconv_flop += conv.compute_downsample_flops()  # calculate flops introduced by downsample
-                    bn_flop_reduction[layer]=0
-                    if next_conv is not None:
-                        in_c[layer + 1] = next_conv.in_channels  # in_channels in next layer returns to the original
-                else:  # shortcut already existed
-                    pass
-            # update flops of the conv and next_conv
-            conv_flop[layer]=conv.compute_flops(in_c[layer], num_conv[layer])
-            if next_conv is not None:
-                conv_flop[layer+1]=next_conv.compute_flops(in_c[layer + 1], num_conv[layer + 1])
-
-            # recalculate total mask conv flop and total net flops
-            total_flops = total_nonmaskconv_flop + sum(conv_flop)-sum(bn_flop_reduction)
-
-            if abs(total_flops - self.flop_expected) <= delta:
+            i = 0
+            filter_num_list = []
+            for mod in conv_list:
+                filter_num_list += [int((mask[i:i + len(mod.mask)] != 999).sum())] #num of filters in each layer
+                i += len(mod.mask)
+            in_channel_list=self.compute_net_structure(filter_num_list=filter_num_list) #get net structure
+            flop_delta=0 #flops reduced from pruning
+            i=-1
+            for mod in conv_list:
+                i += 1
+                flop_delta += mod.compute_flops(mod.in_channels, mod.out_channels) \
+                              - mod.compute_flops(in_channel_list[i], filter_num_list[i])  # flops reduced by conv
+                flop_delta +=2 * mod.w_out * mod.w_out * (mod.out_channels - filter_num_list[i])  # flops reduced by BatchNormalization
+                if filter_num_list[i]<=mod.add_shortcut_num:
+                    flop_delta -= mod.compute_downsample_flops(in_channel_list[i])  # flops increased by downsample
+            flops = total_flop - flop_delta
+            if abs(flops - self.flop_expected) <= delta:
                 self.train(mode=is_training)
                 for name, mod in self.net.named_modules():
                     if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
                         mod.flops = None
-
                 return prune_num
-
         for name, mod in self.net.named_modules():
             if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
                 mod.flops = None
-        raise Exception('Can\'t find appropriate prune_rate')
+        raise Exception('Can\'t find appropriate prune_rate. Consider decreasing prune_num')
 
-    def measure_self_flops(self):
-        in_c=[]
-        out_c=[]
+    # def find_prune_num(self, mask, delta=5e5):
+    #     #todo:要改
+    #     '''
+    #
+    #     determine the number of filters to prune for a given flops
+    #     f(prune_rate) represents the flops of network w.r.t prune_rate.
+    #     The flops first decreases along prune_rate and increases afterwards(due to added shortcut ) and then decrease to zero.
+    #     So this code try to find the target prune_rate in the left
+    #     :param mask:
+    #     :param delta: tolerance of flops between net's flops and expected flops
+    #     :return:
+    #     '''
+    #     is_training = self.training
+    #     conv_layer_index = []
+    #     in_c = []
+    #     num_conv = []
+    #     conv_list = []
+    #     conv_flop = []
+    #     conv_inf = []
+    #     bn_flop_reduction=[]
+    #     layer = -1
+    #     for name, mod in self.net.named_modules():
+    #         if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
+    #             layer += 1
+    #             conv_layer_index += [layer for i in range(mod.out_channels)]
+    #             conv_list += [mod]
+    #             in_c += [mod.in_channels]
+    #             num_conv += [mod.out_channels]
+    #             conv_inf += [{'shortcut': False, 'static_oc': False}]  # static_oc stands for static out_channels
+    #             if 'conv_a' not in name:
+    #                 conv_inf[-1]['static_oc'] = True
+    #             conv_flop += [mod.compute_flops(mod.in_channels, mod.out_channels)]
+    #             bn_flop_reduction+=[0]
+    #     total_flops = measure_flops.measure_model(self.net, self.dataset_name, False)
+    #     total_maskconv_flop = sum(conv_flop)
+    #     total_nonmaskconv_flop = total_flops - total_maskconv_flop  # total flops of non_conv layer
+    #     mask = np.abs(mask.clone().detach().cpu().numpy())
+    #
+    #     prune_num = 0
+    #     while prune_num < len(mask):
+    #         prune_num += 1
+    #         mask_index = np.argmin(mask)
+    #         mask[mask_index] = 999  # simulate that this mask is set to 0
+    #         layer = conv_layer_index[mask_index]
+    #         conv = conv_list[layer]
+    #         next_conv = conv_list[layer + 1] if layer < len(conv_list) - 1 else None
+    #         num_conv[layer] -= 1
+    #
+    #         # judge if the input number of feature maps also decreases one in the next layer
+    #         conv_ratio_filter_masked = 1 - num_conv[layer] / conv.out_channels
+    #         if conv_ratio_filter_masked < conv.add_shortcut_ratio:  # no shortcut needed
+    #             if conv_inf[layer]['static_oc'] is False:  # current conv can be pruned
+    #                 in_c[layer + 1] -= 1  # in_channel of next layer decrease one
+    #                 bn_flop_reduction[layer]+=conv.w_out*conv.w_out*2# bn after conv can skip one feature map of calculation
+    #             else:  # current conv is only masked
+    #                 pass  # in_channel of next layer remains same
+    #         else:  # shortcut is needed
+    #             if conv_inf[layer]['shortcut'] is False:  # a new shortcut will be added
+    #                 conv_inf[layer]['shortcut'] = True
+    #                 conv_inf[layer]['static_oc'] = True
+    #                 #todo 要改
+    #                 total_nonmaskconv_flop += conv.compute_downsample_flops(5)  # calculate flops introduced by downsample
+    #                 bn_flop_reduction[layer]=0
+    #                 if next_conv is not None:
+    #                     in_c[layer + 1] = next_conv.in_channels  # in_channels in next layer returns to the original
+    #             else:  # shortcut already existed
+    #                 pass
+    #         # update flops of the conv and next_conv
+    #         conv_flop[layer]=conv.compute_flops(in_c[layer], num_conv[layer])
+    #         if next_conv is not None:
+    #             conv_flop[layer+1]=next_conv.compute_flops(in_c[layer + 1], num_conv[layer + 1])
+    #
+    #         # recalculate total mask conv flop and total net flops
+    #         total_flops = total_nonmaskconv_flop + sum(conv_flop)-sum(bn_flop_reduction)
+    #
+    #         if abs(total_flops - self.flop_expected) <= delta:
+    #             self.train(mode=is_training)
+    #             for name, mod in self.net.named_modules():
+    #                 if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
+    #                     mod.flops = None
+    #
+    #             return prune_num
+    #
+    #     for name, mod in self.net.named_modules():
+    #         if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
+    #             mod.flops = None
+    #     raise Exception('Can\'t find appropriate prune_rate')
+    
+    def reshape_data_to_net_structure(self, data):
+        '''
+        reshape the data to net-structure-like shape
+        :param data: array-like data
+        :return: data reshaped
+        '''
+        new_shaped_data=[]
+        first_conv=False
         for name, mod in self.net.named_modules():
-            if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
-                in_c+=[mod.in_channels]
-                out_c+=[mod.out_channels-int(torch.sum(mod.mask == 0))]
-        bn_reduction_sum=0
-        if 'resnet' in self.net_name and 'cifar10' == self.dataset_name:
-            layer = -1
-            for name, mod in self.net.named_modules():
-                if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
-                    layer += 1
-                    num_filter_masked = float(torch.sum(mod.mask == 0))
-                    if num_filter_masked / float(len(mod.mask)) < mod.add_shortcut_ratio:
-                        if 'conv_a' in name:  # this conv will be pruned
-                            in_c[layer+1] -= int(num_filter_masked) #decrease the in_channel of next layer
-                            bn_reduction_sum+=mod.w_out*mod.w_out*2*num_filter_masked
-                    mod.compute_flops(in_c[layer], out_c[layer])
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name and first_conv is False:
+                first_conv= True
+                new_shaped_data.append([data[0]])
+                i=1
+            elif isinstance(mod, resnet_cifar.BasicBlock) or isinstance(mod,resnet.Bottleneck):
+                _, block_conv_list = named_conv_list(mod)
+                new_shaped_data.append(data[i:i+len(block_conv_list)])
+                i=i+len(block_conv_list)
+        return new_shaped_data
 
-        flops = measure_flops.measure_model(self.net, self.dataset_name,print_flop=False)  # measure the flops on pruned net
-        flops-=bn_reduction_sum
+    def compute_net_structure(self, filter_num_list):
+        '''
+        compute the structure given filter num of each conv
+        :param filter_num_list:
+        :return: the input channel for each conv
+        '''
+        filter_num_list = self.reshape_data_to_net_structure(filter_num_list)
+        conv_list = [] # conv module (saved in net structure)
+        first_conv_in_block = [] #whether the conv is the first in the block( saved in net structure)
+        block_in_channels_list = [] # in_channels of each conv (saved in net structure)
+        first_conv = False
         for name, mod in self.net.named_modules():
-            mod.flops = None
-        return flops
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name and first_conv is False:
+                first_conv = True
+                block_in_channels_list.append([3])
+                first_conv_in_block.append([False])
+                conv_list.append([mod])
+            elif isinstance(mod, resnet_cifar.BasicBlock) or isinstance(mod, resnet.Bottleneck):
+                _, block_conv_list = named_conv_list(mod)
+                block_in_channels_list.append([-1 for i in range(len(block_conv_list))])
+                first_conv_in_block.append([False for i in range(len(block_conv_list))])
+                first_conv_in_block[-1][0] = True
+                conv_list.append(block_conv_list)
 
-    # @torchsnooper.snoop()
-    def prune_net(self):
-        if 'resnet' in self.net_name and 'cifar10'==self.dataset_name:
-            layer_index=-1
-            for name,mod in list(self.net.named_modules()):
+        for i in range(1, len(block_in_channels_list)):
+            for j in range(len(block_in_channels_list[i])):
+                if first_conv_in_block[i][j] is True:  # conv in the beginning of the block
+                    last_conv = conv_list[i - 1][-1]
+                    last_conv_filter_num = filter_num_list[i - 1][-1]
+                    last_conv_in_channels = block_in_channels_list[i - 1][-1]
+                    if last_conv.w_in != last_conv.w_out:  # last conv has a conv shortcut
+                        last_conv_out_channels = max(last_conv.add_shortcut_num, last_conv_filter_num)
+                    elif last_conv_filter_num > last_conv.add_shortcut_num:  # last conv doesn't have a shortcut
+                        last_conv_out_channels = last_conv_filter_num
+                    else:  # last conv has a sequential shortcut
+                        last_conv_out_channels = max(last_conv_in_channels, last_conv_filter_num)
+                    block_in_channels_list[i][j] = max(block_in_channels_list[i - 1][0], last_conv_out_channels)
+                else:  # conv is not after a block shortcut
+                    last_conv = conv_list[i][j - 1]
+                    last_conv_filter_num = filter_num_list[i][j - 1]
+                    last_conv_in_channels = block_in_channels_list[i][j - 1]
+                    if last_conv_filter_num > last_conv.add_shortcut_num:  # last conv doesn't have a shortcut
+                        block_in_channels_list[i][j] = last_conv_filter_num
+                    else:  # last conv has a shortcut
+                        if last_conv.w_in != last_conv.w_out:  # a conv shortcut
+                            block_in_channels_list[i][j] = last_conv.add_shortcut_num
+                        else:  # a sequential shortcut
+                            block_in_channels_list[i][j] = max(last_conv_in_channels, last_conv_filter_num)
+        in_channels_list=[3]
+        for i in range(1,len(block_in_channels_list)):
+            in_channels_list+=block_in_channels_list[i]
+        return in_channels_list
+
+
+    def measure_self_flops(self,num_filter_unmasked=None):
+        downsample_flop_overcomputed=0 #flop in downsample may be over counted if the net has not been pruned
+        bn_reduction=0
+        if self.pruned is False:
+            if num_filter_unmasked is None: #num_filter_unmasked is not given
+                num_filter_unmasked=[]
+                for name,mod in self.net.named_modules():
+                    if isinstance(mod,conv2d_with_mask):
+                        num_filter_unmasked +=[int(torch.sum(mod.mask!=0))]
+
+            num_in_channels=self.compute_net_structure(num_filter_unmasked)
+            i=-1
+            for name,mod in self.net.named_modules():
                 if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
-                    layer_index+=1
-                    if torch.sum(mod.mask == 0) / float(len(mod.mask)) < mod.add_shortcut_ratio:  # prune the conv since it doesn't have a shortcut
-                        mod.downsample = nn.Module()  # since mod's shortcut will not be used, set dwonsample to base Module to indicate it as useless
-                        if 'conv_a' in name:
-                            filter_index=torch.where(mod.mask==0)[0].detach().cpu().numpy()
-                            self.prune_conv_layer_resnet(layer_index,filter_index)
-            for name, mod in list(self.net.named_modules()):
-                if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
-                    if torch.sum(mod.mask == 0) / float(len(mod.mask)) < mod.add_shortcut_ratio:   # this conv doesn't need shortcut
-                        mod.downsample=None
+                    i+=1
+                    mod.compute_flops(num_in_channels[i],num_filter_unmasked[i])
+                    bn_reduction+= mod.w_out * mod.w_out * 2 *(mod.out_channels-num_filter_unmasked[i]) # flops reduced by BatchNormalization
+                    if num_filter_unmasked[i]<=mod.add_shortcut_num:
+                        downsample_flop_overcomputed += mod.compute_downsample_flops(mod.in_channels-num_in_channels[i])
+        else: #net has been pruned, measure flops directly
+            for name,mod in self.net.named_modules():
+                if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+                    mod.compute_flops(mod.in_channels,mod.out_channels)
 
-        self.to(self.extractor.network[0].weight.device)
-        self.train()
+        flops=measure_flops.measure_model(self.net,dataset_name=self.dataset_name,print_flop=False)
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
+                mod.flops=None
+        return flops - downsample_flop_overcomputed - bn_reduction
 
-    # @torchsnooper.snoop()
-    def prune_conv_layer_resnet(self,layer_index, filter_index, need_weight=True):
+
+
+    # def prune_net(self):
+    #     if 'resnet' in self.net_name and 'cifar10'==self.dataset_name:
+    #         layer_index=-1
+    #         for name,mod in list(self.net.named_modules()):
+    #             if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+    #                 layer_index+=1
+    #                 # if torch.sum(mod.mask == 0) / float(len(mod.mask)) < mod.add_shortcut_ratio:  # prune the conv since it doesn't have a shortcut
+    #                 #     mod.downsample = nn.Module()  # since mod's shortcut will not be used, set dwonsample to base Module to indicate it as useless
+    #                 #     if 'conv_a' in name :
+    #                 #         filter_index=torch.where(mod.mask==0)[0].detach().cpu().numpy()
+    #                 self.prune_conv_layer_resnet(layer_index)
+    #         for name, mod in list(self.net.named_modules()):
+    #             if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
+    #                 if torch.sum(mod.mask == 0) / float(len(mod.mask)) < mod.add_shortcut_ratio:   # this conv doesn't need shortcut
+    #                     mod.downsample=None
+    #
+    #     self.to(self.extractor.network[0].weight.device)
+    #     self.train()
+
+    def prune_net(self):
+        if self.pruned is True:
+            raise Exception('net has already been pruned')
+        self.pruned = True
+        print('Only support basic block now')
+        first_conv=None
+        block_list=[]
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, resnet_cifar.BasicBlock) or isinstance(mod,resnet.Bottleneck):
+                block_list += [mod]
+            elif isinstance(mod, nn.Conv2d) and first_conv is None:  # first conv in resnet
+                first_conv = mod
+                block_list += [mod]
+        block_out_channels = [0 for i in range(len(block_list))]  # num of out_channels for each block(including first conv)
+        block_mask_index = []  # mask index of the last conv in each block
+
+        block_out_channels[0] = max(3,int(torch.sum(first_conv.mask!=0)))
+        block_mask_index += [torch.where(block_list[0].mask != 0)[0].tolist()]
+        for i in range(1,len(block_list)):
+            name_list,conv_list=named_conv_list(block_list[i])
+            last_conv = conv_list[-1]
+            conv_before_last_conv = conv_list[-2]
+            try:
+                last_conv_out_channels = last_conv.get_out_channels_after_prune()
+            except AttributeError:# last_conv has a sequential shortcut and its out_channel_after_prune depends on input feature maps
+                try:
+                    last_conv_out_channels=max(int(torch.sum(last_conv.mask!=0)),
+                                               conv_before_last_conv.get_out_channels_after_prune())
+                except AttributeError:
+                    conv_before_last_conv_out_channels = max(block_out_channels[i - 1],
+                                                             int(torch.sum(conv_before_last_conv.mask != 0)))
+                    last_conv_out_channels = max(int(torch.sum(last_conv.mask != 0)),
+                                                     conv_before_last_conv_out_channels)
+            block_out_channels[i]=max(block_out_channels[i-1],
+                                      last_conv_out_channels)
+            block_mask_index+=[torch.where(last_conv.mask!=0)[0].tolist()]
+        num_conv_processing = 0
+        self.prune_conv_layer_resnet(0) #prune first conv
+        with torch.no_grad():
+            for i in range(1,len(block_list)):
+                for name, mod in list(block_list[i].named_modules()):
+                    if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+                        num_conv_processing += 1
+                    if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
+                        if 'conv_a' in name: #prune the input_channel of first conv in each blocks
+                            device = mod.weight.device
+                            new_conv = conv2d_with_mask_and_variable_shortcut(
+                                torch.nn.Conv2d(in_channels=block_out_channels[i-1],
+                                                out_channels=mod.out_channels,
+                                                kernel_size=mod.kernel_size,
+                                                stride=mod.stride,
+                                                padding=mod.padding,
+                                                dilation=mod.dilation,
+                                                groups=mod.groups,
+                                                bias=(mod.bias is not None)),
+                                w_in=mod.w_in,
+                                add_shortcut_ratio=mod.add_shortcut_ratio,
+                                specified_add_shortcut_num=mod.add_shortcut_num
+                            )
+                            new_conv.weight[:, :len(block_mask_index[i-1]), :, :]\
+                                = mod.weight[:, block_mask_index[i-1], :, :]
+                            if len(new_conv.downsample) > 0:
+                                # copy corresponding weight of conv in downsample
+                                new_conv.downsample[0].weight[:, :len(block_mask_index[i-1]), :, :] \
+                                    = mod.downsample[0].weight[:, block_mask_index[i-1], :, :]
+                            if mod.bias is not None:
+                                new_conv.bias = mod.bias
+                            new_conv.mask = mod.mask
+                            new_conv.to(device)
+                            # 替换
+                            _modules = get_module(model=block_list[i], name=name)
+                            _modules[name.split('.')[-1]] = new_conv
+
+                        self.prune_conv_layer_resnet(num_conv_processing)   #prune the conv
+
+            #prune the first linear layer
+            old_linear_layer = None
+            for linear_name, module in self.net.named_modules():
+                if isinstance(module, torch.nn.Linear):
+                    old_linear_layer = module
+                    break
+            if old_linear_layer is None:
+                raise BaseException("No linear layer found in classifier")
+            params_per_input_channel = int(old_linear_layer.in_features / mod.num_features)
+            new_linear_layer = torch.nn.Linear(block_out_channels[-1] * params_per_input_channel,old_linear_layer.out_features)
+            old_weights = old_linear_layer.weight
+            new_weights = new_linear_layer.weight
+            node_index = []
+            for f in block_mask_index[-1]:
+                node_index.extend([i for i in range(f * params_per_input_channel, (f + 1) * params_per_input_channel)])
+            new_weights[:,:len(node_index)] = old_weights[:,[i for i in range(old_weights.shape[1]) if i in node_index]]  # 复制剩余的filters的weight
+            new_linear_layer.bias = old_linear_layer.bias
+            new_linear_layer.to(device)
+            _modules = get_module(model=self.net, name=linear_name)
+            _modules[linear_name.split('.')[-1]] = new_linear_layer
+
+    # def prune_net(self):
+    #     if 'resnet' in self.net_name and 'cifar10'==self.dataset_name:
+    #         layer_index=-1
+    #         for name,mod in list(self.net.named_modules()):
+    #             if isinstance(mod,nn.Conv2d)  and 'downsample' not in name:
+    #                 layer_index+=1
+    #                 if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+    #                     self.prune_conv_layer_resnet(layer_index)
+    #                 # if torch.sum(mod.mask == 0) / float(len(mod.mask)) < mod.add_shortcut_ratio:  # prune the conv since it doesn't have a shortcut
+    #                 #     mod.downsample = nn.Module()  # since mod's shortcut will not be used, set dwonsample to base Module to indicate it as useless
+    #                 #     if 'conv_a' in name or 'conv_b' in name:
+    #                 #         filter_index=torch.where(mod.mask==0)[0].detach().cpu().numpy()
+    #
+    #         for name, mod in list(self.net.named_modules()):
+    #             if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
+    #                 if torch.sum(mod.mask == 0) / float(len(mod.mask)) < mod.add_shortcut_ratio:   # this conv doesn't need shortcut
+    #                     mod.downsample=None
+    #
+    #     self.to(self.extractor.network[0].weight.device)
+    #     self.train()
+
+
+    def prune_conv_layer_resnet(self,layer_index):
         """
-
+        pruning conv_a results in pruning responding in_channels in conv_b
+        pruning conv_b will not affect the next conv or linear
         :param layer_index: 要删的卷基层的索引,从0开始
-        :param filter_index: 要删layer_index层中的哪个filter
         :return:
         """
-        if len(filter_index) == 0:  # no filter need to be pruned
-            return
         conv_to_prune = None  # 获取要删filter的那层conv
         batch_norm = None  # 如果有的话：获取要删的conv后的batch normalization层
         next_conv = None  # 如果有的话：获取要删的那层后一层的conv，用于删除对应通道
@@ -474,57 +726,98 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             if isinstance(mod, nn.Conv2d):
                 if 'downsample' not in name:  # a real conv layer
                     i += 1
-                if i == layer_index:
-                    conv_name, conv_to_prune = name, mod
-                    continue
-                if conv_to_prune is not None:
-                    if 'downsample' in name:
-                        raise Exception('Pruning bypass conv in block is not implemented yet.')
-                    next_conv_name, next_conv = name, mod
-                    break
+                if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+                    if i == layer_index:
+                        conv_name, conv_to_prune = name, mod
+                        continue
+                    if conv_to_prune is not None:
+                        if 'downsample' in name:
+                            raise Exception('Pruning bypass conv in block is not implemented yet.')
+                        next_conv_name, next_conv = name, mod
+                        break
             if isinstance(mod, nn.BatchNorm2d) and conv_to_prune is not None:
                 if next_conv is not None:
                     raise Exception('Where is this bn from?')
                 batch_norm_name, batch_norm = name, mod
+                if 'bn_b' in name or 'bn_1' in name:
+                    #todo: more support
+                    next_conv=0
+                    break
+
+        filter_index = torch.where(conv_to_prune.mask == 0)[0].detach().cpu().numpy()
+        if len(filter_index) == 0:  # no filter need to be pruned
+            return
         device=conv_to_prune.weight.device
         index_to_copy = [i for i in range(conv_to_prune.weight.shape[0]) if i not in filter_index]
         with torch.no_grad():
-            new_conv = nn.Conv2d(in_channels=conv_to_prune.in_channels,
-                                 out_channels=conv_to_prune.out_channels - len(
-                                     filter_index),
-                                 kernel_size=conv_to_prune.kernel_size,
-                                 stride=conv_to_prune.stride,
-                                 padding=conv_to_prune.padding,
-                                 dilation=conv_to_prune.dilation,
-                                 groups=conv_to_prune.groups,
-                                 bias=(conv_to_prune.bias is not None))
-
-            # replace the conv_to_prune
-            if need_weight:
-                new_conv.weight[:] = conv_to_prune.weight[index_to_copy]  # 复制剩余的filters的weight
+            if torch.sum(conv_to_prune.mask != 0) > conv_to_prune.add_shortcut_num:  # prune the conv since it doesn't have a shortcut
+                new_conv = nn.Conv2d(in_channels=conv_to_prune.in_channels,
+                                     out_channels=conv_to_prune.out_channels - len(
+                                         filter_index),
+                                     kernel_size=conv_to_prune.kernel_size,
+                                     stride=conv_to_prune.stride,
+                                     padding=conv_to_prune.padding,
+                                     dilation=conv_to_prune.dilation,
+                                     groups=conv_to_prune.groups,
+                                     bias=(conv_to_prune.bias is not None))
+            else:
+                if len(index_to_copy) == 0: #all filters will be pruned
+                    new_conv=conv_to_prune.downsample
+                else: # a conv with shortcut
+                    new_conv = conv2d_with_mask_and_variable_shortcut(nn.Conv2d(in_channels=conv_to_prune.in_channels,
+                                                                                out_channels=conv_to_prune.out_channels - len(filter_index),
+                                                                                kernel_size=conv_to_prune.kernel_size,
+                                                                                stride=conv_to_prune.stride,
+                                                                                padding=conv_to_prune.padding,
+                                                                                dilation=conv_to_prune.dilation,
+                                                                                groups=conv_to_prune.groups,
+                                                                                bias=(conv_to_prune.bias is not None)),
+                                                                      w_in=conv_to_prune.w_in,
+                                                                      add_shortcut_ratio=conv_to_prune.add_shortcut_ratio,
+                                                                      specified_add_shortcut_num=conv_to_prune.add_shortcut_num)
+            if len(index_to_copy) != 0 :
+                # copy weights
+                new_conv.weight[:] = conv_to_prune.weight[index_to_copy] * conv_to_prune.mask[index_to_copy].view(-1, 1, 1, 1) # 复制剩余的filters的weight
                 if conv_to_prune.bias is not None:
-                    new_conv.bias[:] = conv_to_prune.bias[index_to_copy]  # 复制剩余的filters的bias
+                    new_conv.bias[:] = conv_to_prune.bias[index_to_copy] * conv_to_prune.mask[index_to_copy].view(-1, 1, 1, 1)  # 复制剩余的filters的bias
             new_conv.to(device)
-            # 替换
+            # replace
             _modules = get_module(model=self.net, name=conv_name)
             _modules[conv_name.split('.')[-1]] = new_conv
 
             if batch_norm is not None:
-                if need_weight:
-                    new_batch_norm = torch.nn.BatchNorm2d(new_conv.out_channels)
+                if isinstance(new_conv, nn.Conv2d):
+                    if isinstance(new_conv, conv2d_with_mask_and_variable_shortcut):  # new_conv has a shortcut
+                        out_channels = new_conv.get_out_channels_after_prune()
+                    else:  # new_conv is a norm conv
+                        out_channels = new_conv.out_channels
+                    new_batch_norm = torch.nn.BatchNorm2d(out_channels)
                     new_batch_norm.num_batches_tracked = batch_norm.num_batches_tracked
-                    new_batch_norm.weight[:] = batch_norm.weight[index_to_copy]
-                    new_batch_norm.bias[:] = batch_norm.bias[index_to_copy]
-                    new_batch_norm.running_mean[:] = batch_norm.running_mean[index_to_copy]
-                    new_batch_norm.running_var[:] = batch_norm.running_var[index_to_copy]
-                new_batch_norm.to(device)
+                    new_batch_norm.weight[:len(index_to_copy)] = batch_norm.weight[index_to_copy]
+                    new_batch_norm.bias[:len(index_to_copy)] = batch_norm.bias[index_to_copy]
+                    new_batch_norm.running_mean[:len(index_to_copy)] = batch_norm.running_mean[index_to_copy]
+                    new_batch_norm.running_var[:len(index_to_copy)] = batch_norm.running_var[index_to_copy]
+                    new_batch_norm.to(device)
+                else:  # new_conv is shortcut
+                    new_batch_norm=nn.Sequential()
                 # 替换
                 _modules = get_module(model=self.net, name=batch_norm_name)
                 _modules[batch_norm_name.split('.')[-1]] = new_batch_norm
 
-            if next_conv is not None:  # next_conv中需要把对应的通道也删了
+            if next_conv is not None:  # prune corresponding channel in the next conv(first conv in each block will not enter here)
+                if next_conv == 0:
+                    return
+                if isinstance(new_conv,nn.Conv2d) and not isinstance(new_conv, conv2d_with_mask_and_variable_shortcut):# new_conv is a normal conv
+                    in_channels=new_conv.out_channels
+                elif isinstance(new_conv, conv2d_with_mask_and_variable_shortcut):  # new_conv is a conv with shortcut
+                    in_channels = new_conv.get_out_channels_after_prune()
+                elif conv_to_prune.w_out == conv_to_prune.w_in:  # new_conv is a sequential shortcut
+                    in_channels = conv_to_prune.in_channels
+                else:  # new_conv is a conv shortcut
+                    in_channels = conv_to_prune.add_shortcut_num
+
                 new_next_conv = conv2d_with_mask_and_variable_shortcut(
-                    torch.nn.Conv2d(in_channels=next_conv.in_channels - len(filter_index),
+                    torch.nn.Conv2d(in_channels=in_channels,
                                     out_channels=next_conv.out_channels,
                                     kernel_size=next_conv.kernel_size,
                                     stride=next_conv.stride,
@@ -535,45 +828,16 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     next_conv.w_in,
                     next_conv.add_shortcut_ratio
                 )
-                if need_weight:
-                    new_next_conv.weight[:] = next_conv.weight[:, index_to_copy, :, :]
-                    if next_conv.bias is not None:
-                        new_next_conv.bias = next_conv.bias
-                    new_next_conv.mask=next_conv.mask
+                new_next_conv.weight[:,:len(index_to_copy),:,:] = next_conv.weight[:, index_to_copy, :, :]
+                if next_conv.bias is not None:
+                    new_next_conv.bias = next_conv.bias
+                # new_next_conv.mask=next_conv.mask
+                new_next_conv.set_mask(next_conv.mask)
                 new_next_conv.to(device)
                 # 替换
                 _modules = get_module(model=self.net, name=next_conv_name)
                 _modules[next_conv_name.split('.')[-1]] = new_next_conv
 
-            else:
-                # Prunning the last conv layer. This affects the first linear layer of the classifier.
-                old_linear_layer = None
-                for _, module in self.net.named_modules():
-                    if isinstance(module, torch.nn.Linear):
-                        old_linear_layer = module
-                        break
-
-                if old_linear_layer is None:
-                    raise BaseException("No linear layer found in classifier")
-                params_per_input_channel = int(old_linear_layer.in_features / conv_to_prune.out_channels)
-
-                new_linear_layer = \
-                    torch.nn.Linear(old_linear_layer.in_features - len(filter_index) * params_per_input_channel,
-                                    old_linear_layer.out_features)
-
-                old_weights = old_linear_layer.weight.data.cpu().numpy()
-                new_weights = new_linear_layer.weight.data.cpu().numpy()
-
-                node_index = []
-                for f in filter_index:
-                    node_index.extend([i for i in range(f * params_per_input_channel, (f + 1) * params_per_input_channel)])
-
-                new_weights[:] = old_weights[:,
-                                 [i for i in range(old_weights.shape[1]) if i not in node_index]]  # 复制剩余的filters的weight
-                new_linear_layer.bias.data = old_linear_layer.bias.data
-                if torch.cuda.is_available():
-                    new_linear_layer.cuda()
-                self.net.fc = new_linear_layer
 
     def forward(self, input):
         if self.training and self.current_epoch == self.mask_training_stop_epoch  and self.step_tracked == 1:  # training of mask is finished
@@ -587,8 +851,12 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             msg=super().load_state_dict(state_dict,strict)
         except RuntimeError as e:
             if 'size mismatch' in e.args[0]:
+                print('{} Loading parameters from a pruned network'.format(datetime.now()))
                 self.prune_net()
                 msg = super().load_state_dict(state_dict, strict)
+                self.detach_mask()  # the mask will not be trained under a pruned cnn
+                self.mask_updating = False
+                self.current_epoch=self.mask_training_stop_epoch+1
             else:
                 raise e
         return msg

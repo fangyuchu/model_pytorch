@@ -91,13 +91,10 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
                                                              checkpoint['feature_len'], checkpoint['gcn_rounds'])
         elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_and_variable_shortcut_net:
             net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net=net, net_name=net_name,
-                                                                                   add_shortcut_ratio=checkpoint[
-                                                                                       'add_shortcut_ratio'],
+                                                                                   add_shortcut_ratio=checkpoint['add_shortcut_ratio'],
                                                                                    dataset_name=dataset_name,
-                                                                                   flop_expected=checkpoint[
-                                                                                       'flop_expected'],
-                                                                                   feature_len=checkpoint[
-                                                                                       'feature_len'],
+                                                                                   flop_expected=checkpoint['flop_expected'],
+                                                                                   feature_len=checkpoint['feature_len'],
                                                                                    gcn_rounds=checkpoint['gcn_rounds'])
             net.set_structure(checkpoint['structure'])
 

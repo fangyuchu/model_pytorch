@@ -15,7 +15,8 @@ class DownsampleA(nn.Module):
 
   def forward(self, x):
     x = self.avg(x)
-    return torch.cat((x, x.mul(0)), 1)
+    # return torch.cat((x, x.mul(0)), 1)
+    return x
 
 class DownsampleC(nn.Module):
 
@@ -57,6 +58,7 @@ class BasicBlock(nn.Module):
         self.bn_b = nn.BatchNorm2d(planes)
 
         self.downsample = downsample
+        self.out_channels=self.conv_b.out_channels
 
     def forward(self, x):
         residual = x
@@ -70,6 +72,15 @@ class BasicBlock(nn.Module):
 
         if self.downsample is not None:
             residual = self.downsample(x)
+
+        if basicblock.shape[1] < residual.shape[1]:
+            shape = basicblock.shape
+            add_zeros = torch.zeros((shape[0], residual.shape[1] - shape[1], shape[2], shape[3])).to(basicblock.device)
+            basicblock = torch.cat((basicblock, add_zeros), 1)
+        elif basicblock.shape[1] > residual.shape[1]:
+            shape = basicblock.shape
+            add_zeros = torch.zeros((shape[0], shape[1] - residual.shape[1], shape[2], shape[3])).to(basicblock.device)
+            residual = torch.cat((residual, add_zeros), 1)
 
         return F.relu(residual + basicblock, inplace=False)
 

@@ -12,15 +12,14 @@ import sys
 from torch.utils.data.sampler import SubsetRandomSampler
 
 
-
 def create_train_loader(
-                    batch_size,
-                    num_workers,
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
-                    dataset_name='',
-                    default_image_size=224,
-        validation_ratio=0.1,
+        batch_size,
+        num_workers,
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+        dataset_name='',
+        default_image_size=224,
+        train_val_split_ratio=0.1,
 ):
     mean=getattr(conf,dataset_name)['mean']
     std = getattr(conf, dataset_name)['std']
@@ -71,7 +70,7 @@ def create_train_loader(
     #create indices to split train and val set
     train_set_size = getattr(conf,dataset_name)['train_set_size']
     indices = list(range(train_set_size))
-    split = int(np.floor(validation_ratio * train_set_size))
+    split = int(np.floor(train_val_split_ratio * train_set_size))
     # np.random.seed(random_seed)
     np.random.shuffle(indices)
     train_idx, valid_idx = indices[split:], indices[:split]
@@ -94,7 +93,7 @@ def create_test_loader(
 ):
     if 'cifar10' in dataset_name and 'cifar100' not in dataset_name:
         if dataset_path is None:
-            dataset_path=conf.cifar10['dataset_path']
+            dataset_path=conf.cifar10['test_set_path']
         mean=conf.cifar10['mean']
         std=conf.cifar10['std']
         if 'trainset' in dataset_name:
@@ -113,7 +112,7 @@ def create_test_loader(
             num_workers=num_workers, pin_memory=True)
     elif 'cifar100' in dataset_name:
         if dataset_path is None:
-            dataset_path=conf.cifar100['dataset_path']
+            dataset_path=conf.cifar100['test_set_path']
         mean=conf.cifar100['mean']
         std=conf.cifar100['std']
         if 'trainset' in dataset_name:

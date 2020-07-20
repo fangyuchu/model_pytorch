@@ -17,25 +17,26 @@ import os
 class extractor(nn.Module):
     def __init__(self,feature_len,gcn_rounds=2,only_gcn=False,only_inner_features=False):
         super(extractor, self).__init__()
-        self.only_gcn=only_gcn
-        if only_gcn:                                                                        #only use gcn for prediction
+        self.only_gcn = only_gcn
+        if only_gcn:  # only use gcn for prediction
             self.gcn = gcn(in_features=feature_len, out_features=1)
         else:
-            self.gcn=gcn(in_features=feature_len,out_features=feature_len)
-        self.only_inner_features=only_inner_features
-        self.feature_len=feature_len
-        self.gcn_rounds=gcn_rounds
+            self.gcn = gcn(in_features=feature_len, out_features=feature_len)
+        self.only_inner_features = only_inner_features
+        self.feature_len = feature_len
+        self.gcn_rounds = gcn_rounds
         if not only_inner_features:
-            in_features=feature_len + 5
+            in_features = feature_len + 5
         else:
-            in_features=feature_len
-        self.network=nn.Sequential(
+            in_features = 5
+        self.network = nn.Sequential(
             nn.Linear(in_features,128),
             nn.BatchNorm1d(128,track_running_stats=False),
             nn.ReLU(True),
             nn.Linear(128,1,bias=True),
             nn.BatchNorm1d(1,track_running_stats=False),
             nn.Tanh(),
+            #todo:怀疑应该更换为sigmoid才能让它更稳定
         )
         self.normalization=nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
         

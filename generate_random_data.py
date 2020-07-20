@@ -54,7 +54,7 @@ if __name__ == "__main__":
     #
     # a=random_normal(100)
     # net= create_net.vgg_cifar10(net_name='vgg16_bn')
-    # # loader=data_loader.create_validation_loader(batch_size=300,num_workers=2,dataset_name='cifar10')
+    # # loader=data_loader.create_test_loader(batch_size=300,num_workers=2,dataset_name='cifar10')
     # # evaluate.check_ReLU_alive(network=network,neural_dead_times=8000,data_loader=loader)
     # relu_list,neural_list= evaluate.check_ReLU_alive(net=net, neural_dead_times=80, data=a)
     #

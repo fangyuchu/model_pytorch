@@ -481,7 +481,7 @@ def prune_inactive_neural_with_regressor_resnet(net,
             # save filters for training the regressor
             i = 0
             for name,mod in net.named_modules():
-                if isinstance(mod, torch.nn.Conv2d) and 'dowmsample' not in name:
+                if isinstance(mod, torch.nn.Conv2d) and 'downsample' not in name:
                     conv_weight = mod.weight.cpu().detach().numpy()
                     for weight in conv_weight:
                         filter.append(weight)
