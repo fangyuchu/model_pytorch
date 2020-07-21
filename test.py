@@ -51,25 +51,25 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 optimizer_net = optim.SGD
 # optimizer_extractor = optim.Adam
 optimizer_extractor=optim.SGD
-learning_rate = {'default': 0.1, 'extractor': 0.1}
+learning_rate = {'default': 0.1, 'extractor': 0.001}
 momentum = {'default':0.9,'extractor':0.9}
 weight_decay = {'default':1e-4,'extractor':5e-4}
 # optimizer = optim.Adam
 # learning_rate = {'default': 0.01, 'extractor': 0.01}
-exp_name='tmp9'
+exp_name='tmp'
 
 mask_update_freq = 1000
 mask_update_epochs = 900
-batch_size=128
+batch_size=1024
 mask_training_start_epoch=1
-mask_training_stop_epoch=20
+mask_training_stop_epoch=2
 
 num_epochs=160*2+mask_training_stop_epoch
 learning_rate_decay_epoch = [mask_training_stop_epoch+2*i for i in [80,120]]
 
-flop_expected=2.5e7
+flop_expected=0.6e7#1.25e7#2.5e7
 # flop_expected = 126550666
-gradient_clip_value=None
+gradient_clip_value=1
 
 save_at_each_step=False
 

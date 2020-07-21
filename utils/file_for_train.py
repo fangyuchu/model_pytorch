@@ -7,43 +7,34 @@ from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifa
 from framework import config as conf
 from framework.train import set_modules_no_grad
 import os,sys,logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #训练schedule
 
 
 optimizer_net = optim.SGD
 optimizer_extractor = optim.SGD
-learning_rate = {'default': 0.1, 'extractor': 0.1}
+learning_rate = {'default': 0.1, 'extractor': 0.01}
 weight_decay = {'default':5e-4,'extractor':5e-4}
 momentum = {'default':0.9,'extractor':0.9}
-# optimizer = optim.Adam
-# learning_rate = {'default': 0.01, 'extractor': 0.01}
-exp_name='resnet56_predicted_mask_and_variable_shortcut_net_squeeze0_3'
-# exp_name='resnet56_predicted_mask_prune40_bs512_4'
-# exp_name='tmp'
-description=exp_name+'  '+'把整个网络含0的能删的都删了'
-# exp_name='tmp'
+exp_name='resnet56_predicted_mask_and_variable_shortcut_net80_extractorWarmup_nodouble_2'
+description=exp_name+'  '+'剪80%，先训练extractor+cnn，其中mask不置0，之后再mask网络并prune后单独训练cnn。extractor的lr为0.001,extractor训练时采用warmup，训练160epoch'
 
 add_shortcut_ratio=0.9
 
-# mask_update_freq = 5
-# mask_update_epochs = 1
-# mask_training_start_epoch=5
-# mask_training_stop_epoch=40
-mask_update_freq = 5
-mask_update_epochs = 20
+mask_update_freq = 1000
+mask_update_epochs = 900
 mask_training_start_epoch=1
-mask_training_stop_epoch=6
+mask_training_stop_epoch=10
 
 batch_size=128
-flop_expected=2.5e7#3.6e7#
-gradient_clip_value=1
+flop_expected=2.5e7#1.25e7#1.88e7#2.5e7#3.6e7#
+gradient_clip_value=None
 
 
 
-learning_rate_decay_epoch = [mask_training_stop_epoch+2*i for i in [80,120]]
-num_epochs=160*2+mask_training_stop_epoch
+learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
+num_epochs=160*1+mask_training_stop_epoch
 
 # learning_rate_decay_epoch = [mask_training_stop_epoch+2*i for i in [70,140]]
 # num_epochs=220*2+mask_training_stop_epoch
@@ -152,7 +143,7 @@ train.train_extractor_network(net=net,
                               top_acc=1,
                               data_parallel=False,
                               paint_loss=True,
-                              save_at_each_step=True,
+                              save_at_each_step=False,
                               gradient_clip_value=gradient_clip_value
                               )
 

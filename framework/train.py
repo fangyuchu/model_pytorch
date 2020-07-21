@@ -749,20 +749,26 @@ def train_extractor_network(
     # optimizer_extractor=prepare_optimizer(net, optim.SGD, momentum, 0.1, weight_decay ,requires_grad)
     if learning_rate_decay:
         if scheduler_name =='MultiStepLR':
-            scheduler_net = lr_scheduler.MultiStepLR(optimizer_net,
-                                                 milestones=learning_rate_decay_epoch,
-                                                 gamma=learning_rate_decay_factor,
-                                                 last_epoch=ceil(sample_num/num_train))
-            scheduler_extractor = lr_scheduler.MultiStepLR(optimizer_extractor,
-                                                 milestones=learning_rate_decay_epoch,
-                                                 gamma=learning_rate_decay_factor,
-                                                 last_epoch=ceil(sample_num/num_train))
+            warm_up_epochs=5
+            warm_up_with_multistep_lr = lambda epoch: 0.1 if epoch-net.mask_training_stop_epoch+1 <= warm_up_epochs else 0.1 ** len([m for m in learning_rate_decay_epoch if m <= epoch])
+            scheduler_net=lr_scheduler.LambdaLR(optimizer_net,lr_lambda=warm_up_with_multistep_lr,last_epoch=ceil(sample_num/num_train))
+            # scheduler_net = lr_scheduler.MultiStepLR(optimizer_net,
+            #                                      milestones=learning_rate_decay_epoch,
+            #                                      gamma=learning_rate_decay_factor,
+            #                                      last_epoch=ceil(sample_num/num_train))
+            warm_up_with_multistep_lr = lambda epoch: epoch/net.mask_training_stop_epoch
+            scheduler_extractor=lr_scheduler.LambdaLR(optimizer_net,lr_lambda=warm_up_with_multistep_lr,last_epoch=ceil(sample_num/num_train))
+            # scheduler_extractor = lr_scheduler.MultiStepLR(optimizer_extractor,
+            #                                      milestones=learning_rate_decay_epoch,
+            #                                      gamma=learning_rate_decay_factor,
+            #                                      last_epoch=ceil(sample_num/num_train))
 
     loss_list=[]
     acc_list=[]
     xaxis_loss=[]
     xaxis_acc=[]
     xaxis=0
+    #todo:可以改成先训练mask，训练完后保存模型，然后开始可选比例的prune
     print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(sample_num/num_train),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
@@ -804,11 +810,11 @@ def train_extractor_network(
             else:
                 if net.current_epoch == net.mask_training_stop_epoch:
                     optimizer_net=prepare_optimizer(net.net, optim_method_net, momentum, learning_rate, weight_decay ,requires_grad)
-                    if scheduler_name == 'MultiStepLR':
-                        scheduler_net = lr_scheduler.MultiStepLR(optimizer_net,
-                                                             milestones=learning_rate_decay_epoch,
-                                                             gamma=learning_rate_decay_factor,
-                                                             last_epoch=ceil(sample_num / num_train))
+                    warm_up_with_multistep_lr = lambda \
+                        epoch: 0.1  if epoch - net.mask_training_stop_epoch + 1 <= warm_up_epochs \
+                        else 0.1 ** len([m for m in learning_rate_decay_epoch if m <= epoch])
+                    scheduler_net = lr_scheduler.LambdaLR(optimizer_net, lr_lambda=warm_up_with_multistep_lr,
+                                                          last_epoch=ceil(sample_num / num_train))
 
                 optimizer=optimizer_net
                 scheduler = scheduler_net
@@ -826,44 +832,41 @@ def train_extractor_network(
                     fig = draw_masked_net(net)
                     writer.add_figure(tag='net structure', figure=fig, global_step=int(sample_num / batch_size))
 
-                # target_block_mask = 0.5
-                # block_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
+                target_mask_mean = 0
+                block_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
                 # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
-                # i = 0
-                # positive_penalty=torch.zeros(1).to(net.extractor.network[0].weight.device)
-                # negative_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
-                # for name, mod in net.named_modules():
-                #     if isinstance(mod, modules.conv2d_with_mask):
-                #         # mask_abs = mod.shortcut_mask.abs()
-                #         mask_mean=torch.mean(mod.mask.abs())
-                #         if 'conv_a' in name:#mask_mean<=0.5:# and last_conv_prune is False:
-                #             target_mask_mean=0
-                #             positive_penalty= positive_penalty+(target_mask_mean - mask_mean).abs()
-                #             # last_conv_prune=True
-                #         else:
-                #             target_mask_mean=1
-                #             negative_penalty = negative_penalty + (target_mask_mean - mask_mean).abs()
-                #             # last_conv_prune=False
-                #         # block_penalty = block_penalty + (target_mask_mean - mask_mean).abs()
-                #     balance_factor=float(positive_penalty/negative_penalty)
-                #     block_penalty=positive_penalty+balance_factor*negative_penalty
-                #     # if isinstance(mod,modules.conv2d_with_mask):
-                #     #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
-                #     #     mask_last_step[i]=mod.mask.clone().detach()
-                #     #     i+=1
-                # alpha = 0.2
-                # if step == 0:
-                #     writer.add_text(tag='alpha', text_string=str(alpha))
-                #     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
-                # weighted_block_penalty = alpha * block_penalty
-                #
-                # writer.add_scalar(tag='block_penalty',
-                #                   scalar_value=block_penalty,
-                #                   global_step=int(sample_num / batch_size))
-                # writer.add_scalar(tag='weighted_block_penalty',
-                #                   scalar_value=weighted_block_penalty,
-                #                   global_step=int(sample_num / batch_size))
-                # loss = loss + weighted_block_penalty
+                i = 0
+                for name, mod in net.named_modules():
+                    if isinstance(mod, modules.conv2d_with_mask):
+                        # mask_abs = mod.shortcut_mask.abs()
+                        mask_mean=torch.mean(mod.mask.abs())
+                        # if 'conv_a' in name:#mask_mean<=0.5:# and last_conv_prune is False:
+                        #     target_mask_mean=0
+                        #     positive_penalty= positive_penalty+(target_mask_mean - mask_mean).abs()
+                        #     # last_conv_prune=True
+                        # else:
+                        #     target_mask_mean=1
+                        #     negative_penalty = negative_penalty + (target_mask_mean - mask_mean).abs()
+                            # last_conv_prune=False
+                        block_penalty = block_penalty + (target_mask_mean - mask_mean).abs()
+
+                    # if isinstance(mod,modules.conv2d_with_mask):
+                    #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
+                    #     mask_last_step[i]=mod.mask.clone().detach()
+                    #     i+=1
+                alpha = 0.02
+                if step == 0:
+                    writer.add_text(tag='alpha', text_string=str(alpha))
+                    writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
+                weighted_block_penalty = alpha * block_penalty
+
+                writer.add_scalar(tag='block_penalty',
+                                  scalar_value=block_penalty,
+                                  global_step=int(sample_num / batch_size))
+                writer.add_scalar(tag='weighted_block_penalty',
+                                  scalar_value=weighted_block_penalty,
+                                  global_step=int(sample_num / batch_size))
+                loss = loss + weighted_block_penalty
 
             if save_at_each_step:
                 torch.save(net,os.path.join(crash_path, 'net.pt'))
@@ -874,7 +877,10 @@ def train_extractor_network(
                 torch.save(outputs, os.path.join(crash_path, 'outputs.pt'))
 
             # net.net.stage_1[0].conv_a.mask.retain_grad()
-            loss.backward()
+            try:
+                loss.backward()
+            except:
+                print()
 
             if gradient_clip_value is not None:
                 torch.nn.utils.clip_grad_value_(net.parameters(), gradient_clip_value)

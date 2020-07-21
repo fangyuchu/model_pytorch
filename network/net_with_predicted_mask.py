@@ -110,6 +110,7 @@ class predicted_mask_net(nn.Module):
                             self.track_running_stats(track=False)  # don't track stats on BN when updating the mask to avoid volatility
                 else:
                     if (self.current_epoch-self.mask_training_start_epoch) % self.mask_update_freq == self.mask_update_epochs and self.step_tracked==1:
+                        self.mask_net()
                         self.mask_updating = False
                         self.print_mask()
                         print('{} stop updating the mask.'.format(datetime.now()))
@@ -130,37 +131,13 @@ class predicted_mask_net(nn.Module):
         if self.training is False:
             raise Exception('Masks should not be updated in evaluation mode.')
         mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
-        mask_clone=mask.detach().clone()
-
-        # if 'resnet' in self.net_name:#preserve all filters in first conv for resnet
-        #     for name,mod in self.net.named_modules():
-        #         if isinstance(mod,nn.Conv2d):
-        #             out_channels=mod.out_channels
-        #             mask_clone[:out_channels]=1
-        #             break
-
-        prune_num = self.find_prune_num(mask_clone)
-        _, mask_index = torch.topk(torch.abs(mask_clone), k=prune_num , dim=0, largest=False)
-        index=torch.ones(mask.shape).to(mask.device)
-        index[mask_index]=0
-        mask=mask*index
-
         lo = hi = 0
-        last_conv_mask = None
         for name, mod in self.net.named_modules():
             if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
                 hi += mod.out_channels
                 _modules = get_module(model=self.net, name=name)
                 mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
                 lo = hi
-                last_conv_mask = mod.mask
-            else:
-                if isinstance(mod, nn.BatchNorm2d) and last_conv_mask is not None:
-                    # prune the corresponding mean and var according to mask
-                    # todo:在有shortcut的结构中，bn中的值还和shortcut有关，直接剪不一定合理
-                    mod.running_mean[last_conv_mask == 0] = 0
-                    mod.running_var[last_conv_mask == 0] = 1
-                last_conv_mask = None
 
     def set_bn_momentum(self,momentum):
         '''
@@ -253,6 +230,46 @@ class predicted_mask_net(nn.Module):
                 layer+=1
                 mod.mask[structure[layer]:]=0
 
+    def mask_net(self):
+        '''
+        set top k mask to 0
+        :return:
+        '''
+        if self.training is False:
+            raise Exception('Masks should not be updated in evaluation mode.')
+        mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
+        mask_clone = mask.detach().clone()
+
+        # if 'resnet' in self.net_name:#preserve all filters in first conv for resnet
+        #     for name,mod in self.net.named_modules():
+        #         if isinstance(mod,nn.Conv2d):
+        #             out_channels=mod.out_channels
+        #             mask_clone[:out_channels]=1
+        #             break
+
+        prune_num = self.find_prune_num(mask_clone)
+        _, mask_index = torch.topk(torch.abs(mask_clone), k=prune_num , dim=0, largest=False)
+        index=torch.ones(mask.shape).to(mask.device)
+        index[mask_index]=0
+        mask=mask*index
+
+        lo = hi = 0
+        last_conv_mask = None
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+                hi += mod.out_channels
+                _modules = get_module(model=self.net, name=name)
+                mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+                lo = hi
+                last_conv_mask = mod.mask
+            else:
+                if isinstance(mod, nn.BatchNorm2d) and last_conv_mask is not None:
+                    # prune the corresponding mean and var according to mask
+                    # todo:在有shortcut的结构中，bn中的值还和shortcut有关，直接剪不一定合理
+                    mod.running_mean[last_conv_mask == 0] = 0
+                    mod.running_var[last_conv_mask == 0] = 1
+                last_conv_mask = None
+
 
 class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
     def __init__(self, net, net_name, dataset_name, flop_expected,add_shortcut_ratio, feature_len=15, gcn_rounds=2, only_gcn=False,
@@ -317,14 +334,10 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 _modules[name.split('.')[-1]] = conv2d_with_mask_and_variable_shortcut(mod, map_size[mod], self.__add_shortcut_ratio).to(device)  # replace conv with a block
         return net
 
-    # def change_shortcut_ratio(self,ratio):
-    #     self.__add_shortcut_ratio=ratio
-    #     for name,mod in self.net.named_modules():
-    #         if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
-    #             mod.add_shortcut_ratio=ratio
     def get_shortcut_ratio(self):
         return self.__add_shortcut_ratio
-    def find_prune_num(self, mask, delta=5e5,start_prune_num=700):
+
+    def find_prune_num(self, mask, delta=2e5,start_prune_num=700):
         '''
 
         determine the number of filters to prune for a given flops
@@ -381,94 +394,6 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 mod.flops = None
         raise Exception('Can\'t find appropriate prune_rate. Consider decreasing prune_num')
 
-    # def find_prune_num(self, mask, delta=5e5):
-    #     #todo:要改
-    #     '''
-    #
-    #     determine the number of filters to prune for a given flops
-    #     f(prune_rate) represents the flops of network w.r.t prune_rate.
-    #     The flops first decreases along prune_rate and increases afterwards(due to added shortcut ) and then decrease to zero.
-    #     So this code try to find the target prune_rate in the left
-    #     :param mask:
-    #     :param delta: tolerance of flops between net's flops and expected flops
-    #     :return:
-    #     '''
-    #     is_training = self.training
-    #     conv_layer_index = []
-    #     in_c = []
-    #     num_conv = []
-    #     conv_list = []
-    #     conv_flop = []
-    #     conv_inf = []
-    #     bn_flop_reduction=[]
-    #     layer = -1
-    #     for name, mod in self.net.named_modules():
-    #         if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
-    #             layer += 1
-    #             conv_layer_index += [layer for i in range(mod.out_channels)]
-    #             conv_list += [mod]
-    #             in_c += [mod.in_channels]
-    #             num_conv += [mod.out_channels]
-    #             conv_inf += [{'shortcut': False, 'static_oc': False}]  # static_oc stands for static out_channels
-    #             if 'conv_a' not in name:
-    #                 conv_inf[-1]['static_oc'] = True
-    #             conv_flop += [mod.compute_flops(mod.in_channels, mod.out_channels)]
-    #             bn_flop_reduction+=[0]
-    #     total_flops = measure_flops.measure_model(self.net, self.dataset_name, False)
-    #     total_maskconv_flop = sum(conv_flop)
-    #     total_nonmaskconv_flop = total_flops - total_maskconv_flop  # total flops of non_conv layer
-    #     mask = np.abs(mask.clone().detach().cpu().numpy())
-    #
-    #     prune_num = 0
-    #     while prune_num < len(mask):
-    #         prune_num += 1
-    #         mask_index = np.argmin(mask)
-    #         mask[mask_index] = 999  # simulate that this mask is set to 0
-    #         layer = conv_layer_index[mask_index]
-    #         conv = conv_list[layer]
-    #         next_conv = conv_list[layer + 1] if layer < len(conv_list) - 1 else None
-    #         num_conv[layer] -= 1
-    #
-    #         # judge if the input number of feature maps also decreases one in the next layer
-    #         conv_ratio_filter_masked = 1 - num_conv[layer] / conv.out_channels
-    #         if conv_ratio_filter_masked < conv.add_shortcut_ratio:  # no shortcut needed
-    #             if conv_inf[layer]['static_oc'] is False:  # current conv can be pruned
-    #                 in_c[layer + 1] -= 1  # in_channel of next layer decrease one
-    #                 bn_flop_reduction[layer]+=conv.w_out*conv.w_out*2# bn after conv can skip one feature map of calculation
-    #             else:  # current conv is only masked
-    #                 pass  # in_channel of next layer remains same
-    #         else:  # shortcut is needed
-    #             if conv_inf[layer]['shortcut'] is False:  # a new shortcut will be added
-    #                 conv_inf[layer]['shortcut'] = True
-    #                 conv_inf[layer]['static_oc'] = True
-    #                 #todo 要改
-    #                 total_nonmaskconv_flop += conv.compute_downsample_flops(5)  # calculate flops introduced by downsample
-    #                 bn_flop_reduction[layer]=0
-    #                 if next_conv is not None:
-    #                     in_c[layer + 1] = next_conv.in_channels  # in_channels in next layer returns to the original
-    #             else:  # shortcut already existed
-    #                 pass
-    #         # update flops of the conv and next_conv
-    #         conv_flop[layer]=conv.compute_flops(in_c[layer], num_conv[layer])
-    #         if next_conv is not None:
-    #             conv_flop[layer+1]=next_conv.compute_flops(in_c[layer + 1], num_conv[layer + 1])
-    #
-    #         # recalculate total mask conv flop and total net flops
-    #         total_flops = total_nonmaskconv_flop + sum(conv_flop)-sum(bn_flop_reduction)
-    #
-    #         if abs(total_flops - self.flop_expected) <= delta:
-    #             self.train(mode=is_training)
-    #             for name, mod in self.net.named_modules():
-    #                 if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
-    #                     mod.flops = None
-    #
-    #             return prune_num
-    #
-    #     for name, mod in self.net.named_modules():
-    #         if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
-    #             mod.flops = None
-    #     raise Exception('Can\'t find appropriate prune_rate')
-    
     def reshape_data_to_net_structure(self, data):
         '''
         reshape the data to net-structure-like shape
@@ -541,7 +466,6 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             in_channels_list+=block_in_channels_list[i]
         return in_channels_list
 
-
     def measure_self_flops(self,num_filter_unmasked=None):
         downsample_flop_overcomputed=0 #flop in downsample may be over counted if the net has not been pruned
         bn_reduction=0
@@ -571,27 +495,6 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
                 mod.flops=None
         return flops - downsample_flop_overcomputed - bn_reduction
-
-
-
-    # def prune_net(self):
-    #     if 'resnet' in self.net_name and 'cifar10'==self.dataset_name:
-    #         layer_index=-1
-    #         for name,mod in list(self.net.named_modules()):
-    #             if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
-    #                 layer_index+=1
-    #                 # if torch.sum(mod.mask == 0) / float(len(mod.mask)) < mod.add_shortcut_ratio:  # prune the conv since it doesn't have a shortcut
-    #                 #     mod.downsample = nn.Module()  # since mod's shortcut will not be used, set dwonsample to base Module to indicate it as useless
-    #                 #     if 'conv_a' in name :
-    #                 #         filter_index=torch.where(mod.mask==0)[0].detach().cpu().numpy()
-    #                 self.prune_conv_layer_resnet(layer_index)
-    #         for name, mod in list(self.net.named_modules()):
-    #             if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
-    #                 if torch.sum(mod.mask == 0) / float(len(mod.mask)) < mod.add_shortcut_ratio:   # this conv doesn't need shortcut
-    #                     mod.downsample=None
-    #
-    #     self.to(self.extractor.network[0].weight.device)
-    #     self.train()
 
     def prune_net(self):
         if self.pruned is True:
@@ -630,6 +533,10 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                                       last_conv_out_channels)
             block_mask_index+=[torch.where(last_conv.mask!=0)[0].tolist()]
         num_conv_processing = 0
+        if torch.sum(self.net.conv_1_3x3.mask != 0) ==0:
+            num_conv_all_pruned=1
+        else:
+            num_conv_all_pruned=0
         self.prune_conv_layer_resnet(0) #prune first conv
         with torch.no_grad():
             for i in range(1,len(block_list)):
@@ -665,8 +572,11 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                             # 替换
                             _modules = get_module(model=block_list[i], name=name)
                             _modules[name.split('.')[-1]] = new_conv
+                        self.prune_conv_layer_resnet(num_conv_processing - num_conv_all_pruned)  # prune the conv
+                        if torch.sum(mod.mask != 0) == 0:
+                            num_conv_all_pruned += 1
 
-                        self.prune_conv_layer_resnet(num_conv_processing)   #prune the conv
+
 
             #prune the first linear layer
             old_linear_layer = None
@@ -743,8 +653,12 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     #todo: more support
                     next_conv=0
                     break
-
-        filter_index = torch.where(conv_to_prune.mask == 0)[0].detach().cpu().numpy()
+        try:
+            filter_index = torch.where(conv_to_prune.mask == 0)[0].detach().cpu().numpy()
+        except AttributeError:
+            self.print_mask()
+            print(layer_index)
+            raise AttributeError
         if len(filter_index) == 0:  # no filter need to be pruned
             return
         device=conv_to_prune.weight.device
@@ -842,6 +756,9 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
     def forward(self, input):
         if self.training and self.current_epoch == self.mask_training_stop_epoch  and self.step_tracked == 1:  # training of mask is finished
             print('Prune the network.')
+            #todo: this only works when training_stop_epoch can't be divided by train_freq, or the net will be masked again in forward() after pruned
+            self.mask_net()
+            self.print_mask()
             self.prune_net()  # prune filters
         out = super().forward(input)
         return out
