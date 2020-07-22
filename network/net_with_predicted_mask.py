@@ -49,7 +49,6 @@ class predicted_mask_net(nn.Module):
         self.current_epoch=1
         self.net = self.transform(net)  # .to(device)
         self.flop_expected = flop_expected
-        self.loader =None
         self.batch_size=batch_size
         self.mask_training_start_epoch=mask_training_start_epoch    #mask be trained during [start_epoch,stop_epoch)
         self.mask_training_stop_epoch=mask_training_stop_epoch
@@ -501,6 +500,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             raise Exception('net has already been pruned')
         self.pruned = True
         print('Only support basic block now')
+        self.detach_mask()
         first_conv=None
         block_list=[]
         for name, mod in self.net.named_modules():

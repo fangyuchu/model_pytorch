@@ -1,6 +1,6 @@
 import torch
 import transform_conv
-from transform_conv import conv_to_matrix
+from transform_conv import conv_to_matrix,pca
 import torch.nn as nn
 from network import vgg,resnet_cifar,resnet,net_with_predicted_mask
 import copy
@@ -204,18 +204,7 @@ class gcn(nn.Module):
 
 
 
-def pca(tensor_2d,dim):
-    '''
 
-    :param tensor_2d: each row is a piece of data
-    :param dim:
-    :return: tensor after dimension reduction,each row is a piece of data
-    '''
-    if dim>tensor_2d.shape[1]:
-        raise Exception('Required dim is larger than feature len.(dim:{}>tensor_2d.shape[1]:{})'.format(dim,tensor_2d.shape[1]))
-    u,s,v=torch.svd(tensor_2d)
-    projection_matrix=v[:,:dim]
-    return torch.matmul(tensor_2d,projection_matrix)
 
 def normalize(tensor):
     mean=tensor.mean(dim=0)

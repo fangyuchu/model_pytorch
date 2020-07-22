@@ -1,5 +1,6 @@
 import torch
 from filter_characteristic.graph_convolutional_network import gcn
+from transform_conv import conv_to_matrix,pca
 import torch.nn as nn
 import transform_conv
 from network import vgg,net_with_predicted_mask
@@ -26,9 +27,9 @@ class extractor(nn.Module):
         self.feature_len = feature_len
         self.gcn_rounds = gcn_rounds
         if not only_inner_features:
-            in_features = feature_len + 5
+            in_features = feature_len + feature_len
         else:
-            in_features = 5
+            in_features = feature_len
         self.network = nn.Sequential(
             nn.Linear(in_features,128),
             nn.BatchNorm1d(128,track_running_stats=False),
@@ -56,48 +57,64 @@ class extractor(nn.Module):
         out = self.network(features)
         return out
 
-    def extract_innerlayer_features(self,net):
-        device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        channel_num=[]
-        filter_num=[]
-        for name, mod in net.named_modules():
-            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
-                filter_num += [mod.out_channels]
-                channel_num += [mod.in_channels]
-
-        # singular values are not used for efficiency concern
-        # singular_values = torch.zeros((sum(filter_num), self.feature_len - 5)).to(device)
-        mean = torch.zeros(sum(filter_num)).to(device)
-        max = torch.zeros(sum(filter_num)).to(device)
-        std = torch.zeros(sum(filter_num)).to(device)
-        start=0
-        i=0
+    def extract_innerlayer_features(self, net):
+        device = list(net.parameters())[0].device
+        num_conv=0
         for name,mod in net.named_modules():
             if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
-                stop = start + filter_num[i]
-                weight= transform_conv.conv_to_matrix(mod)
-                mean[start:stop]=torch.mean(weight,dim=1)
-                max[start:stop]=torch.max(weight,dim=1)[0]
-                std[start:stop]=torch.std(weight,dim=1)
-                #singular values are not used for efficiency concern
-                # u, s, v = torch.svd(weight)
-                # singular_values[start:stop]=s[:self.feature_len-5].repeat(filter_num[i],1)
-                start = stop
-                i+=1
+                num_conv+=mod.out_channels
+        features=torch.ones((num_conv,self.feature_len)).to(device)
+        lo=hi=0
+        for name,mod in net.named_modules():
+            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+                hi+=mod.out_channels
+                features[lo:hi]=pca(conv_to_matrix(mod),dim=self.feature_len)
+                lo=hi
+        return features
 
-        innerlayer_features = torch.zeros((sum(filter_num),5 )).to(device)
-        start=0
-        for i in range(len(filter_num)):
-            stop = start+filter_num[i]
-            innerlayer_features[start:stop][:,0]=i+1                                                                            #layer
-            innerlayer_features[start:stop][:,1]=channel_num[i]                                                                  #channel_num
-            innerlayer_features[start:stop][:,2]=mean[start:stop]                                                                        #mean
-            innerlayer_features[start:stop][:,3]=max[start:stop]                                                                         #max
-            innerlayer_features[start:stop][:,4]=std[start:stop]                                                                         #standard deviation
-            # innerlayer_features[start:stop][:,5:]=singular_values[start:stop]                               #top k singuar value
-            start=stop
 
-        return innerlayer_features
+    # def extract_innerlayer_features(self,net):
+    #     device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #     channel_num=[]
+    #     filter_num=[]
+    #     for name, mod in net.named_modules():
+    #         if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+    #             filter_num += [mod.out_channels]
+    #             channel_num += [mod.in_channels]
+    #
+    #     # singular values are not used for efficiency concern
+    #     # singular_values = torch.zeros((sum(filter_num), self.feature_len - 5)).to(device)
+    #     mean = torch.zeros(sum(filter_num)).to(device)
+    #     max = torch.zeros(sum(filter_num)).to(device)
+    #     std = torch.zeros(sum(filter_num)).to(device)
+    #     start=0
+    #     i=0
+    #     for name,mod in net.named_modules():
+    #         if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+    #             stop = start + filter_num[i]
+    #             weight= transform_conv.conv_to_matrix(mod)
+    #             mean[start:stop]=torch.mean(weight,dim=1)
+    #             max[start:stop]=torch.max(weight,dim=1)[0]
+    #             std[start:stop]=torch.std(weight,dim=1)
+    #             #singular values are not used for efficiency concern
+    #             # u, s, v = torch.svd(weight)
+    #             # singular_values[start:stop]=s[:self.feature_len-5].repeat(filter_num[i],1)
+    #             start = stop
+    #             i+=1
+    #
+    #     innerlayer_features = torch.zeros((sum(filter_num),5 )).to(device)
+    #     start=0
+    #     for i in range(len(filter_num)):
+    #         stop = start+filter_num[i]
+    #         innerlayer_features[start:stop][:,0]=i+1                                                                            #layer
+    #         innerlayer_features[start:stop][:,1]=channel_num[i]                                                                  #channel_num
+    #         innerlayer_features[start:stop][:,2]=mean[start:stop]                                                                        #mean
+    #         innerlayer_features[start:stop][:,3]=max[start:stop]                                                                         #max
+    #         innerlayer_features[start:stop][:,4]=std[start:stop]                                                                         #standard deviation
+    #         # innerlayer_features[start:stop][:,5:]=singular_values[start:stop]                               #top k singuar value
+    #         start=stop
+    #
+    #     return innerlayer_features
 
 # class weighted_MSELoss(torch.nn.MSELoss):
 #     def __init__(self):

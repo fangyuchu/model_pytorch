@@ -13,7 +13,7 @@ import logger
 import copy
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
 # import torchsnooper
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #todo:用adam单纯训练mask是有用的，但bs加大后收敛就慢了，所以考虑完整extractor是可以收敛的，但很慢，换小bs试试
@@ -62,7 +62,7 @@ mask_update_freq = 1000
 mask_update_epochs = 900
 batch_size=1024
 mask_training_start_epoch=1
-mask_training_stop_epoch=2
+mask_training_stop_epoch=4
 
 num_epochs=160*2+mask_training_stop_epoch
 learning_rate_decay_epoch = [mask_training_stop_epoch+2*i for i in [80,120]]
@@ -92,6 +92,13 @@ net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
                                                                        add_shortcut_ratio=0.9,
                                                                        )
 net.to(device)
+c=torch.load('/home/victorfang/model_pytorch/data/masked_net/3.tar')
+net.load_state_dict(c['state_dict'])
+net.mask_net()
+net.print_mask()
+net.prune_net()
+f=net.measure_self_flops()
+print()
 # net.current_epoch=30
 # train.add_forward_hook(net,module_name='extractor.gcn.network.0')
 # net.update_mask()

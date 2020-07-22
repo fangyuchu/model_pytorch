@@ -18,6 +18,9 @@ def get_net_information(net,dataset_name,net_name):
     checkpoint['net_name']=net_name
     checkpoint['dataset_name']=dataset_name
     checkpoint['state_dict']=net.state_dict()
+
+    checkpoint['net']=net
+
     structure=[]                                                                                #number of filters for each conv
     for name,mod in net.named_modules():
         if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
@@ -35,6 +38,7 @@ def get_net_information(net,dataset_name,net_name):
         checkpoint['flop_expected']=net.flop_expected
         if isinstance(net,net_with_predicted_mask.predicted_mask_and_variable_shortcut_net):
             checkpoint['add_shortcut_ratio']=net.get_shortcut_ratio()
+
     # try:
     #     #for predicted_mask_net
     #     #isinstanec(net,predicted_mask_met) is False. I don't know why
