@@ -67,17 +67,19 @@ def create_train_loader(
                                               transforms.Normalize(mean=mean, std=std),
                                           ]))
 
-    #create indices to split train and val set
-    train_set_size = getattr(conf,dataset_name)['train_set_size']
-    indices = list(range(train_set_size))
-    split = int(np.floor(train_val_split_ratio * train_set_size))
-    # np.random.seed(random_seed)
-    np.random.shuffle(indices)
-    train_idx, valid_idx = indices[split:], indices[:split]
-    train_sampler = SubsetRandomSampler(train_idx)
-    val_sampler = SubsetRandomSampler(valid_idx)
-    train_loader = torch.utils.data.DataLoader(train_folder, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers,pin_memory=True)
-    val_loader=torch.utils.data.DataLoader(val_folder, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers,pin_memory=True)
+    # #create indices to split train and val set
+    # train_set_size = getattr(conf,dataset_name)['train_set_size']
+    # indices = list(range(train_set_size))
+    # split = int(np.floor(train_val_split_ratio * train_set_size))
+    # # np.random.seed(random_seed)
+    # np.random.shuffle(indices)
+    # train_idx, valid_idx = indices[split:], indices[:split]
+    # train_sampler = SubsetRandomSampler(train_idx)
+    # val_sampler = SubsetRandomSampler(valid_idx)
+    # train_loader = torch.utils.data.DataLoader(train_folder, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers,pin_memory=True)
+    # val_loader=torch.utils.data.DataLoader(val_folder, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers,pin_memory=True)
+    train_loader=torch.utils.data.DataLoader(train_folder, batch_size=batch_size, num_workers=num_workers,pin_memory=True,shuffle=True)
+    val_loader=None
     return train_loader,val_loader
 
 def create_test_loader(

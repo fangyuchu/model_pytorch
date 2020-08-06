@@ -13,12 +13,18 @@ import logger
 import copy
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
 # import torchsnooper
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#todo:用adam单纯训练mask是有用的，但bs加大后收敛就慢了，所以考虑完整extractor是可以收敛的，但很慢，换小bs试试
-#改了train中的optimizer,test中的训练结束epoch和cureent epoch
+
 # net=resnet.resnet50().to(device)
+net=resnet_cifar.resnet56()#,vgg.vgg16_bn()
+num=0
+for name,mod in net.named_modules():
+    if isinstance(mod,nn.Conv2d):
+        num+=mod.out_channels
+print(num)
+print()
 #
 #
 # measure_flops.measure_model(net)
@@ -78,10 +84,25 @@ save_at_each_step=False
 
 
 net=resnet_cifar.resnet56(num_classes=10).to(device)
+net=resnet.resnet50(pretrained=False).to(device)
+total_flop=4111413224
+flop_expected=total_flop*0.5
 
+# net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+#                                                                        net_name='resnet56',
+#                                                                        dataset_name='cifar10',
+#                                                                        mask_update_epochs=mask_update_epochs,
+#                                                                        mask_update_freq=mask_update_freq,
+#                                                                        flop_expected=flop_expected,
+#                                                                        gcn_rounds=2,
+#                                                                        mask_training_start_epoch=mask_training_start_epoch,
+#                                                                        mask_training_stop_epoch=mask_training_stop_epoch,
+#                                                                        batch_size=batch_size,
+#                                                                        add_shortcut_ratio=0.9,
+#                                                                        )
 net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
-                                                                       net_name='resnet56',
-                                                                       dataset_name='cifar10',
+                                                                       net_name='resnet50',
+                                                                       dataset_name='imagenet',
                                                                        mask_update_epochs=mask_update_epochs,
                                                                        mask_update_freq=mask_update_freq,
                                                                        flop_expected=flop_expected,
@@ -92,12 +113,15 @@ net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
                                                                        add_shortcut_ratio=0.9,
                                                                        )
 net.to(device)
-c=torch.load('/home/victorfang/model_pytorch/data/masked_net/3.tar')
-net.load_state_dict(c['state_dict'])
+# net.measure_self_flops()
+# c=torch.load('/home/victorfang/model_pytorch/data/masked_net/3.tar')
+# net.load_state_dict(c['state_dict'])
+net.update_mask()
+#todo:以上都是对的
 net.mask_net()
-net.print_mask()
-net.prune_net()
-f=net.measure_self_flops()
+# net.print_mask()
+# net.prune_net()
+# f=net.measure_self_flops()
 print()
 # net.current_epoch=30
 # train.add_forward_hook(net,module_name='extractor.gcn.network.0')

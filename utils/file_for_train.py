@@ -7,29 +7,31 @@ from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifa
 from framework import config as conf
 from framework.train import set_modules_no_grad
 import os,sys,logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #训练schedule
 
 
 optimizer_net = optim.SGD
-optimizer_extractor = optim.SGD
+optimizer_extractor = optim.Adam
 learning_rate = {'default': 0.1, 'extractor': 0.001}
-weight_decay = {'default':5e-4,'extractor':5e-4}
+weight_decay = {'default':1e-4,'extractor':5e-4}
 momentum = {'default':0.9,'extractor':0.9}
 # exp_name='resnet56_predicted_mask_and_variable_shortcut_net80_extractorWarmup_nodouble_2'
 # description=exp_name+'  '+'剪80%，先训练extractor+cnn，其中mask不置0，之后再mask网络并prune后单独训练cnn。extractor的lr为0.001,extractor训练时采用warmup，训练160epoch'
-exp_name='resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
+exp_name='resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
 description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
 add_shortcut_ratio=0.9
 mask_update_freq = 1000
 mask_update_epochs = 900
 mask_training_start_epoch=1
-mask_training_stop_epoch=20
+mask_training_stop_epoch=40
 
 batch_size=128
-flop_expected=1.25e7#1.25e7#1.88e7#2.5e7#3.6e7#
+total_flop=125485706
+ratio=0.5
+flop_expected=total_flop*ratio#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
 gradient_clip_value=None
 learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
 num_epochs=160*1+mask_training_stop_epoch
@@ -56,7 +58,7 @@ net=net.to(device)
 #     os.makedirs(checkpoint_path, exist_ok=True)
 # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
 # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-
+#
 # print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
 # train.train_extractor_network(net=net,
 #                               net_name='resnet56',
@@ -87,17 +89,11 @@ net=net.to(device)
 #                               save_at_each_step=False,
 #                               gradient_clip_value=gradient_clip_value
 #                               )
+
+
 i = 2
-exp_name = 'resnet56_predicted_mask_and_variable_shortcut_net_newinner_90_' + str(i)
+exp_name = 'resnet56_predicted_mask_and_variable_shortcut_net_newinner_'+str(int(ratio*100))+'_doubleschedule_wd1' + str(i)
 description = exp_name + '  ' + ''
-checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', str(i) + '.tar'))
-net.load_state_dict(checkpoint['state_dict'])
-net.mask_net()
-net.print_mask()
-net.prune_net()
-net.current_epoch = net.mask_training_stop_epoch + 1
-learning_rate_decay_epoch = [80, 120]
-num_epochs = 160
 
 checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
 # save the output to log
@@ -107,6 +103,17 @@ if not os.path.exists(checkpoint_path):
 sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
 sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
 print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
+
+
+checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', str(i) + '.tar'),map_location='cpu')
+net.load_state_dict(checkpoint['state_dict'])
+net.mask_net()
+net.print_mask()
+net.prune_net()
+net.current_epoch = net.mask_training_stop_epoch + 1
+learning_rate_decay_epoch = [2*i for i in [80,120]]
+num_epochs = 160*2
+
 
 train.train(net=net,
             net_name='resnet56',
@@ -122,7 +129,7 @@ train.train(net=net,
             evaluate_step=5000,
             load_net=False,
             test_net=True,
-            num_workers=4,
+            num_workers=1,
             learning_rate_decay=True,
             learning_rate_decay_epoch=learning_rate_decay_epoch,
             learning_rate_decay_factor=0.1,

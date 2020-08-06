@@ -132,7 +132,6 @@ class gcn(nn.Module):
             if isinstance(mod, nn.Conv2d):
                 if 'downsample' in name:  # shortcut conv for bottleneck or for block_with_mask_shortcut
                     if 'conv' not in name:  # shortcut conv for bottleneck
-                        raise Exception('check if this is right. why downsample inside conv?')
                         weight_downsample = conv_to_matrix(mod)
                     continue
                 conv_list += [mod]  # a list containing 2-d conv weight matrix
@@ -143,7 +142,6 @@ class gcn(nn.Module):
         if weight_downsample is not None:                                                       #with 1x1 conv
             weight_downsample =(weight_downsample+ information_in_front.repeat(1, 1).view(-1))/2
             information_at_last=(information_at_last+ weight_downsample.mean(dim=1).reshape([-1, 1]))/2
-            raise Exception('check if this is right for bottleneck')
         elif zero_padding is True:                                                              #with zero padding
             pad_length=information_at_last.shape[0]-information_in_front.shape[0]
             information_at_last =(information_at_last+ torch.cat((information_in_front, torch.zeros(pad_length,1).to(device)), 0))/2

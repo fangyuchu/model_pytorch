@@ -37,7 +37,6 @@ class extractor(nn.Module):
             nn.Linear(128,1,bias=True),
             nn.BatchNorm1d(1,track_running_stats=False),
             nn.Tanh(),
-            #todo:怀疑应该更换为sigmoid才能让它更稳定
         )
         self.normalization=nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
         

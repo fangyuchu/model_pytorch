@@ -140,7 +140,6 @@ def train(
         data_parallel=False,
         save_at_each_step=False,
         gradient_clip_value=None,
-        train_val_split_ratio=0.1
 
 ):
     '''
@@ -193,13 +192,15 @@ def train(
 
     # prepare the data
     train_set_size = getattr(conf, dataset_name)['train_set_size']
-    num_train = train_set_size - int(train_set_size * train_val_split_ratio)
+    num_train = train_set_size
     # if train_loader is None:
-    train_loader, val_loader = data_loader.create_train_loader(batch_size=batch_size,
-                                                               num_workers=num_workers,
-                                                               dataset_name=dataset_name,
-                                                               train_val_split_ratio=train_val_split_ratio)
-
+    train_loader, _ = data_loader.create_train_loader(batch_size=batch_size,
+                                                      num_workers=num_workers,
+                                                      dataset_name=dataset_name,
+                                                      train_val_split_ratio=None)
+    val_loader = data_loader.create_test_loader(batch_size=batch_size,
+                                                num_workers=num_workers,
+                                                dataset_name=dataset_name, )
     exp_path=os.path.join(root_path,'model_saved',exp_name)
     checkpoint_path=os.path.join(exp_path,'checkpoint')
     tensorboard_path=os.path.join(exp_path,'tensorboard')
@@ -634,12 +635,15 @@ def train_extractor_network(
 
     # prepare the data
     train_set_size = getattr(conf, dataset_name)['train_set_size']
-    num_train = train_set_size - int(train_set_size * train_val_split_ratio)
+    num_train = train_set_size
     # if train_loader is None:
-    train_loader, val_loader = data_loader.create_train_loader(batch_size=batch_size,
-                                                               num_workers=num_workers,
-                                                               dataset_name=dataset_name,
-                                                               train_val_split_ratio=train_val_split_ratio)
+    train_loader, _ = data_loader.create_train_loader(batch_size=batch_size,
+                                                      num_workers=num_workers,
+                                                      dataset_name=dataset_name,
+                                                      train_val_split_ratio=None)
+    val_loader = data_loader.create_test_loader(batch_size=batch_size,
+                                                num_workers=num_workers,
+                                                dataset_name=dataset_name, )
 
     exp_path=os.path.join(root_path,'model_saved',exp_name)
     checkpoint_path=os.path.join(exp_path,'checkpoint')
@@ -780,6 +784,7 @@ def train_extractor_network(
                     checkpoint.update(storage.get_net_information(net, dataset_name, net_name))
                     torch.save(checkpoint, '%s/masked_net.tar' % checkpoint_path)
                     print("{} mask is trained. Save the net. = {}".format(datetime.now(), sample_num))
+                    return
 
                 optimizer=optimizer_net
                 scheduler = scheduler_net

@@ -54,7 +54,8 @@ class predicted_mask_net(nn.Module):
         self.mask_training_stop_epoch=mask_training_stop_epoch
         self.set_bn_momentum(momentum=0.1)
         train_set_size = getattr(conf, dataset_name)['train_set_size']
-        self.num_train = train_set_size - int(train_set_size * 0.1)
+        self.num_train = train_set_size
+        # self.num_train = train_set_size - int(train_set_size * 0.1)
         self.copied_time=0
 
 
@@ -336,7 +337,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
     def get_shortcut_ratio(self):
         return self.__add_shortcut_ratio
 
-    def find_prune_num(self, mask, delta=2e5,start_prune_num=700):
+    def find_prune_num(self, mask, delta=2e5,start_prune_num=2):
         '''
 
         determine the number of filters to prune for a given flops
