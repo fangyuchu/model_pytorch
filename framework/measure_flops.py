@@ -1,6 +1,8 @@
 import torch
 from network import vgg
-from network.net_with_predicted_mask import predicted_mask_and_variable_shortcut_net
+import network.net_with_predicted_mask as ns
+
+# import network.net_with_predicted_mask.predicted_mask_and_variable_shortcut_net as predicted_mask_and_variable_shortcut_net
 import torch.nn as nn
 import copy
 import numpy as np
@@ -74,7 +76,7 @@ def should_measure(mod):
 
 
 def measure_model(net, dataset_name='imagenet', print_flop=True):
-    if isinstance(net,predicted_mask_and_variable_shortcut_net):
+    if isinstance(net,ns.predicted_mask_and_variable_shortcut_net):
         return net.measure_self_flops()
 
     if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
