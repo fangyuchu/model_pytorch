@@ -44,7 +44,8 @@ imagenet['std']=[0.229, 0.224, 0.225]
 imagenet['train_set_size']=1271167
 imagenet['test_set_size']=50000
 imagenet['train_set_path']=os.path.join(root_path,'dataset/imagenet/train')
-imagenet['test_set_path']=os.path.join(root_path,'dataset/imagenet/test')
+# imagenet['test_set_path']=os.path.join(root_path,'dataset/imagenet/validation')
+imagenet['test_set_path']='/home/victorfang/dataset/imagenet/validation'
 #(array([0.47068703, 0.44848716, 0.39994222], dtype=float32), array([0.28111452, 0.27503234, 0.28819305], dtype=float32))
 
 imagenet['default_image_size']=224

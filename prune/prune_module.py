@@ -1,43 +1,10 @@
 import torch
-import numpy as np
-from network import vgg
 import torch.nn as nn
 def replace_layers(module,old_mod,new_mod):
     for i in range(len(old_mod)):
         if module is old_mod[i]:
             return new_mod[i]
     return module
-
-# def create_module_name_list(module, key='', prefix=''):
-#     module_dict=getattr(module,'_modules')
-#     if not module_dict:                                 #module_dict is empty, which means this module is the last node.
-#         if prefix =='':
-#             return [key]
-#         else:
-#             return [prefix+'.'+key]
-#     modules_list=[]
-#     if key != '':                                               #module is not network
-#         if prefix =='':
-#             prefix=key
-#         else:
-#             prefix=prefix+'.'+key
-#     for k in module_dict:
-#         modules_list+=create_module_name_list(module_dict[k], k, prefix)
-#     return modules_list
-
-# def string_to_module(net, string):
-#     """
-#     将字符串表示的module转换成module类型
-#     """
-#     tmp_list = string.split(".")
-#     if (len(tmp_list) == 1):
-#         replace_module = getattr(net, string)
-#     else:
-#         tmp = getattr(net, tmp_list[0])
-#         tmp = getattr(tmp, tmp_list[1])
-#         replace_module = getattr(tmp, tmp_list[2])
-#     return replace_module
-
 
 def get_module(model, name):
     '''
@@ -324,48 +291,11 @@ def prune_conv_layer_resnet(net, layer_index, filter_index):
         return net
 
 
-# def select_and_prune_filter(model,ord,layer_index=0,num_to_prune=0,percent_of_pruning=0):
-#     '''
-#
-#     :param model: network model
-#     :param ord: which norm to compute as the standard. Support l1 and l2 norm
-#     :param layer_index: layer in which the filters being pruned. If being set to 0, all conv layers will be pruned.
-#     :param num_to_prune: number of filters to prune. Disabled if percent_of_pruning is not 0
-#     :param percent percent_of_pruning: percent of filters to prune for one conv
-#     :return: filter indexes in the [layer_index] layer
-#     '''
-#     if ord!=1 and ord !=2:
-#         raise TypeError('unsupported type of norm')
-#
-#     i = 0
-#     conv_index=-1                                                       #index of the conv in model.features
-#     for mod in model.features:
-#         conv_index+=1
-#         if isinstance(mod, torch.nn.modules.conv.Conv2d):
-#             i += 1
-#             if i == layer_index:                                        # hit the conv to be pruned
-#                 conv=mod
-#                 break
-#     if percent_of_pruning is not 0:
-#         if num_to_prune is not 0:
-#             print('Warning: Param: num_to_prune disabled!')
-#         num_to_prune=int(conv.out_channels*percent_of_pruning)
-#     weights = model.features[conv_index].weight.data.cpu().numpy()  # get weight of all filters
-#
-#     filter_norm=np.linalg.norm(weights,ord=ord,axis=(2,3))          #compute filters' norm
-#     if ord==1:
-#         filter_norm=np.sum(filter_norm,axis=1)
-#     elif ord==2:
-#         filter_norm=np.square(filter_norm)
-#         filter_norm=np.sum(filter_norm,axis=1)
-#     filter_min_norm_index=np.argsort(filter_norm)
-#     model=prune_conv_layer_vgg(model,layer_index,filter_min_norm_index[:num_to_prune])
-#
-#     return model
 
 
 
-if __name__ == "__main__":
-    model= vgg.vgg16_bn(pretrained=True)
-    # select_and_prune_filter(model,layer_index=3,num_to_prune=2,ord=2)
-    # prune_conv_layer_vgg(model,layer_index=3,filter_index=1)
+
+# if __name__ == "__main__":
+#     model= vgg.vgg16_bn(pretrained=True)
+#     # select_and_prune_filter(model,layer_index=3,num_to_prune=2,ord=2)
+#     # prune_conv_layer_vgg(model,layer_index=3,filter_index=1)

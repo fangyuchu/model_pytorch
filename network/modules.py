@@ -78,13 +78,14 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
         w_out = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / conv.stride[0]) + 1
         self.w_in=w_in
         self.add_shortcut_ratio=add_shortcut_ratio
+        #shortcut will be added if number of unmasked filter <= self.add_shortcut_num
         if specified_add_shortcut_num is not None:
             self.add_shortcut_num = specified_add_shortcut_num
         else:
             self.add_shortcut_num = math.ceil(self.out_channels * (1 - add_shortcut_ratio))
 
-        self.w_out=int((self.w_in + 2 * self.padding[0] - self.kernel_size[0]) //
-                    self.stride[0] + 1)
+        self.w_out = int((self.w_in + 2 * self.padding[0] - self.kernel_size[0]) //
+                         self.stride[0] + 1)
         self.flops=None
         if w_in != w_out :
             # add a shortcut with 1x1 conv

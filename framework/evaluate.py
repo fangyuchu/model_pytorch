@@ -32,8 +32,7 @@ class AverageMeter(object):
 
 # def validate(val_loader, model, criterion):
 def validate(val_loader, model,max_data_to_test=99999999,device=None):
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     with torch.no_grad():
         batch_time = AverageMeter()
         top1 = AverageMeter()
@@ -154,7 +153,7 @@ def evaluate_net(  net,
     print("{} Start Evaluation".format(datetime.now()))
     print("{} sample num = {}".format(datetime.now(), sample_num))
 
-    top1_accuracy,top5_accuracy=validate(data_loader,net,max_data_to_test,device)
+    top1_accuracy, top5_accuracy = validate(data_loader, net, max_data_to_test, device)
     if top_acc==1:
         accuracy=top1_accuracy
     elif top_acc==5:
@@ -225,7 +224,7 @@ def find_useless_filters_regressor_version(net,
 
     return useless_filter_index
 
-    
+
 
 def find_useless_filters_data_version(net,
                                       batch_size,
@@ -331,7 +330,7 @@ def find_useless_filters_data_version(net,
                     dead_times[dead_times < neural_dead_times] = 0
                     dead_times[dead_times >= neural_dead_times] = 1
                     dead_times = np.sum(dead_times, axis=(1, 2))  # count the number of dead neural for one filter
-    
+
                     df_num=np.where(dead_times >= neural_num * filter_FIRE)[0].shape[0]                    #number of dead filters
                     df_index=np.argsort(-dead_times)[:df_num].tolist()                                           #dead filters' indices. sorted by the times that they died.
                     useless_filter_index.append(df_index)

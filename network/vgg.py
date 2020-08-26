@@ -101,11 +101,35 @@ def make_layers(cfg, batch_norm=False):
         else:
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
+                layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=False)]
             else:
-                layers += [conv2d, nn.ReLU(inplace=True)]
+                layers += [conv2d, nn.ReLU(inplace=False)]
             in_channels = v
     return nn.Sequential(*layers)
+
+    # i=0
+    # from collections import OrderedDict
+    # layers = OrderedDict()
+    # in_channels = 3
+    # total=len(cfg)
+    # for v in cfg:
+    #     i+=1
+    #     if v == 'M':
+    #         layers['MaxPool2d'+str(i)]= nn.MaxPool2d(kernel_size=2, stride=2)
+    #     else:
+    #         conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
+    #         if batch_norm:
+    #             layers['conv2d'+str(i)]=conv2d
+    #             layers['BatchNorm2d'+str(i)]=nn.BatchNorm2d(v)
+    #             if i!=17:
+    #                 layers['ReLU'+str(i)]=nn.ReLU(inplace=True)
+    #             else:
+    #                 layers['ReLU' + str(i)] = nn.ReLU(inplace=False)
+    #         else:
+    #             layers['conv2d' + str(i)] = conv2d
+    #             layers['ReLU' + str(i)] = nn.ReLU(inplace=True)
+    #         in_channels = v
+    return nn.Sequential(layers)
 
 
 cfg = {

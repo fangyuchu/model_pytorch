@@ -313,7 +313,7 @@ def train(
 
             # 准备数据
             images, labels = data
-            images, labels = images.to(device), labels.to(device)
+            images, labels = images.cuda(), labels.cuda()
             sample_num += int(images.shape[0])
 
             optimizer.zero_grad()
@@ -580,7 +580,7 @@ def train_extractor_network(
         eta_min=0,
         paint_loss=False,
         # todo:tmp!!!
-        data_parallel=False,
+        data_distributed=False,
         save_at_each_step=False,
         gradient_clip_value=None,
         train_val_split_ratio=0.1
@@ -668,18 +668,13 @@ def train_extractor_network(
         if load_net:
             checkpoint = torch.load(file_new)
             print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
-            net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
+            net=storage.restore_net(checkpoint, pretrained=True, data_parallel=data_distributed)
             sample_num = checkpoint['sample_num']
 
     #set up summary writer for tensorboard
     writer=SummaryWriter(log_dir=tensorboard_path,
                          purge_step=int(sample_num/batch_size))
-    if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
-        image=torch.zeros(2,3,224,224).to(device)
-    elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
-        image=torch.zeros(2,3,32,32).to(device)
 
-    # writer.add_graph(net, image)
     for k in params.keys():
         writer.add_text(tag=k,text_string=params[k])
 
@@ -704,10 +699,13 @@ def train_extractor_network(
     if evaluate_step>math.ceil(num_train / batch_size)-1:
         evaluate_step= math.ceil(num_train / batch_size) - 1
 
-    optimizer_net=prepare_optimizer(net.net, optim_method_net, momentum, learning_rate, weight_decay ,requires_grad)
-    # optimizer_net=prepare_optimizer(net.net, optim.Adam, momentum, 0.01, weight_decay ,set_modules_no_grad(net.net,['weight','bias']))
+    if data_distributed:
+        optimizer_net = prepare_optimizer(net.module.net, optim_method_net, momentum, learning_rate, weight_decay,requires_grad)
+        net_entity=net.module
+    else:
+        optimizer_net=prepare_optimizer(net.net, optim_method_net, momentum, learning_rate, weight_decay ,requires_grad)
+        net_entity=net
     optimizer=optimizer_extractor=prepare_optimizer(net, optim_method_extractor, momentum, learning_rate, weight_decay ,requires_grad)
-    # optimizer_extractor=prepare_optimizer(net, optim.SGD, momentum, 0.1, weight_decay ,requires_grad)
     if learning_rate_decay:
         if scheduler_name =='MultiStepLR':
             # warm_up_epochs=5
@@ -762,16 +760,22 @@ def train_extractor_network(
             images, labels = images.to(device), labels.to(device)
             sample_num += int(images.shape[0])
 
-            if net.mask_training_start_epoch <= net.current_epoch < net.mask_training_stop_epoch:
-                if (net.current_epoch - net.mask_training_start_epoch) % net.mask_update_freq < net.mask_update_epochs:  # mask need to be trained
+            if net_entity.mask_training_start_epoch <= net_entity.current_epoch < net_entity.mask_training_stop_epoch:
+                if (net_entity.current_epoch - net_entity.mask_training_start_epoch) % net_entity.mask_update_freq < net_entity.mask_update_epochs:  # mask need to be trained
                     optimizer=optimizer_extractor
                     scheduler=scheduler_extractor
                 else:
                     optimizer=optimizer_net
                     scheduler=scheduler_net
             else:
-                if net.current_epoch == net.mask_training_stop_epoch:
-                    optimizer_net=prepare_optimizer(net.net, optim_method_net, momentum, learning_rate, weight_decay ,requires_grad)
+                if net_entity.current_epoch == net_entity.mask_training_stop_epoch:
+
+                    if data_distributed:
+                        optimizer_net = prepare_optimizer(net.module.net, optim_method_net, momentum, learning_rate,
+                                                          weight_decay, requires_grad)
+                    else:
+                        optimizer_net = prepare_optimizer(net.net, optim_method_net, momentum, learning_rate,
+                                                          weight_decay, requires_grad)
                     scheduler_net = lr_scheduler.MultiStepLR(optimizer_net,
                                                              milestones=learning_rate_decay_epoch,
                                                              gamma=learning_rate_decay_factor,
@@ -797,13 +801,13 @@ def train_extractor_network(
             loss = criterion(outputs, labels)
             #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
 
-            if net.mask_training_start_epoch <= net.current_epoch < net.mask_training_stop_epoch:
-                if (net.step_tracked == 1 or net.step_tracked == 0) and net.mask_updating is True:
+            if net_entity.mask_training_start_epoch <= net_entity.current_epoch < net_entity.mask_training_stop_epoch:
+                if (net_entity.step_tracked == 1 or net_entity.step_tracked == 0) and net_entity.mask_updating is True:
                     fig = draw_masked_net(net)
                     writer.add_figure(tag='net structure', figure=fig, global_step=int(sample_num / batch_size))
 
                 target_mask_mean = 0
-                block_penalty = torch.zeros(1).to(net.extractor.network[0].weight.device)
+                block_penalty = torch.zeros(1).cuda()
                 # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
                 i = 0
                 for name, mod in net.named_modules():
@@ -824,7 +828,7 @@ def train_extractor_network(
                     #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
                     #     mask_last_step[i]=mod.mask.clone().detach()
                     #     i+=1
-                alpha = 0.02
+                alpha = 0.2#resnet56:0.02,vgg16bn:0.05, resnet50:0.2
                 if step == 0:
                     writer.add_text(tag='alpha', text_string=str(alpha))
                     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
@@ -838,6 +842,12 @@ def train_extractor_network(
                                   global_step=int(sample_num / batch_size))
                 loss = loss + weighted_block_penalty
 
+
+
+            # net.net.stage_1[0].conv_a.mask.retain_grad()
+            loss.backward()
+
+
             if save_at_each_step:
                 torch.save(net,os.path.join(crash_path, 'net.pt'))
                 torch.save(images, os.path.join(crash_path, 'images.pt'))
@@ -845,12 +855,6 @@ def train_extractor_network(
                 torch.save(net.state_dict(), os.path.join(crash_path, 'state_dict.pt'))
                 torch.save(loss, os.path.join(crash_path, 'loss.pt'))
                 torch.save(outputs, os.path.join(crash_path, 'outputs.pt'))
-
-            # net.net.stage_1[0].conv_a.mask.retain_grad()
-            try:
-                loss.backward()
-            except:
-                print()
 
             if gradient_clip_value is not None:
                 torch.nn.utils.clip_grad_value_(net.parameters(), gradient_clip_value)

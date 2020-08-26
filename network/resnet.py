@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
+import torch
 import os
 
 
@@ -91,8 +92,30 @@ class Bottleneck(nn.Module):
         out = self.conv3(out)
         out = self.bn3(out)
 
+
+
         if self.downsample is not None:
+            # if predicted_mask_and_variable_shortcut_net is pruned, number of input and output feature maps may differs.
+            # if that happens, just create a new downsample(for simplicity, without copying the weights)
+            downsample_conv = self.downsample[0]
+            if x.shape[1] != downsample_conv.in_channels or out.shape[1] != downsample_conv.out_channels:
+                new_downsample = nn.Sequential(
+                    conv1x1(x.shape[1], out.shape[1], downsample_conv.stride),
+                    nn.BatchNorm2d(out.shape[1])
+                )
+                new_downsample.cuda()
+                self.downsample = new_downsample
+
             identity = self.downsample(x)
+
+        if out.shape[1] < identity.shape[1]:
+            shape = out.shape
+            add_zeros = torch.zeros((shape[0], identity.shape[1] - shape[1], shape[2], shape[3])).to(out.device)
+            out = torch.cat((out, add_zeros), 1)
+        elif out.shape[1] > identity.shape[1]:
+            shape = out.shape
+            add_zeros = torch.zeros((shape[0], shape[1] - identity.shape[1], shape[2], shape[3])).to(out.device)
+            identity = torch.cat((identity, add_zeros), 1)
 
         out += identity
         out = self.relu3(out)
@@ -151,6 +174,19 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        if x.device == torch.device('cuda:1'):
+
+            shape=self.conv1.weight.shape
+            device=x.device
+            for i in range(shape[0]):
+                for j in range(shape[1]):
+                    for k in range(shape[2]):
+                        for l in range(shape[3]):
+                            device_tmp= self.conv1.weight[i,j,k,l].device
+                            print(device_tmp,i,j,k,l)
+                            if device !=device_tmp:
+                                print()
+
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)

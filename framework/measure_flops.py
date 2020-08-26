@@ -69,7 +69,11 @@ def is_leaf(module):
 #     return False
 
 def should_measure(mod):
-    if isinstance(mod,nn.Conv2d) or isinstance(mod,nn.Linear) or isinstance(mod,nn.BatchNorm2d):
+    if isinstance(mod,nn.Conv2d) :
+        return True
+    if isinstance(mod,nn.Linear):
+        return True
+    if  isinstance(mod,nn.BatchNorm2d):
         return True
     else:
         return False
@@ -80,9 +84,9 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
         return net.measure_self_flops()
 
     if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
-        shape=(1,3,224,224)
+        shape=(2,3,224,224)
     elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
-        shape=(1,3,32,32)
+        shape=(2,3,32,32)
 
     if isinstance(net, nn.DataParallel):
         net_entity = net.module
@@ -115,11 +119,20 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
             if hasattr(mod, 'old_forward'):
                 mod.forward = mod.old_forward
                 mod.old_forward = None
-
     modify_forward(net_entity)
     # forward过程中对全局的变量count_ops进行更新
     net_entity.eval()
+
+    for name,mod in net.named_modules():
+        if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+            mod.compute_flops(mod.in_channels,mod.out_channels)
+
     net_entity.forward(data)
+
+    for name,mod in net.named_modules():
+        if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+            mod.flops=None
+
     restore_forward(net_entity)
     if print_flop:
         print('flop_num:{}'.format(count_ops))
