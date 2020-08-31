@@ -194,14 +194,17 @@ class predicted_mask_net(nn.Module):
 
     def print_mask(self):
         channel_num_list = []
+        layer=-1
         for name, mod in self.net.named_modules():
             if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+                layer+=1
                 if isinstance(mod, conv2d_with_mask):
                     channel_num = torch.sum(mod.mask != 0)
                 else:
                     channel_num = mod.out_channels
                 channel_num_list += [int(channel_num)]
-                print('channel_num:', int(channel_num), end='\t')  # print the number of channels without being pruned
+                print('channel_num:  ', int(channel_num), end='\t')  # print the number of channels without being pruned
+                print('layer',layer,end='\t')
                 print(name)
         print(channel_num_list)
 
@@ -349,9 +352,9 @@ class   predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         :return:
         '''
         # temporarily used for resnet50
-        # 1:0.8:17145
+        # 2:0.8:17615 ;3:0.8:19670
         if isinstance(self.net,resnet.ResNet):
-            return 17145
+            return 17615
 
 
         is_training = self.training
@@ -629,32 +632,30 @@ class   predicted_mask_and_variable_shortcut_net(predicted_mask_net):
 
         block_out_channels[0] = max(3,int(torch.sum(first_conv.mask!=0)))
         block_mask_index += [torch.where(block_list[0].mask != 0)[0].tolist()]
-        # get the number of out_channels for each block
+
+        # get the mask index of last conv for each block
         for i in range(1,len(block_list)):
             name_list,conv_list=named_conv_list(block_list[i])
             last_conv = conv_list[-1]
-            conv_before_last_conv = conv_list[-2]
-            try:
-                last_conv_out_channels = last_conv.get_out_channels_after_prune()
-            except AttributeError:# last_conv has a sequential shortcut and its out_channel_after_prune depends on input feature maps
-                try:
-                    last_conv_out_channels=max(int(torch.sum(last_conv.mask!=0)),
-                                               conv_before_last_conv.get_out_channels_after_prune())
-                except AttributeError:
-                    conv_before_last_conv_out_channels = max(block_out_channels[i - 1],
-                                                             int(torch.sum(conv_before_last_conv.mask != 0)))
-                    last_conv_out_channels = max(int(torch.sum(last_conv.mask != 0)),
-                                                     conv_before_last_conv_out_channels)
-
-            if block_list[i].downsample is not None and isinstance(block_list[i], resnet.Bottleneck): #for conv_shortcut in resnet50
-                block_out_channels[i] = last_conv_out_channels
-            else: #for others
-                block_out_channels[i] = max(block_out_channels[i - 1], last_conv_out_channels)
-
             block_mask_index+=[torch.where(last_conv.mask!=0)[0].tolist()]
+
+        # get the number of out_channels for each block
+        filter_num_list=[]
+        for name,mod in self.net.named_modules():
+            if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+                filter_num_list+=[int(torch.sum(mod.mask!=0))]
+        in_channel_list=self.compute_net_structure_resnet(filter_num_list)
+        block_in_channel_list=self.reshape_data_to_net_structure_resnet(in_channel_list)
+        block_out_channels=[]
+        for in_channel in block_in_channel_list:
+            if len(in_channel) == 1: #first conv in resnet
+                continue
+            else:
+                block_out_channels+=[in_channel[0]] #out_channels of a block equals in_channels of the next block
+        last_block_out_channnels=max(len(block_mask_index[-1]),block_in_channel_list[-1][-1],block_in_channel_list[-1][0])
+        block_out_channels+=[last_block_out_channnels]
+
         num_conv_processing = 0
-
-
         if torch.sum(first_conv.mask != 0) ==0:
             num_layer_pruned=1
         else:
@@ -810,7 +811,7 @@ class   predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     return
                 if isinstance(new_conv,nn.Conv2d) and not isinstance(new_conv, conv2d_with_mask_and_variable_shortcut):# new_conv is a normal conv
                     in_channels=new_conv.out_channels
-                elif isinstance(new_conv, conv2d_with_mask_and_variable_shortcut):  # new_conv is a conv with shortcut
+                elif isinstance(new_conv, conv2d_with_mask_and_variable_shortcut) and conv_to_prune.w_out != conv_to_prune.w_in:  # new_conv is a conv with shortcut
                     in_channels = new_conv.get_out_channels_after_prune()
                 elif conv_to_prune.w_out == conv_to_prune.w_in:  # new_conv is a sequential shortcut
                     in_channels = conv_to_prune.in_channels

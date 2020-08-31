@@ -3,5 +3,5 @@
 
 
 conda activate pytorch
-name='resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
+name='resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_1'
 tensorboard --logdir="/home/victorfang/model_pytorch/data/model_saved/${name}/tensorboard"

@@ -9,7 +9,7 @@ import math
 import matplotlib.pyplot as plt
 from framework import data_loader, measure_flops, evaluate, config as conf
 from math import ceil
-from network import storage
+from network import storage,vgg,resnet,resnet_cifar
 from torch.utils.tensorboard import SummaryWriter
 from framework.draw import draw_masked_net
 
@@ -222,7 +222,7 @@ def train(
     sample_num=0
     if os.path.isfile(file_new):
         if load_net:
-            checkpoint = torch.load(file_new)
+            checkpoint = torch.load(file_new,map_location='cpu')
             print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
             net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
             sample_num = checkpoint['sample_num']
@@ -828,7 +828,19 @@ def train_extractor_network(
                     #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
                     #     mask_last_step[i]=mod.mask.clone().detach()
                     #     i+=1
-                alpha = 0.2#resnet56:0.02,vgg16bn:0.05, resnet50:0.2
+                # alpha = 0.2#resnet56:0.02,vgg16bn:0.05, resnet50:0.2
+                if isinstance(net.net,vgg.VGG):
+                    if net.dataset_name == 'cifar100':
+                        alpha=0.4
+                    else:
+                        alpha=0.05
+                elif isinstance(net.net,resnet_cifar.CifarResNet):
+                    alpha=0.02
+                elif isinstance(net.net,resnet.ResNet):
+                    alpha=0.2
+                else:
+                    raise Exception('What is this net???')
+
                 if step == 0:
                     writer.add_text(tag='alpha', text_string=str(alpha))
                     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))

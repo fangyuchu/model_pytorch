@@ -60,11 +60,12 @@ class VGG(nn.Module):
         elif dataset_name == 'cifar100':
             self.classifier = nn.Sequential(
                 nn.Linear(512, 4096),
+                nn.BatchNorm1d(4096),
                 nn.ReLU(True),
-                nn.Dropout(),
-                nn.Linear(4096, 4096),
-                nn.ReLU(True),
-                nn.Dropout(),
+                # nn.Dropout(),
+                # nn.Linear(4096, 4096),
+                # nn.ReLU(True),
+                # nn.Dropout(),
                 nn.Linear(4096, 100),
             )
         else:
