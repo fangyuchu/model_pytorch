@@ -224,7 +224,9 @@ def train(
         if load_net:
             checkpoint = torch.load(file_new,map_location='cpu')
             print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
-            net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
+            # net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
+            net.load_state_dict(checkpoint['state_dict'])
+            net.cuda()
             sample_num = checkpoint['sample_num']
 
     #set up summary writer for tensorboard
