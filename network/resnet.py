@@ -174,18 +174,6 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        if x.device == torch.device('cuda:1'):
-
-            shape=self.conv1.weight.shape
-            device=x.device
-            for i in range(shape[0]):
-                for j in range(shape[1]):
-                    for k in range(shape[2]):
-                        for l in range(shape[3]):
-                            device_tmp= self.conv1.weight[i,j,k,l].device
-                            print(device_tmp,i,j,k,l)
-                            if device !=device_tmp:
-                                print()
 
         x = self.conv1(x)
         x = self.bn1(x)

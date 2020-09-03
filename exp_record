@@ -246,3 +246,17 @@ vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_75_5/flop=79544546,acc
 1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_70_1/flop=95002034,accuracy=0.93140.tar
 1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_70_2/flop=95303010,accuracy=0.92530.tar
 1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_70_5/flop=95291990,accuracy=0.92590.tar
+
+vgg16bn_cifar100
+70%
+1070ti/vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_70_5/flop=95399452,accuracy=0.69050.tar
+75%
+1070ti/vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_75_5/flop=79365860,accuracy=0.68310.tar
+80%
+1070ti/vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_80_5/flop=63208124,accuracy=0.67560.tar
+85%
+1070ti/vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_85_5/flop=47521548,accuracy=0.67430.tar
+90%
+1070ti/vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_90_5/flop=31438292,accuracy=0.66300.tar
+95%
+1070ti/vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_95_5/flop=15243784,accuracy=0.62400.tar

@@ -828,16 +828,16 @@ def train_extractor_network(
                     #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
                     #     mask_last_step[i]=mod.mask.clone().detach()
                     #     i+=1
-                # alpha = 0.2#resnet56:0.02,vgg16bn:0.05, resnet50:0.2
+                # alpha = 0.2#resnet56:0.02,vgg16bn:0.05/0.4 for cifar100, resnet50:0.2
                 if isinstance(net.net,vgg.VGG):
                     if net.dataset_name == 'cifar100':
-                        alpha=0.4
+                        alpha=0.05
                     else:
                         alpha=0.05
                 elif isinstance(net.net,resnet_cifar.CifarResNet):
                     alpha=0.02
                 elif isinstance(net.net,resnet.ResNet):
-                    alpha=0.2
+                    alpha=0.02
                 else:
                     raise Exception('What is this net???')
 

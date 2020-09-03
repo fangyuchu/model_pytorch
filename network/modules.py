@@ -35,7 +35,6 @@ class conv2d_with_mask(nn.modules.Conv2d):
         out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,
                                    self.padding, self.dilation, self.groups)
 
-
         return out
 
     def set_mask(self,mask):
