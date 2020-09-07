@@ -89,7 +89,7 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
         self.__out_channels_after_prune = max(self.in_channels,self.out_channels)
         if w_in != w_out :
             # add a shortcut with 1x1 conv
-            # self.__out_channels_after_prune = max(self.add_shortcut_num,len(self.mask)) #out_channels of the whole conv(including shortcut)
+            self.__out_channels_after_prune = max(self.add_shortcut_num,self.out_channels) #out_channels of the whole conv(including shortcut)
             stride = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / (w_out - 1))
             self.downsample = nn.Sequential(OrderedDict([
                 ('downsampleConv', nn.Conv2d(in_channels=conv.in_channels,

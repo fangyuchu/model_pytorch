@@ -30,7 +30,7 @@ learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
 num_epochs=160*1+mask_training_stop_epoch
 #
 
-for ratio in range(2,10):
+for ratio in range(4,10):
     add_shortcut_ratio=1-ratio/10
     print("add_shortcut_ratio: ",add_shortcut_ratio)
     net=resnet_cifar.resnet56(num_classes=10).to(device)
