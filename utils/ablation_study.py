@@ -16,7 +16,6 @@ weight_decay = {'default':5e-4,'extractor':5e-4}
 momentum = {'default':0.9,'extractor':0.9}
 batch_size=128
 #网络参数
-add_shortcut_ratio=0.9#不是这儿！！！
 mask_update_freq = 1000
 mask_update_epochs = 900
 mask_training_start_epoch=1
@@ -33,6 +32,7 @@ num_epochs=160*1+mask_training_stop_epoch
 
 for ratio in range(2,10):
     add_shortcut_ratio=1-ratio/10
+    print("add_shortcut_ratio: ",add_shortcut_ratio)
     net=resnet_cifar.resnet56(num_classes=10).to(device)
     net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
                                                                            net_name='resnet56',
@@ -44,7 +44,7 @@ for ratio in range(2,10):
                                                                            mask_training_start_epoch=mask_training_start_epoch,
                                                                            mask_training_stop_epoch=mask_training_stop_epoch,
                                                                            batch_size=batch_size,
-                                                                           add_shortcut_ratio=add_shortcut_ratio
+                                                                           add_shortcut_ratio=0.9
                                                                            )
     net=net.to(device)
     i = 2
