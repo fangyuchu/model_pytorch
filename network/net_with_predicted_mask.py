@@ -13,6 +13,7 @@ from framework import data_loader, measure_flops, evaluate, train, config as con
 from network import storage,resnet_cifar,resnet
 import os,sys
 import numpy as np
+from collections import OrderedDict
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
@@ -339,6 +340,23 @@ class   predicted_mask_and_variable_shortcut_net(predicted_mask_net):
 
     def get_shortcut_ratio(self):
         return self.__add_shortcut_ratio
+
+    def set_shortcut_ratio(self,add_shortcut_ratio):
+        print('If you do not know what you are doing ,stop doing that!')
+        self.__add_shortcut_ratio=add_shortcut_ratio
+        for name,mod in self.net.named_modules():
+            if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+                mod.add_shortcut_ratio = add_shortcut_ratio
+                mod.add_shortcut_num=math.ceil(mod.out_channels * (1 - add_shortcut_ratio))
+                if len(mod.downsample) > 0:
+                    mod.downsample = nn.Sequential(OrderedDict([
+                        ('downsampleConv', nn.Conv2d(in_channels=mod.downsample[0].in_channels,
+                                                     out_channels=mod.add_shortcut_num,
+                                                     stride=mod.downsample[0].stride,
+                                                     kernel_size=1,
+                                                     bias=False)),
+                        ('downsampleBN', nn.BatchNorm2d(mod.add_shortcut_num))
+                    ]))
 
     def find_prune_num(self, mask, delta=0.005,start_prune_num=100):
         '''
@@ -816,7 +834,7 @@ class   predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 elif isinstance(new_conv, conv2d_with_mask_and_variable_shortcut) and conv_to_prune.w_out != conv_to_prune.w_in:  # new_conv is a conv with shortcut
                     in_channels = new_conv.get_out_channels_after_prune()
                 elif conv_to_prune.w_out == conv_to_prune.w_in:  # new_conv is a sequential shortcut
-                    in_channels = conv_to_prune.in_channels
+                    in_channels = max(conv_to_prune.in_channels,len(filter_index))
                 else:  # new_conv is a conv shortcut
                     in_channels = conv_to_prune.add_shortcut_num
 

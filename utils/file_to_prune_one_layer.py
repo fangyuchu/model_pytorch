@@ -35,8 +35,8 @@ for i in range(0,100,10):
     print('ratio set to ',i,'%')
     print('prune',num_conv_to_prune,' filters')
     train.train(net=net,
-                net_name='resnet56',
-                exp_name='vgg11_bn_layer'+str(layer)+'_'+str(i)+'%pruned',
+                net_name='vgg16_bn',
+                exp_name='vgg16_bn_layer'+str(layer)+'_'+str(i)+'%pruned',
                 description='random prune some filters in designated layer',
                 dataset_name='cifar10',
                 optimizer=optim.SGD,
