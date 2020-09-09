@@ -71,7 +71,7 @@ class Bottleneck(nn.Module):
         self.relu1=nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes, stride)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.relu2=nn.ReLU(inplace=True)
+        self.relu2=nn.ReLU(inplace=False)
         self.conv3 = conv1x1(planes, planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu3 = nn.ReLU(inplace=True)
