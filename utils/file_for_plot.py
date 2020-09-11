@@ -378,6 +378,10 @@ def tolerance():
     plt.savefig('resnet56_cifar100_tolerance.eps', format='eps')
     plt.show()
 
+def acc_pruneratio(acc_list,pruneratio_list):
+    print()
+
+
 if __name__ == "__main__":
     fontsize=14
     pruned_flop=[9.48,31.63,63.72,84.54,88.30]
