@@ -377,7 +377,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         :return:
         '''
         # temporarily used for resnet50
-        # 1:0.8:16167;2:0.8:17615 ;3:0.8:19670; 4:0.9:20884
+        # 1:0.8:16167;2:0.8:17615 ;3:0.8:19670; 4:0.9:20884 0.75:16530 0.8：19124
         if isinstance(self.net, resnet.ResNet):
             num = 16530
             print('prune:{} filters'.format(num))

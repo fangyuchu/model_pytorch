@@ -260,3 +260,7 @@ vgg16bn_cifar100
 1070ti/vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_90_5/flop=31438292,accuracy=0.66300.tar
 95%
 1070ti/vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_95_5/flop=15243784,accuracy=0.62400.tar
+
+resnet50
+80%
+resnet50_predicted_mask_and_variable_shortcut_net_newinner_80_1/flop=826629664,accuracy=0.66424.tar
