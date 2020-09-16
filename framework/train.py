@@ -282,11 +282,11 @@ def train(
     xaxis=0
     print("{} Start training ".format(datetime.now())+net_name+"...")
 
-    l1loss=nn.L1Loss()
-    mask_last_step=[]
-    for name,mod in net.named_modules():
-        if isinstance(mod,modules.conv2d_with_mask):
-            mask_last_step+=[mod.mask.clone().detach()]
+    # l1loss=nn.L1Loss()
+    # mask_last_step=[]
+    # for name,mod in net.named_modules():
+    #     if isinstance(mod,modules.conv2d_with_mask):
+    #         mask_last_step+=[mod.mask.clone().detach()]
 
     for epoch in range(math.floor(sample_num/num_train),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
@@ -339,8 +339,9 @@ def train(
                 torch.nn.utils.clip_grad_value_(net.parameters(), gradient_clip_value)
 
             optimizer.step()
-            loss_list += [float(loss.detach())]
-            xaxis_loss += [xaxis]
+            if paint_loss:
+                loss_list += [float(loss.detach())]
+                xaxis_loss += [xaxis]
             writer.add_scalar(tag='status/loss',
                               scalar_value=float(loss.detach()),
                               global_step=int(sample_num / batch_size))
@@ -364,8 +365,10 @@ def train(
                     return success
                 accuracy = float(accuracy)
 
-                acc_list += [accuracy]
-                xaxis_acc += [xaxis]
+                if paint_loss:
+                    acc_list += [accuracy]
+                    xaxis_acc += [xaxis]
+
                 writer.add_scalar(tag='status/val_acc',
                                   scalar_value=accuracy,
                                   global_step=epoch)

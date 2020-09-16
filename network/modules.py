@@ -164,12 +164,12 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
             downsample = self.downsample(input)  # add shortcut
             #add zero if num of output feature maps differentiate between conv and shortcut
             if downsample.size()[1]< x.size()[1]:  # downsample has less feature maps
-                add_zeros = torch.zeros(x.shape[0], x.shape[1] - downsample.shape[1], x.shape[2], x.shape[3])
-                add_zeros = add_zeros.to(input.device)
+                add_zeros = torch.zeros(x.shape[0], x.shape[1] - downsample.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
+                # add_zeros = add_zeros.to(input.device)
                 downsample = torch.cat((downsample, add_zeros), 1)
             elif downsample.size()[1]> x.size()[1]:
-                add_zeros = torch.zeros(x.shape[0], downsample.shape[1]-x.shape[1], x.shape[2], x.shape[3])
-                add_zeros = add_zeros.to(input.device)
+                add_zeros = torch.zeros(x.shape[0], downsample.shape[1]-x.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
+                # add_zeros = add_zeros.to(input.device)
                 x = torch.cat((x, add_zeros), 1)
 
             x = x + downsample

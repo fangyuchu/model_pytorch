@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-# os.environ["CUDA_VISIBLE_DEVICES"] = '6'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1,2'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
@@ -426,7 +426,7 @@ elif dataset=='imagenet':
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=4133641192
-        prune_ratio=0.8
+        prune_ratio=0.75
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [30,60]]
@@ -490,7 +490,7 @@ elif dataset=='imagenet':
 
 
         #
-        i = 6
+        i = 4
         exp_name = 'resnet50_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
@@ -516,20 +516,25 @@ elif dataset=='imagenet':
         learning_rate_decay_epoch = [1*i for i in [30,60]]
         num_epochs = 90*1
 
+        state_dict=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_75_4/checkpoint/flop=1033792803,accuracy=0.59468.tar')
+        net.load_state_dict(state_dict['state_dict'])
         # net=net.net
 
         # torch.distributed.init_process_group(backend='nccl', init_method='tcp://localhost:23456', rank=0, world_size=1)
         # net=net.cpu()
-        net=net.cuda()
+
 
         # net = nn.parallel.DistributedDataParallel(net)
-        # net=nn.DataParallel(net)
+        net=nn.DataParallel(net)
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=16, dataset_name='imagenet')
         # evaluate.evaluate_net(net, eval_loader, save_net=False,dataset_name='imagenet')
 
+
+        net=net.cuda()
+
         train.train(net=net,
                     net_name='resnet50',
-                    exp_name=exp_name,
+                    exp_name='test',#exp_name,
                     description=description,
                     dataset_name='imagenet',
                     optimizer=optim.SGD,
@@ -541,7 +546,7 @@ elif dataset=='imagenet':
                     evaluate_step=2000,
                     load_net=True,
                     test_net=False,
-                    num_workers=8,
+                    num_workers=4,
                     learning_rate_decay=True,
                     learning_rate_decay_epoch=learning_rate_decay_epoch,
                     learning_rate_decay_factor=0.1,
