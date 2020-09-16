@@ -13,10 +13,13 @@ import logger
 import copy
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
 # import torchsnooper
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
-torch.autograd.set_detect_anomaly(True)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+# torch.autograd.set_detect_anomaly(True)
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+a= \
+[4, 3, 2, 0, 1, 1, 3, 1, 3, 6, 4, 0, 1, 2, 1, 4, 1, 2, 1, 12, 8, 7, 1, 4, 3, 3, 2, 7, 6, 6, 9, 8, 7, 12, 17, 20, 15, 23, 24, 21, 19, 28, 29, 28, 27, 27, 24, 34, 24, 39, 22, 8, 7, 33, 16]
+b=sum(a)
 
 net=resnet.resnet50().to(device)
 net2=resnet_cifar.resnet56()

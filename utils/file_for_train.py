@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '6'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '6'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'

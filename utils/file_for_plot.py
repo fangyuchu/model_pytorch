@@ -399,26 +399,27 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     plt.ylabel('Accuracy')
     plt.title(exp_name)
     plt.legend()
+    plt.savefig('/home/victorfang/test.png')
     plt.show()
 
 
 if __name__ == "__main__":
 
-    # #Pruning ResNet-56 on CIFAR-10
-    # acc_pruneratio(acc_list=[[0.9132,0.9099,0.9079,0.8996,0.8870,0.8641],
-    #                          [0.9077,0.9040,0.9047,0.8969,0,0],
-    #                          [0.9189,0.9139,0.8900,0.8726,0.8407,0.6393]],
-    #                prune_ratio=[0.7,0.75,0.8,0.85,0.9,0.95],
-    #                legends=['Ours','PFS','EB-Tickets'],
-    #                exp_name='Pruning ResNet-56 on CIFAR-10')
+    #Pruning ResNet-56 on CIFAR-10
+    acc_pruneratio(acc_list=[[0.9132,0.9099,0.9079,0.8996,0.8870,0.8641],
+                             [0.9077,0.9040,0.9047,0.8969,0,0],
+                             [0.9189,0.9139,0.8900,0.8726,0.8407,0.6393]],
+                   prune_ratio=[0.7,0.75,0.8,0.85,0.9,0.95],
+                   legends=['Ours','PFS','EB-Tickets'],
+                   exp_name='Pruning ResNet-56 on CIFAR-10')
 
     #Pruning VGG-16 on CIFAR-10
-    acc_pruneratio(acc_list=[[0.9275,0.9276,0.9249,0.9179,0.9071,0.8941,0.8594],
-                             [0.9225,0.9180,0.9144,0.9101,0.8978,0.8816,0],
-                             [0.9163,0.9150,0.9119,0.9115,0.9012,0.8816,0.5660]],
-                   prune_ratio=[0.7,0.75,0.8,0.85,0.9,0.95,0.98],
-                   legends=['Ours','PFS','EB-Tickets'],
-                   exp_name='Pruning VGG-16 on CIFAR-10')
+    # acc_pruneratio(acc_list=[[0.9275,0.9276,0.9249,0.9179,0.9071,0.8941,0.8594],
+    #                          [0.9225,0.9180,0.9144,0.9101,0.8978,0.8816,0],
+    #                          [0.9163,0.9150,0.9119,0.9115,0.9012,0.8816,0.5660]],
+    #                prune_ratio=[0.7,0.75,0.8,0.85,0.9,0.95,0.98],
+    #                legends=['Ours','PFS','EB-Tickets'],
+    #                exp_name='Pruning VGG-16 on CIFAR-10')
 
 
     # fontsize=14
