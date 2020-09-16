@@ -9,8 +9,8 @@ from framework import config as conf
 import logger
 os.environ["CUDA_VISIBLE_DEVICES"] = '6'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dataset='cifar10'
-net_type='resnet56'
+dataset='imagenet'
+net_type='resnet50'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -78,7 +78,7 @@ if dataset == 'cifar10':
                                       evaluate_step=5000,
                                       load_net=False,
                                       test_net=False,
-                                      num_workers=8,
+                                      num_workers=4,
                                       # weight_decay=5e-4,
                                       learning_rate_decay=True,
                                       learning_rate_decay_epoch=learning_rate_decay_epoch,
@@ -405,6 +405,7 @@ elif dataset == 'cifar100':
 
 
 elif dataset=='imagenet':
+    #todo: 6 mei pao
     if net_type =='resnet50':
         #resnet50
         optimizer_net = optim.SGD
@@ -489,7 +490,7 @@ elif dataset=='imagenet':
 
 
         #
-        i = 2
+        i = 6
         exp_name = 'resnet50_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 

@@ -264,3 +264,6 @@ vgg16bn_cifar100
 resnet50
 80%
 resnet50_predicted_mask_and_variable_shortcut_net_newinner_80_1/flop=826629664,accuracy=0.66424.tar
+/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_80_2/checkpoint/flop=826009567,accuracy=0.66506.tar
+90%
+/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_90_4/checkpoint/flop=413158280,accuracy=0.47228.tar
