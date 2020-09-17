@@ -231,9 +231,9 @@ vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_90_1/flop=30968242,acc
 vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_90_2/flop=30998122,accuracy=0.90630.tar
 1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_90_3/flop=30823106,accuracy=0.91690.tar
 87%
-/1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_87_1/checkpoint/flop=41797042,accuracy=0.91860
-/1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_87_2/checkpoint/flop=41796414,accuracy=0.90830
-/1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_87_5/checkpoint/flop=41805974,accuracy=0.91090
+/1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_87_1/flop=41797042,accuracy=0.91860
+/1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_87_2/flop=41796414,accuracy=0.90830
+/1070ti/vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_87_5/flop=41805974,accuracy=0.91090
 85%
 vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_85_1/flop=46641614,accuracy=0.92250.tar
 vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_85_2/flop=46663566,accuracy=0.91330.tar
@@ -268,6 +268,6 @@ vgg16bn_cifar100
 resnet50
 80%
 resnet50_predicted_mask_and_variable_shortcut_net_newinner_80_1/flop=826629664,accuracy=0.66424.tar
-/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_80_2/checkpoint/flop=826009567,accuracy=0.66506.tar
+/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_80_2/flop=826009567,accuracy=0.66506.tar
 90%
-/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_90_4/checkpoint/flop=413158280,accuracy=0.47228.tar
+/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_90_4/flop=413158280,accuracy=0.47228.tar
