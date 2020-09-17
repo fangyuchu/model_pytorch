@@ -379,7 +379,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         # temporarily used for resnet50
         # 1:0.8:16167;2:0.8:17615 ;3:0.8:19670; 4:0.9:20884 0.75:16530 0.8：19124; 5:0.8:13633,0.85:14755; 6:0.85:10620,0.8:9318
         if isinstance(self.net, resnet.ResNet):
-            num = 9318
+            num = 16530
             print('prune:{} filters'.format(num))
             return num
 
@@ -574,6 +574,9 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         return flops - downsample_flop_overcomputed - bn_reduction
 
     def prune_net(self):
+        if self.pruned is True:
+            raise Exception('net has already been pruned')
+        self.pruned = True
         # prune the conv
         if 'resnet' in self.net_name:
             last_conv_index, num_feature_maps, num_feature_maps_after_prune = self.prune_net_resnet()
@@ -612,9 +615,6 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             self.net(data)
 
     def prune_net_vgg(self):
-        if self.pruned is True:
-            raise Exception('net has already been pruned')
-        self.pruned = True
         self.detach_mask()
         layer = -1
         num_layer_pruned = 0
@@ -642,9 +642,6 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         return last_conv_index, num_feature_maps, num_feature_maps_after_prune
 
     def prune_net_resnet(self):
-        if self.pruned is True:
-            raise Exception('net has already been pruned')
-        self.pruned = True
         self.detach_mask()
         first_conv = None
         block_list = []
@@ -884,7 +881,10 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             self.mask_net()
             self.print_mask()
             self.prune_net()  # prune filters
-        out = super().forward(input)
+        if self.pruned is not True:
+            out = super().forward(input)
+        else:
+            out = self.net(input)
         return out
 
     def load_state_dict(self, state_dict, strict=True):
