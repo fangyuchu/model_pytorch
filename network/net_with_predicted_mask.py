@@ -365,7 +365,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     ]))
                     mod.downsample.cuda()
 
-    def find_prune_num(self, mask, delta=0.005, start_prune_num=100):
+    def find_prune_num(self, mask, delta=0.0005, start_prune_num=100):
         '''
 
         determine the number of filters to prune for a given flops
