@@ -7,22 +7,82 @@ import os,sys
 from filter_characteristic import filter_feature_extractor,predict_dead_filter
 import numpy as np
 from torch import optim
+from prune import prune_module
 import matplotlib.pyplot as plt
-import cgd
 import logger
 import copy
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
 # import torchsnooper
-# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
-# torch.autograd.set_detect_anomaly(True)
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+torch.autograd.set_detect_anomaly(True)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-a= \
-[4, 3, 2, 0, 1, 1, 3, 1, 3, 6, 4, 0, 1, 2, 1, 4, 1, 2, 1, 12, 8, 7, 1, 4, 3, 3, 2, 7, 6, 6, 9, 8, 7, 12, 17, 20, 15, 23, 24, 21, 19, 28, 29, 28, 27, 27, 24, 34, 24, 39, 22, 8, 7, 33, 16]
-b=sum(a)
+total_flop = 4133641192
+prune_ratio = 0.75
+flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
+gradient_clip_value = None
+learning_rate_decay_epoch = [2 + 1 * i for i in [30, 60]]
+num_epochs = 90 * 1 + 2
 
-net=resnet.resnet50().to(device)
-net2=resnet_cifar.resnet56()
+net = resnet.resnet50(pretrained=False)
+net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+                                                                       net_name='resnet50',
+                                                                       dataset_name='imagenet',
+                                                                       mask_update_epochs=2,
+                                                                       mask_update_freq=2,
+                                                                       flop_expected=flop_expected,
+                                                                       gcn_rounds=2,
+                                                                       mask_training_start_epoch=1,
+                                                                       mask_training_stop_epoch=2,
+                                                                       batch_size=256,
+                                                                       add_shortcut_ratio=0.9
+                                                                       )
+net.to(device)
+for name,mod in net.net.named_modules():
+    if isinstance(mod,nn.Conv2d):
+        _modules = prune_module.get_module(model=net.net, name=name)
+        _modules[name.split('.')[-1]] = nn.Conv2d(in_channels=3,
+                                                  out_channels=64,
+                                                  kernel_size=(7,7),
+                                                  stride=(2,2),padding=(3,3),bias=False,padding_mode='zeros')
+        break
+
+net=net.net
+
+
+# net=resnet.resnet50()
+# prune_module.prune_conv_layer_resnet(net,0,[])
+net=nn.DataParallel(net)
+net.cuda()
+
+
+train.train(net=net,
+                    net_name='resnet50',
+                    exp_name='test',#exp_name,
+                    description='description',
+                    dataset_name='imagenet',
+                    optimizer=optim.SGD,
+                    weight_decay=1e-4,
+                    momentum=0.9,
+                    learning_rate=0.1,
+                    num_epochs=90,
+                    batch_size=256,
+                    evaluate_step=2000,
+                    load_net=True,
+                    test_net=False,
+                    num_workers=4,
+                    learning_rate_decay=True,
+                    learning_rate_decay_epoch=[30,60],
+                    learning_rate_decay_factor=0.1,
+                    scheduler_name='MultiStepLR',
+                    top_acc=1,
+                    data_parallel=False,
+                    paint_loss=True,
+                    save_at_each_step=False,
+                    gradient_clip_value=None
+                    )
+
+# net2=resnet_cifar.resnet56()
 # measure_flops.measure_model(net)
 print()
 

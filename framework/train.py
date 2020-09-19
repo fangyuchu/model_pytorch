@@ -225,7 +225,14 @@ def train(
             checkpoint = torch.load(file_new,map_location='cpu')
             print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
             # net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
-            net.load_state_dict(checkpoint['state_dict'])
+            if isinstance(net,nn.DataParallel) and 'module.' not in list(checkpoint['state_dict'])[0]:
+                net.module.load_state_dict(checkpoint['state_dict'])
+            elif not isinstance(net,nn.DataParallel) and 'module.' in list(checkpoint['state_dict'])[0]:
+                net=nn.DataParallel(net)
+                net.load_state_dict(checkpoint['state_dict'])
+                net=net.module
+            else:
+                net.load_state_dict(checkpoint['state_dict'])
             net.cuda()
             sample_num = checkpoint['sample_num']
 
@@ -281,13 +288,6 @@ def train(
     xaxis_acc=[]
     xaxis=0
     print("{} Start training ".format(datetime.now())+net_name+"...")
-
-    # l1loss=nn.L1Loss()
-    # mask_last_step=[]
-    # for name,mod in net.named_modules():
-    #     if isinstance(mod,modules.conv2d_with_mask):
-    #         mask_last_step+=[mod.mask.clone().detach()]
-
     for epoch in range(math.floor(sample_num/num_train),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
         net.train()

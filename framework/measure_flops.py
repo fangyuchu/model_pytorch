@@ -92,6 +92,7 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
         net_entity = net.module
     else:
         net_entity = net
+    net_entity=copy.deepcopy(net_entity)
 
     global count_ops
     data = torch.zeros(shape)
@@ -123,17 +124,17 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
     # forward过程中对全局的变量count_ops进行更新
     net_entity.eval()
 
-    for name,mod in net.named_modules():
+    for name,mod in net_entity.named_modules():
         if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
             mod.compute_flops(mod.in_channels,mod.out_channels)
 
     net_entity.forward(data)
 
-    for name,mod in net.named_modules():
-        if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
-            mod.flops=None
-
-    restore_forward(net_entity)
+    # for name,mod in net_entity.named_modules():
+    #     if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+    #         mod.flops=None
+    #
+    # restore_forward(net_entity)
     if print_flop:
         print('flop_num:{}'.format(count_ops))
     count_ops_tmp=int(count_ops)

@@ -339,9 +339,8 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
                 # assert conv_mod is None, 'Previous conv is not handled.'
                 _modules = get_module(model=net, name=name)
-                _modules[name.split('.')[-1]] = conv2d_with_mask_and_variable_shortcut(mod, map_size[mod],
-                                                                                       self.__add_shortcut_ratio).to(
-                    device)  # replace conv with a block
+                _modules[name.split('.')[-1]] = \
+                    conv2d_with_mask_and_variable_shortcut(mod, map_size[mod],self.__add_shortcut_ratio).to(device)  # replace conv with a block
         return net
 
     def get_shortcut_ratio(self):
@@ -379,7 +378,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         # temporarily used for resnet50
         # 1:0.8:16167;2:0.8:17615 ;3:0.8:19670; 4:0.9:20884 0.75:16530 0.8：19124; 5:0.8:13633,0.85:14755; 6:0.85:10620,0.8:9318
         if isinstance(self.net, resnet.ResNet):
-            num = 16530
+            num = 19124
             print('prune:{} filters'.format(num))
             return num
 
@@ -721,7 +720,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                             if mod.bias is not None:
                                 new_conv.bias = mod.bias
                             new_conv.mask = mod.mask
-                            new_conv.to(device)
+                            new_conv.cuda()
                             # 替换
                             _modules = get_module(model=block_list[i], name=name)
                             _modules[name.split('.')[-1]] = new_conv
@@ -776,11 +775,9 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             raise AttributeError
         if len(filter_index) == 0:  # no filter need to be pruned
             return
-        device = conv_to_prune.weight.device
         index_to_copy = [i for i in range(conv_to_prune.weight.shape[0]) if i not in filter_index]
         with torch.no_grad():
-            if torch.sum(
-                    conv_to_prune.mask != 0) > conv_to_prune.add_shortcut_num:  # prune the conv since it doesn't have a shortcut
+            if torch.sum(conv_to_prune.mask != 0) > conv_to_prune.add_shortcut_num:  # prune the conv since it doesn't have a shortcut
                 new_conv = nn.Conv2d(in_channels=conv_to_prune.in_channels,
                                      out_channels=conv_to_prune.out_channels - len(
                                          filter_index),
@@ -808,13 +805,12 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                                                                       specified_add_shortcut_num=conv_to_prune.add_shortcut_num)
             if len(index_to_copy) != 0:
                 # copy weights
-                new_conv.weight[:] = conv_to_prune.weight[index_to_copy] * conv_to_prune.mask[index_to_copy].view(-1, 1,
-                                                                                                                  1,
-                                                                                                                  1)  # 复制剩余的filters的weight
+                new_conv.weight[:] = conv_to_prune.weight[index_to_copy] * conv_to_prune.mask[index_to_copy].view(-1, 1,1,1)  # 复制剩余的filters的weight
+
                 if conv_to_prune.bias is not None:
                     new_conv.bias[:] = conv_to_prune.bias[index_to_copy] * conv_to_prune.mask[
                         index_to_copy]  # 复制剩余的filters的bias
-            new_conv.to(device)
+            new_conv.cuda()
             # replace
             _modules = get_module(model=self.net, name=conv_name)
             _modules[conv_name.split('.')[-1]] = new_conv
@@ -831,7 +827,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     new_batch_norm.bias[:len(index_to_copy)] = batch_norm.bias[index_to_copy]
                     new_batch_norm.running_mean[:len(index_to_copy)] = batch_norm.running_mean[index_to_copy]
                     new_batch_norm.running_var[:len(index_to_copy)] = batch_norm.running_var[index_to_copy]
-                    new_batch_norm.to(device)
+                    new_batch_norm.cuda()
                 else:  # new_conv is shortcut
                     new_batch_norm = nn.Sequential()
                 # 替换
@@ -869,7 +865,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     new_next_conv.bias = next_conv.bias
                 # new_next_conv.mask=next_conv.mask
                 new_next_conv.set_mask(next_conv.mask)
-                new_next_conv.to(device)
+                new_next_conv.cuda()
                 # 替换
                 _modules = get_module(model=self.net, name=next_conv_name)
                 _modules[next_conv_name.split('.')[-1]] = new_next_conv
@@ -1009,92 +1005,92 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
 #         return out
 
 
-class predicted_mask_shortcut_with_weight_net(predicted_mask_net):
-    def __init__(self, net, net_name, dataset_name, flop_expected, feature_len=15, gcn_rounds=2, only_gcn=False,
-                 only_inner_features=False, mask_update_freq=10, mask_update_epochs=1, batch_size=128,
-                 mask_training_start_epoch=10, mask_training_stop_epoch=80):
-        '''
-        Use filter feature extractor to extract features from a cnn and predict mask for it. The mask will guide the
-        cnn to skip filters when forwarding. Every conv-bn-relu form a block with a shortcut from its input to relu. The output of bn will multiply by a weight.
-         Both extractor and cnn are updated through back-propagation.
-        :param net:
-        :param net_name:
-        :param dataset_name:
-        :param feature_len: expected length of features to extract
-        :param gcn_rounds:
-        :param only_gcn:
-        :param only_inner_features:
-        :param mask_update_freq: how often does the extractor being updated. The extractor will be updated every mask_update_freq STEPs!
-        :param mask_update_epochs: update mask for mask_update_epochs STEPs
-        '''
-        raise Exception('补全！！！')
-        super(predicted_mask_shortcut_with_weight_net, self).__init__(net, net_name, dataset_name, flop_expected,
-                                                                      feature_len, gcn_rounds,
-                                                                      only_gcn, only_inner_features, mask_update_freq,
-                                                                      mask_update_epochs, batch_size,
-                                                                      mask_training_start_epoch,
-                                                                      mask_training_stop_epoch)
-
-        # self.check_step=0
-        # global mask_list,shortcut_mask_list
-        # mask_list=[]
-        # shortcut_mask_list=[]
-
-    def transform(self, net):
-        def hook(module, input, output):
-            map_size[module] = input[0].shape[1]
-
-        net.eval()
-        map_size = {}
-        handle = []
-        for name, mod in net.named_modules():
-            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
-                device = mod.weight.device
-                handle += [mod.register_forward_hook(hook)]
-
-        if self.dataset_name == 'imagenet' or self.dataset_name == 'tiny_imagenet':
-            image = torch.zeros((2, 3, 224, 224)).to(device)
-        elif self.dataset_name == 'cifar10' or self.dataset_name == 'cifar100':
-            image = torch.zeros((1, 3, 32, 32)).to(device)
-        net(image)  # record input feature map sizes of each conv
-        for h in handle:
-            del h
-        conv_mod = None
-        for name, mod in net.named_modules():
-            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
-                assert conv_mod is None, 'Previous conv is not handled.'
-                _modules = get_module(model=net, name=name)
-                _modules[name.split('.')[-1]] = block_with_mask_weighted_shortcut(mod, map_size[mod]).to(
-                    device)  # replace conv with a block
-                conv_mod = _modules[name.split('.')[-1]]
-            elif isinstance(mod, nn.BatchNorm2d) and 'downsample' not in name:
-                assert conv_mod is not None
-                _modules = get_module(model=net, name=name)
-                _modules[
-                    name.split('.')[-1]] = nn.Sequential()  # replace bn with an empty sequential(equal to delete it)
-                conv_mod = None
-
-        return net
-
-    def update_mask(self):
-        super().update_mask()
-        for mod in self.net.modules():
-            if isinstance(mod, block_with_mask_weighted_shortcut):
-                mod.shortcut_mask = torch.mean(mod.mask.abs()).view(-1)
-
-    def print_mask(self):
-        channel_num_list = []
-        for name, mod in self.net.named_modules():
-            if isinstance(mod, block_with_mask_weighted_shortcut):
-                print('shortcut_mask:%f' % float(mod.shortcut_mask), end='\t\t')
-                channel_num = torch.sum(mod.mask != 0)
-                channel_num_list += [int(channel_num)]
-                print('channel_num:', int(channel_num), end='\t')  # print the number of channels without being pruned
-                print(name)
-        print(channel_num_list)
-
-    def detach_mask(self):
-        for name, mod in self.net.named_modules():
-            if isinstance(mod, block_with_mask_weighted_shortcut):
-                mod.shortcut_mask = mod.shortcut_mask.detach()  # detach shortcut_mask from computation graph
-                mod.mask = mod.mask.detach()  # detach mask from computation graph
+# class predicted_mask_shortcut_with_weight_net(predicted_mask_net):
+#     def __init__(self, net, net_name, dataset_name, flop_expected, feature_len=15, gcn_rounds=2, only_gcn=False,
+#                  only_inner_features=False, mask_update_freq=10, mask_update_epochs=1, batch_size=128,
+#                  mask_training_start_epoch=10, mask_training_stop_epoch=80):
+#         '''
+#         Use filter feature extractor to extract features from a cnn and predict mask for it. The mask will guide the
+#         cnn to skip filters when forwarding. Every conv-bn-relu form a block with a shortcut from its input to relu. The output of bn will multiply by a weight.
+#          Both extractor and cnn are updated through back-propagation.
+#         :param net:
+#         :param net_name:
+#         :param dataset_name:
+#         :param feature_len: expected length of features to extract
+#         :param gcn_rounds:
+#         :param only_gcn:
+#         :param only_inner_features:
+#         :param mask_update_freq: how often does the extractor being updated. The extractor will be updated every mask_update_freq STEPs!
+#         :param mask_update_epochs: update mask for mask_update_epochs STEPs
+#         '''
+#         raise Exception('补全！！！')
+#         super(predicted_mask_shortcut_with_weight_net, self).__init__(net, net_name, dataset_name, flop_expected,
+#                                                                       feature_len, gcn_rounds,
+#                                                                       only_gcn, only_inner_features, mask_update_freq,
+#                                                                       mask_update_epochs, batch_size,
+#                                                                       mask_training_start_epoch,
+#                                                                       mask_training_stop_epoch)
+#
+#         # self.check_step=0
+#         # global mask_list,shortcut_mask_list
+#         # mask_list=[]
+#         # shortcut_mask_list=[]
+#
+#     def transform(self, net):
+#         def hook(module, input, output):
+#             map_size[module] = input[0].shape[1]
+#
+#         net.eval()
+#         map_size = {}
+#         handle = []
+#         for name, mod in net.named_modules():
+#             if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+#                 device = mod.weight.device
+#                 handle += [mod.register_forward_hook(hook)]
+#
+#         if self.dataset_name == 'imagenet' or self.dataset_name == 'tiny_imagenet':
+#             image = torch.zeros((2, 3, 224, 224)).to(device)
+#         elif self.dataset_name == 'cifar10' or self.dataset_name == 'cifar100':
+#             image = torch.zeros((1, 3, 32, 32)).to(device)
+#         net(image)  # record input feature map sizes of each conv
+#         for h in handle:
+#             del h
+#         conv_mod = None
+#         for name, mod in net.named_modules():
+#             if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+#                 assert conv_mod is None, 'Previous conv is not handled.'
+#                 _modules = get_module(model=net, name=name)
+#                 _modules[name.split('.')[-1]] = block_with_mask_weighted_shortcut(mod, map_size[mod]).to(
+#                     device)  # replace conv with a block
+#                 conv_mod = _modules[name.split('.')[-1]]
+#             elif isinstance(mod, nn.BatchNorm2d) and 'downsample' not in name:
+#                 assert conv_mod is not None
+#                 _modules = get_module(model=net, name=name)
+#                 _modules[
+#                     name.split('.')[-1]] = nn.Sequential()  # replace bn with an empty sequential(equal to delete it)
+#                 conv_mod = None
+#
+#         return net
+#
+#     def update_mask(self):
+#         super().update_mask()
+#         for mod in self.net.modules():
+#             if isinstance(mod, block_with_mask_weighted_shortcut):
+#                 mod.shortcut_mask = torch.mean(mod.mask.abs()).view(-1)
+#
+#     def print_mask(self):
+#         channel_num_list = []
+#         for name, mod in self.net.named_modules():
+#             if isinstance(mod, block_with_mask_weighted_shortcut):
+#                 print('shortcut_mask:%f' % float(mod.shortcut_mask), end='\t\t')
+#                 channel_num = torch.sum(mod.mask != 0)
+#                 channel_num_list += [int(channel_num)]
+#                 print('channel_num:', int(channel_num), end='\t')  # print the number of channels without being pruned
+#                 print(name)
+#         print(channel_num_list)
+#
+#     def detach_mask(self):
+#         for name, mod in self.net.named_modules():
+#             if isinstance(mod, block_with_mask_weighted_shortcut):
+#                 mod.shortcut_mask = mod.shortcut_mask.detach()  # detach shortcut_mask from computation graph
+#                 mod.mask = mod.mask.detach()  # detach mask from computation graph

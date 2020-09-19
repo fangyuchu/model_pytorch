@@ -155,21 +155,15 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
 
     def forward(self, input):
         x = super().forward(input)
-        # zero_maps=float(((x[0, :, :, :] != 0).sum(axis=(1, 2))==0).sum()/float(x.shape[1]))
-        # print('after conv:',zero_maps)
-        # pruned = self.out_channels != self.mask.size()[0]  # shortcut will not be added if conv has been pruned
         # if pruned is False:  # the mask and shortcut is still working
         if torch.sum(self.mask != 0) <= self.add_shortcut_num:  # ratio of masked conv is large
-            # print('has shortcut')
             downsample = self.downsample(input)  # add shortcut
             #add zero if num of output feature maps differentiate between conv and shortcut
             if downsample.size()[1]< x.size()[1]:  # downsample has less feature maps
                 add_zeros = torch.zeros(x.shape[0], x.shape[1] - downsample.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
-                # add_zeros = add_zeros.to(input.device)
                 downsample = torch.cat((downsample, add_zeros), 1)
             elif downsample.size()[1]> x.size()[1]:
                 add_zeros = torch.zeros(x.shape[0], downsample.shape[1]-x.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
-                # add_zeros = add_zeros.to(input.device)
                 x = torch.cat((x, add_zeros), 1)
 
             x = x + downsample
