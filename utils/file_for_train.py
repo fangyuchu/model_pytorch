@@ -32,9 +32,9 @@ if dataset == 'cifar10':
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=125485706
-        prune_ratio=0.87
+        prune_ratio=0.98
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
-        gradient_clip_value=None
+        gradient_clip_value=2
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
         num_epochs=160*1+mask_training_stop_epoch
         #
