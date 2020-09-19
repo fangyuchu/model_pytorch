@@ -806,6 +806,10 @@ def train_extractor_network(
             loss = criterion(outputs, labels)
             #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
 
+            writer.add_scalar(tag='status/net_loss',
+                              scalar_value=float(loss.detach()),
+                              global_step=int(sample_num / batch_size))
+
             if net_entity.mask_training_start_epoch <= net_entity.current_epoch < net_entity.mask_training_stop_epoch:
                 if (net_entity.step_tracked == 1 or net_entity.step_tracked == 0) and net_entity.mask_updating is True:
                     fig = draw_masked_net(net)
@@ -845,12 +849,16 @@ def train_extractor_network(
                     alpha=0.02
                 else:
                     raise Exception('What is this net???')
+                alpha=float(0.25*loss/block_penalty) #set weighted block penalty to 1/4 of the loss
 
                 if step == 0:
                     writer.add_text(tag='alpha', text_string=str(alpha))
                     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
                 weighted_block_penalty = alpha * block_penalty
 
+                writer.add_scalar(tag='alpha',
+                                  scalar_value=alpha,
+                                  global_step=int(sample_num / batch_size))
                 writer.add_scalar(tag='block_penalty',
                                   scalar_value=block_penalty,
                                   global_step=int(sample_num / batch_size))
@@ -881,7 +889,7 @@ def train_extractor_network(
 
             loss_list += [float(loss.detach())]
             xaxis_loss += [xaxis]
-            writer.add_scalar(tag='status/loss',
+            writer.add_scalar(tag='status/total_loss',
                               scalar_value=float(loss.detach()),
                               global_step=int(sample_num / batch_size))
 

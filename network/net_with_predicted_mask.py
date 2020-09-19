@@ -538,6 +538,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         return in_channels_list
 
     def measure_self_flops(self, num_filter_unmasked=None):
+        self.detach_mask()
         is_training = self.training
         self.eval()
         downsample_flop_overcomputed = 0  # flop in downsample may be over counted if the net has not been pruned
