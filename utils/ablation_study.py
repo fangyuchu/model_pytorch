@@ -148,35 +148,38 @@ for num_round in r:
     sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
     print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value,num_round)
 
-    train.train_extractor_network(net=net,
-                                  net_name='resnet56',
-                                  exp_name=exp_name,
-                                  description=description,
-                                  dataset_name='cifar10',
+    if num_round!=1:
+        train.train_extractor_network(net=net,
+                                      net_name='resnet56',
+                                      exp_name=exp_name,
+                                      description=description,
+                                      dataset_name='cifar10',
 
-                                  optim_method_net=optimizer_net,
-                                  optim_method_extractor=optimizer_extractor,
-                                  weight_decay=weight_decay,
-                                  momentum=momentum,
-                                  learning_rate=learning_rate,
+                                      optim_method_net=optimizer_net,
+                                      optim_method_extractor=optimizer_extractor,
+                                      weight_decay=weight_decay,
+                                      momentum=momentum,
+                                      learning_rate=learning_rate,
 
-                                  num_epochs=num_epochs,
-                                  batch_size=batch_size,
-                                  evaluate_step=5000,
-                                  load_net=False,
-                                  test_net=False,
-                                  num_workers=4,
-                                  # weight_decay=5e-4,
-                                  learning_rate_decay=True,
-                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                  learning_rate_decay_factor=0.1,
-                                  scheduler_name='MultiStepLR',
-                                  top_acc=1,
-                                  paint_loss=True,
-                                  save_at_each_step=False,
-                                  gradient_clip_value=gradient_clip_value
-                                  )
-
+                                      num_epochs=num_epochs,
+                                      batch_size=batch_size,
+                                      evaluate_step=5000,
+                                      load_net=False,
+                                      test_net=False,
+                                      num_workers=4,
+                                      # weight_decay=5e-4,
+                                      learning_rate_decay=True,
+                                      learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                      learning_rate_decay_factor=0.1,
+                                      scheduler_name='MultiStepLR',
+                                      top_acc=1,
+                                      paint_loss=True,
+                                      save_at_each_step=False,
+                                      gradient_clip_value=gradient_clip_value
+                                      )
+    if num_round==1:
+        c=torch.load('/home/disk_new/model_saved/ablation_gcn_round_predicted_mask_and_variable_shortcut_net/resnet56_gcnround_1/checkpoint/masked_net.tar')
+        net.load_state_dict(c['state_dict'])
 
     net.mask_net()
     net.print_mask()
@@ -184,6 +187,7 @@ for num_round in r:
     net.current_epoch = net.mask_training_stop_epoch + 1
     learning_rate_decay_epoch = [1*i for i in [80,120]]
     num_epochs = 160*1
+    exp_name+='_train'
     train.train(net=net,
                 net_name='resnet56',
                 exp_name=exp_name,
