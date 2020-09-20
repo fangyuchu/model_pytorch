@@ -7,10 +7,10 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dataset='imagenet'
-net_type='resnet50'
+dataset='cifar10'
+net_type='resnet56'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -32,7 +32,7 @@ if dataset == 'cifar10':
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=125485706
-        prune_ratio=0.98
+        prune_ratio=0.83
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
