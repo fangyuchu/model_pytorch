@@ -120,6 +120,7 @@ learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
 num_epochs=160*1+mask_training_stop_epoch
 
 r=[1,3,4,5]
+r=[2]
 for num_round in r:
     print("gcn_round: ",num_round)
     net=resnet_cifar.resnet56(num_classes=10).to(device)
