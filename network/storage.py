@@ -36,6 +36,8 @@ def get_net_information(net,dataset_name,net_name):
         checkpoint['feature_len']=net.feature_len
         checkpoint['gcn_rounds']=net.gcn_rounds
         checkpoint['flop_expected']=net.flop_expected
+        checkpoint['only_gcn']=net.extractor.only_gcn
+        checkpoint['only_inner_features']=net.extractor.only_inner_features
         if isinstance(net,net_with_predicted_mask.predicted_mask_and_variable_shortcut_net):
             checkpoint['add_shortcut_ratio']=net.get_shortcut_ratio()
 
@@ -91,22 +93,31 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
 
     if 'net_type' in checkpoint.keys():
         if checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_net:
-            net = net_with_predicted_mask.predicted_mask_net(net, net_name, dataset_name, checkpoint['flop_expected'],
-                                                             checkpoint['feature_len'], checkpoint['gcn_rounds'])
+            net = net_with_predicted_mask.predicted_mask_net(net,
+                                                             net_name,
+                                                             dataset_name,
+                                                             checkpoint['flop_expected'],
+                                                             checkpoint['feature_len'],
+                                                             checkpoint['gcn_rounds'],
+                                                             only_gcn=checkpoint['only_gcn'],
+                                                             only_inner_features=checkpoint['only_inner_features']
+                                                             )
         elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_and_variable_shortcut_net:
             net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net=net, net_name=net_name,
                                                                                    add_shortcut_ratio=checkpoint['add_shortcut_ratio'],
                                                                                    dataset_name=dataset_name,
                                                                                    flop_expected=checkpoint['flop_expected'],
                                                                                    feature_len=checkpoint['feature_len'],
-                                                                                   gcn_rounds=checkpoint['gcn_rounds'])
+                                                                                   gcn_rounds=checkpoint['gcn_rounds'],
+                                                                                   only_gcn=checkpoint['only_gcn'],
+                                                                                   only_inner_features=checkpoint['only_inner_features'])
             net.set_structure(checkpoint['structure'])
-
-        elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_shortcut_with_weight_net:
-            net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net, net_name, dataset_name,
-                                                                                    checkpoint['flop_expected'],
-                                                                                    checkpoint['feature_len'],
-                                                                                    checkpoint['gcn_rounds'])
+        #
+        # elif checkpoint['net_type'] is net_with_predicted_mask.predicted_mask_shortcut_with_weight_net:
+        #     net = net_with_predicted_mask.predicted_mask_shortcut_with_weight_net(net, net_name, dataset_name,
+        #                                                                             checkpoint['flop_expected'],
+        #                                                                             checkpoint['feature_len'],
+        #                                                                             checkpoint['gcn_rounds'])
 
 
     if pretrained:

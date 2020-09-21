@@ -849,16 +849,12 @@ def train_extractor_network(
                     alpha=0.02
                 else:
                     raise Exception('What is this net???')
-                alpha=float(0.25*loss/block_penalty) #set weighted block penalty to 1/4 of the loss
 
                 if step == 0:
                     writer.add_text(tag='alpha', text_string=str(alpha))
                     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
                 weighted_block_penalty = alpha * block_penalty
 
-                writer.add_scalar(tag='alpha',
-                                  scalar_value=alpha,
-                                  global_step=int(sample_num / batch_size))
                 writer.add_scalar(tag='block_penalty',
                                   scalar_value=block_penalty,
                                   global_step=int(sample_num / batch_size))
