@@ -84,7 +84,7 @@ def draw_masked_net(net,pic_name,path):
     fig = plt.figure()
     # ax = fig.add_subplot(111)
 
-    plt.imshow(layer_mask,cmap=plt.cm.RdBu_r,interpolation='nearest',vmin=0, vmax=1)
+    plt.imshow(layer_mask,cmap=plt.cm.RdBu_r,interpolation='nearest',vmin=0, vmax=1,aspect='auto')
     cmap_custom=plt.get_cmap('RdBu_r')
     cmap_custom.set_under('white')
 
@@ -164,16 +164,16 @@ if __name__ == "__main__":
     mask_training_start_epoch = 1
     mask_training_stop_epoch = 80
 
-    total_flop = 125485706
+    total_flop = 314017290
     prune_ratio = 0
     flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
     gradient_clip_value = None
     learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
     num_epochs = 160 * 1 + mask_training_stop_epoch
     #
-    net = resnet_cifar.resnet56(num_classes=10).cuda()
+    net = vgg.vgg16_bn(dataset_name='cifar10').cuda()
     net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
-                                                                           net_name='resnet56',
+                                                                           net_name='vgg16_bn',
                                                                            dataset_name='cifar10',
                                                                            mask_update_epochs=mask_update_epochs,
                                                                            mask_update_freq=mask_update_freq,
@@ -185,9 +185,9 @@ if __name__ == "__main__":
                                                                            add_shortcut_ratio=add_shortcut_ratio
                                                                            )
     net = net.cuda()
-    i = 4
+    i = 5
 
-    checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56', str(i) + '.tar'),map_location='cpu')
+    checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16', str(i) + '.tar'),map_location='cpu')
     net.load_state_dict(checkpoint['state_dict'])
     mask = net.extractor(net, net.net_name, net.dataset_name)  # predict mask using extractor
     mask=mask.abs()
@@ -200,6 +200,6 @@ if __name__ == "__main__":
             lo = hi
             last_conv_mask = mod.mask
 
-    fig=draw_masked_net(net,pic_name='resnet56_'+str(i),path='/home/victorfang/Desktop')
+    fig=draw_masked_net(net,pic_name='vgg16_'+str(i),path='/home/victorfang/Desktop')
     print()
 
