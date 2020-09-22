@@ -116,13 +116,14 @@ mask_training_start_epoch=1
 mask_training_stop_epoch=20
 
 total_flop=126550666
-prune_ratio=0.87
+prune_ratio=0.83
 flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
 gradient_clip_value=None
 learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
 num_epochs=160*1+mask_training_stop_epoch
 
 sets=[['both',False,False],['only_gcn',True,False],['only_inner',False,True]]
+sets=[['only_gcn',True,False],['only_inner',False,True]]
 for s in sets:
     print(s)
     net=resnet_cifar.resnet56(num_classes=10).to(device)

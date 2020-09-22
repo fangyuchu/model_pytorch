@@ -10,14 +10,14 @@ import logger
 # os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='cifar10'
-net_type='resnet56'
+net_type='vgg16_bn'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
     optimizer_net = optim.SGD
     optimizer_extractor = optim.SGD
     learning_rate = {'default': 0.1, 'extractor': 0.001}
-    weight_decay = {'default':1e-4,'extractor':5e-4}
+    weight_decay = {'default':5e-4,'extractor':5e-4}
     momentum = {'default':0.9,'extractor':0.9}
     batch_size=128
     #网络参数
@@ -31,7 +31,7 @@ if dataset == 'cifar10':
         exp_name='resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_80epoch_7'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
-        total_flop=125485706
+        total_flop=126550666#125485706
         prune_ratio=0.83
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
@@ -145,8 +145,8 @@ if dataset == 'cifar10':
         exp_name='vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
-        total_flop=313726986
-        prune_ratio=0.93
+        total_flop=314017290
+        prune_ratio=0.83
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -206,7 +206,7 @@ if dataset == 'cifar10':
         #                               )
 
 
-        i = 1
+        i = 5
         exp_name = 'vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
@@ -425,7 +425,7 @@ elif dataset=='imagenet':
         exp_name='resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
-        total_flop=4133641192
+        total_flop=4111413224
         prune_ratio=0.80
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
