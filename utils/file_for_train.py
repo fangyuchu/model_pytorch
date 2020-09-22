@@ -7,10 +7,10 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-# os.environ["CUDA_VISIBLE_DEVICES"] = '6,7'
+os.environ["CUDA_VISIBLE_DEVICES"] = '3,4,6'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dataset='cifar10'
-net_type='vgg16_bn'
+dataset='imagenet'
+net_type='resnet50'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -406,33 +406,32 @@ elif dataset == 'cifar100':
 
 elif dataset=='imagenet':
     #todo: 6 mei pao
-    if net_type =='resnet50':
-        #resnet50
+    if net_type == 'resnet50':
+        # resnet50
         optimizer_net = optim.SGD
         optimizer_extractor = optim.SGD
         learning_rate = {'default': 0.1, 'extractor': 0.0001}
-        weight_decay = {'default':1e-4,'extractor':1e-4}
-        momentum = {'default':0.9,'extractor':0.9}
-        batch_size=512
-        #网络参数
-        add_shortcut_ratio=0.9#不是这儿！！！
+        weight_decay = {'default': 1e-4, 'extractor': 1e-4}
+        momentum = {'default': 0.9, 'extractor': 0.9}
+        batch_size = 512
+        # 网络参数
+        add_shortcut_ratio = 0.9  # 不是这儿！！！
         mask_update_freq = 1000
         mask_update_epochs = 900
-        mask_training_start_epoch=1
-        mask_training_stop_epoch=3
+        mask_training_start_epoch = 1
+        mask_training_stop_epoch = 3
 
+        exp_name = 'resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
+        description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
-        exp_name='resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
-        description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
+        total_flop = 4133641192
+        prune_ratio = 0.75
+        flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
+        gradient_clip_value = None
+        learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [30, 60]]
+        num_epochs = 90 * 1 + mask_training_stop_epoch
 
-        total_flop=4111413224
-        prune_ratio=0.80
-        flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
-        gradient_clip_value=None
-        learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [30,60]]
-        num_epochs=90*1+mask_training_stop_epoch
-
-        net=resnet.resnet50(pretrained=False)
+        net = resnet.resnet50(pretrained=False)
         net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
                                                                                net_name='resnet50',
                                                                                dataset_name='imagenet',
@@ -447,7 +446,7 @@ elif dataset=='imagenet':
                                                                                )
 
         # torch.distributed.init_process_group(backend='nccl', init_method='tcp://localhost:23456', rank=0, world_size=1)
-        net=net.to(device)
+        net = net.to(device)
         # net = nn.parallel.DistributedDataParallel(net)
         #
         # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -488,10 +487,10 @@ elif dataset=='imagenet':
         #                               gradient_clip_value=gradient_clip_value
         #                               )
 
-
         #
-        i = 4
-        exp_name = 'resnet50_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        i = 6
+        exp_name = 'resnet50_predicted_mask_and_variable_shortcut_net_newinner_' + str(
+            int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
         checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -500,26 +499,27 @@ elif dataset=='imagenet':
         if not os.path.exists(checkpoint_path):
             os.makedirs(checkpoint_path, exist_ok=True)
         sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'),
+                                   sys.stderr)  # redirect std err, if necessary
         print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
-        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet50',str(i) + '.tar'),map_location='cpu')
+        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet50', str(i) + '.tar'),
+                                map_location='cpu')
         net.load_state_dict(checkpoint['state_dict'])
-
 
         net.mask_net()
         net.print_mask()
         net.prune_net()
         net.current_epoch = net.mask_training_stop_epoch + 1
-        pruned_flop=net.measure_self_flops()
-        print('prune_ratio:',1-pruned_flop/total_flop)
+        pruned_flop = net.measure_self_flops()
+        print('prune_ratio:', 1 - pruned_flop / total_flop)
         measure_flops.measure_model(net.net)
-        learning_rate_decay_epoch = [1*i for i in [30,60]]
-        num_epochs = 90*1
+        learning_rate_decay_epoch = [1 * i for i in [30, 60]]
+        num_epochs = 90 * 1
 
         # net = nn.parallel.DistributedDataParallel(net)
-        net=nn.DataParallel(net)
+        net = nn.DataParallel(net)
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=16, dataset_name='imagenet')
-        net=net.cuda()
+        net = net.cuda()
         train.train(net=net,
                     net_name='resnet50',
                     exp_name=exp_name,
