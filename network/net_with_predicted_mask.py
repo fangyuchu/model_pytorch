@@ -266,7 +266,7 @@ class predicted_mask_net(nn.Module):
         for name, mod in self.net.named_modules():
             if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
                 hi += mod.out_channels
-                _modules = get_module(model=self.net, name=name)
+                # _modules = get_module(model=self.net, name=name)
                 mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
                 lo = hi
                 last_conv_mask = mod.mask
@@ -364,7 +364,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     ]))
                     mod.downsample.cuda()
 
-    def find_prune_num(self, mask, delta=0.001, start_prune_num=100):
+    def find_prune_num(self, mask, delta=0.0005, start_prune_num=100):
         '''
 
         determine the number of filters to prune for a given flops
@@ -408,13 +408,12 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 i += len(mod.mask)
             in_channel_list = self.compute_net_structure(filter_num_list=filter_num_list)  # get net structure
             flop_delta = 0  # flops reduced from pruning
-            i = -1
-            for mod in conv_list:
-                i += 1
+            for i,mod in enumerate(conv_list):
                 flop_delta += mod.compute_flops(mod.in_channels, mod.out_channels) \
                               - mod.compute_flops(in_channel_list[i], filter_num_list[i])  # flops reduced by conv
-                flop_delta += 2 * mod.w_out * mod.w_out * (
-                            mod.out_channels - filter_num_list[i])  # flops reduced by BatchNormalization
+                # todo this might not be completely right since num_feature_map can be larger than out_channels（because of the shortcut）
+                flop_delta += 2 * mod.w_out * mod.w_out * ( mod.out_channels - filter_num_list[i])  # flops reduced by BatchNormalization
+
                 if filter_num_list[i] <= mod.add_shortcut_num:
                     flop_delta -= mod.compute_downsample_flops(in_channel_list[i])  # flops increased by downsample
             flops = total_flop - flop_delta
@@ -572,6 +571,19 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 mod.flops = None
         self.train(mode=is_training)  # restore the mode
         return flops - downsample_flop_overcomputed - bn_reduction
+
+    def print_in_out_channels(self):
+        if self.pruned is not True:
+            raise Exception('Net has not been pruned.')
+        in_list = []
+        out_list = []
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+                print(name, '\t in:', mod.in_channels, '\t out:', mod.out_channels)
+                in_list += [mod.in_channels]
+                out_list += [mod.out_channels]
+        print('in:', in_list)
+        print('out:', out_list)
 
     def prune_net(self):
         if self.pruned is True:

@@ -68,7 +68,7 @@ def is_leaf(module):
 #         return True
 #     return False
 
-def should_measure(mod):
+def should_measure(name,mod):
     if isinstance(mod,nn.Conv2d) :
         return True
     if isinstance(mod,nn.Linear):
@@ -81,12 +81,15 @@ def should_measure(mod):
 
 def measure_model(net, dataset_name='imagenet', print_flop=True):
     if isinstance(net,ns.predicted_mask_and_variable_shortcut_net):
-        return net.measure_self_flops()
+        flops=net.measure_self_flops()
+        if print_flop:
+            print('flop_num:',flops)
+        return flops
 
     if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
-        shape=(2,3,224,224)
+        shape=(1,3,224,224)
     elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
-        shape=(2,3,32,32)
+        shape=(1,3,32,32)
 
     if isinstance(net, nn.DataParallel):
         net_entity = net.module
@@ -108,7 +111,7 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
 
     def modify_forward(model):
         for name,mod in model.named_modules():
-            if should_measure(mod):
+            if should_measure(name,mod):
                 # 新增一个old_forward属性保存默认的forward函数
                 # 便于计算flops结束后forward函数的恢复
                 mod.old_forward = mod.forward

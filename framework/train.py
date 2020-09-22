@@ -11,7 +11,7 @@ from framework import data_loader, measure_flops, evaluate, config as conf
 from math import ceil
 from network import storage,vgg,resnet,resnet_cifar
 from torch.utils.tensorboard import SummaryWriter
-from framework.draw import draw_masked_net
+from framework.draw import draw_masked_net_pruned
 
 
 def exponential_decay_learning_rate(optimizer, sample_num, num_train,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
@@ -812,7 +812,7 @@ def train_extractor_network(
 
             if net_entity.mask_training_start_epoch <= net_entity.current_epoch < net_entity.mask_training_stop_epoch:
                 if (net_entity.step_tracked == 1 or net_entity.step_tracked == 0) and net_entity.mask_updating is True:
-                    fig = draw_masked_net(net)
+                    fig = draw_masked_net_pruned(net)
                     writer.add_figure(tag='net structure', figure=fig, global_step=int(sample_num / batch_size))
 
                 target_mask_mean = 0
