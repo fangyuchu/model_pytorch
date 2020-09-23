@@ -262,44 +262,46 @@ for i in range(1,4):
     print(exp_name)
     description = exp_name + '  ' + ''
 
-    checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
-    # save the output to log
-    print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
-    if not os.path.exists(checkpoint_path):
-        os.makedirs(checkpoint_path, exist_ok=True)
-    sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-    sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-    print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value,i)
+    # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+    # # save the output to log
+    # print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+    # if not os.path.exists(checkpoint_path):
+    #     os.makedirs(checkpoint_path, exist_ok=True)
+    # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+    # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+    # print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value,i)
+    #
+    # train.train_extractor_network(net=net,
+    #                               net_name='resnet110',
+    #                               exp_name=exp_name,
+    #                               description=description,
+    #                               dataset_name='cifar10',
+    #
+    #                               optim_method_net=optimizer_net,
+    #                               optim_method_extractor=optimizer_extractor,
+    #                               weight_decay=weight_decay,
+    #                               momentum=momentum,
+    #                               learning_rate=learning_rate,
+    #
+    #                               num_epochs=num_epochs,
+    #                               batch_size=batch_size,
+    #                               evaluate_step=5000,
+    #                               load_net=False,
+    #                               test_net=False,
+    #                               num_workers=4,
+    #                               # weight_decay=5e-4,
+    #                               learning_rate_decay=True,
+    #                               learning_rate_decay_epoch=learning_rate_decay_epoch,
+    #                               learning_rate_decay_factor=0.1,
+    #                               scheduler_name='MultiStepLR',
+    #                               top_acc=1,
+    #                               paint_loss=True,
+    #                               save_at_each_step=False,
+    #                               gradient_clip_value=gradient_clip_value
+    #                               )
 
-    train.train_extractor_network(net=net,
-                                  net_name='resnet110',
-                                  exp_name=exp_name,
-                                  description=description,
-                                  dataset_name='cifar10',
-
-                                  optim_method_net=optimizer_net,
-                                  optim_method_extractor=optimizer_extractor,
-                                  weight_decay=weight_decay,
-                                  momentum=momentum,
-                                  learning_rate=learning_rate,
-
-                                  num_epochs=num_epochs,
-                                  batch_size=batch_size,
-                                  evaluate_step=5000,
-                                  load_net=False,
-                                  test_net=False,
-                                  num_workers=4,
-                                  # weight_decay=5e-4,
-                                  learning_rate_decay=True,
-                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                  learning_rate_decay_factor=0.1,
-                                  scheduler_name='MultiStepLR',
-                                  top_acc=1,
-                                  paint_loss=True,
-                                  save_at_each_step=False,
-                                  gradient_clip_value=gradient_clip_value
-                                  )
-
+    checkpoint=torch.load('/home/swim/fang/model_pytorch/data/model_saved/resnet110/resnet110_like_resnet56_90pruned_1/checkpoint/masked_net.tar')
+    net.load_state_dict(checkpoint['state_dict'])
 
     net.mask_net()
     net.print_mask()
