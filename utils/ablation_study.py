@@ -226,7 +226,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #resnet110
 optimizer_net = optim.SGD
 optimizer_extractor = optim.SGD
-learning_rate = {'default': 0.1, 'extractor': 0.001}
+learning_rate = {'default': 0.1, 'extractor': 0.0001}
 weight_decay = {'default': 1e-4, 'extractor': 5e-4}
 momentum = {'default': 0.9, 'extractor': 0.9}
 batch_size=128
@@ -258,7 +258,7 @@ for i in range(1,4):
                                                                            add_shortcut_ratio=0.9,
                                                                            )
     net=net.to(device)
-    exp_name = 'ablation_only_gcn_inner_predicted_mask_and_variable_shortcut_net/resnet110_'+str(i)
+    exp_name = 'resnet110/resnet110_like_resnet56_90pruned_'+str(i)
     print(exp_name)
     description = exp_name + '  ' + ''
 
@@ -269,7 +269,7 @@ for i in range(1,4):
         os.makedirs(checkpoint_path, exist_ok=True)
     sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
     sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-    print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value,s)
+    print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value,i)
 
     train.train_extractor_network(net=net,
                                   net_name='resnet110',
