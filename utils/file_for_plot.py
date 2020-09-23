@@ -389,6 +389,10 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     marker_list=['o','*','+']
     if type(acc_list[0]) is not list:
         acc_list=[acc_list]
+    if acc_list[0][0]<1:
+        acc_list=np.array(acc_list)*100
+    if prune_ratio[0]<1:
+        prune_ratio=np.array(prune_ratio)*100
     x=prune_ratio
     plt.figure()
     plt.axes(yscale="log")
@@ -396,31 +400,44 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
         plt.plot(x,y,marker=marker_list[i],label=legends[i])
     # plt.ylim(0.6,1)
     plt.xlabel('Pruned Flops%')
-    plt.ylabel('Accuracy')
-    plt.title(exp_name)
+    plt.ylabel('Accuracy%')
+    # plt.yticks([80,85,90],('80','85','90'))
+    # plt.yticks([70,80,85,90],('70','80','85','90'))
+    plt.yticks([60,70,80,85,90],('60','70','80','85','90'))
+    # plt.title(exp_name)
     plt.legend()
-    plt.savefig('/home/victorfang/test.png')
+    plt.savefig('/home/victorfang/'+exp_name+'.eps')
     plt.show()
 
 
 if __name__ == "__main__":
 
     #Pruning ResNet-56 on CIFAR-10
-    acc_pruneratio(acc_list=[[0.9132,0.9099,0.9079,0.8996,0.8870,0.8641],
-                             [0.9077,0.9040,0.9047,0.8969,0,0],
-                             [0.9189,0.9139,0.8900,0.8726,0.8407,0.6393]],
-                   prune_ratio=[0.7,0.75,0.8,0.85,0.9,0.95],
-                   legends=['Ours','PFS','EB-Tickets'],
-                   exp_name='Pruning ResNet-56 on CIFAR-10')
-
-    #Pruning VGG-16 on CIFAR-10
-    # acc_pruneratio(acc_list=[[0.9275,0.9276,0.9249,0.9179,0.9071,0.8941,0.8594],
-    #                          [0.9225,0.9180,0.9144,0.9101,0.8978,0.8816,0],
-    #                          [0.9163,0.9150,0.9119,0.9115,0.9012,0.8816,0.5660]],
-    #                prune_ratio=[0.7,0.75,0.8,0.85,0.9,0.95,0.98],
+    # acc_pruneratio(acc_list=[[0.909867,0.9079,0.9041,0.899567,0.89653,0.88683,0.8581,0.8641],
+    #                          [0.903967,0.904667,0.89613,0.896867,0.886733,0,0,0],
+    #                          [0.918933,0.89,0.8842,0.8726,0.8643,0.8407,0.7488,0.6393]],#[[0.9132,0.9099,0.9079,0.8996,0.8870,0.8641],
+    #                          #[0.9077,0.9040,0.9047,0.8969,0,0],
+    #                          #[0.9189,0.9139,0.8900,0.8726,0.8407,0.6393]],
+    #                prune_ratio=[0.75,0.8,0.83,0.85,0.87,0.9,0.93,0.95],#[0.7,0.75,0.8,0.85,0.9,0.95],
     #                legends=['Ours','PFS','EB-Tickets'],
-    #                exp_name='Pruning VGG-16 on CIFAR-10')
+    #                exp_name='Pruning ResNet-56 on CIFAR-10')
 
+    # Pruning VGG-16 on CIFAR-10
+    acc_pruneratio(acc_list=[[0.9249,0.917867,0.91753,0.9126,0.90705,0.9047,0.894133,0.859467],
+                             [0.9144,0.9147,0.9101,0.908167,0.8978,0.895967,0.8816,0],
+                             [0.919933,0.9102,0.9115,0.9074,0.901167,0.897,0.881567,0.566033]],
+                   prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
+                   legends=['Ours','PFS','EB-Tickets'],
+                   exp_name='Pruning VGG-16 on CIFAR-10')
+
+    #ablation study part module
+    # acc_pruneratio(acc_list=[[0.9004, 0.8908, 0.8865, 0.8849, 0.8748, 0.832, 0.8076],
+    #                          [0.9001, 0.8915, 0.8872, 0.8792, 0.867, 0.8312, 0.798],
+    #                          [0.9054, 0.9038, 0.9012, 0.895, 0.8847, 0.8743, 0.8656]],
+    #                prune_ratio=[0.796654646, 0.829760074, 0.846118297, 0.869739508, 0.896758742, 0.92985532,0.946386375],
+    #                legends=['Only Graph Embedding', 'Only Filter Embedding', 'Filter2Vec'],
+    #                exp_name='effect_of_filter2vec'
+    #                )
 
     # fontsize=14
     # pruned_flop=[9.48,31.63,63.72,84.54,88.30]
@@ -435,8 +452,4 @@ if __name__ == "__main__":
     # plt.savefig('/home/victorfang/Desktop/vgg16_cifar10_tolerance.eps', format='eps')
     # plt.show()
 
-0.796654646	0.829760074	0.846118297	0.869739508	0.896758742	0.92985532	0.946386375
-25733490	21543976	19473832	16484552	13065250	8876856	6784840
-0.9004	0.8908	0.8865	0.8849	0.8748	0.832	0.8076
-0.9001	0.8915	0.8872	0.8792	0.867	0.8312	0.798
-0.9054	0.9038	0.9012	0.895	0.8847	0.8743	0.8656
+
