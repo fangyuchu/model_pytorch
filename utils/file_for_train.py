@@ -111,8 +111,8 @@ if dataset == 'cifar10':
         net.print_mask()
         net.prune_net()
         net.current_epoch = net.mask_training_stop_epoch + 1
-        learning_rate_decay_epoch = [2*i for i in [80,120]]
-        num_epochs = 160*2
+        learning_rate_decay_epoch = [1*i for i in [80,120]]
+        num_epochs = 160*1
         train.train(net=net,
                     net_name='resnet56',
                     exp_name=exp_name,
