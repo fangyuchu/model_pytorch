@@ -22,7 +22,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # mask_training_start_epoch=1
 # mask_training_stop_epoch=20
 #
-# total_flop=125485706
+# total_flop=126550666
 # prune_ratio=0.90
 # flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
 # gradient_clip_value=None
@@ -114,14 +114,14 @@ mask_training_start_epoch=1
 mask_training_stop_epoch=20
 
 
-total_flop=125485706
+total_flop=126550666
 prune_ratio=0.90
 flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
 gradient_clip_value=None
 learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
 num_epochs=160*1+mask_training_stop_epoch
 
-rounds = [1,2,3,4,5]
+rounds = [3,2,1]
 for r in rounds:
     print("gcn round: ",r)
     net=resnet_cifar.resnet56(num_classes=10).to(device)
@@ -138,7 +138,7 @@ for r in rounds:
                                                                            add_shortcut_ratio=0.9
                                                                            )
     net=net.to(device)
-    exp_name = 'ablation_gcn_round_predicted_mask_and_variable_shortcut_net/resnet56_gcnRound_:' + str(r)
+    exp_name = 'ablation_gcn_round_predicted_mask_and_variable_shortcut_net/resnet56_gcnRound_' + str(r)
     description = exp_name + '  ' + ''
     print(exp_name)
 
@@ -149,37 +149,39 @@ for r in rounds:
         os.makedirs(checkpoint_path, exist_ok=True)
     sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
     sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-    print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value,s)
+    print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value,r)
+    if r!=1 and r !=4:
+        train.train_extractor_network(net=net,
+                                      net_name='resnet56',
+                                      exp_name=exp_name,
+                                      description=description,
+                                      dataset_name='cifar10',
 
-    train.train_extractor_network(net=net,
-                                  net_name='resnet56',
-                                  exp_name=exp_name,
-                                  description=description,
-                                  dataset_name='cifar10',
+                                      optim_method_net=optimizer_net,
+                                      optim_method_extractor=optimizer_extractor,
+                                      weight_decay=weight_decay,
+                                      momentum=momentum,
+                                      learning_rate=learning_rate,
 
-                                  optim_method_net=optimizer_net,
-                                  optim_method_extractor=optimizer_extractor,
-                                  weight_decay=weight_decay,
-                                  momentum=momentum,
-                                  learning_rate=learning_rate,
-
-                                  num_epochs=num_epochs,
-                                  batch_size=batch_size,
-                                  evaluate_step=5000,
-                                  load_net=False,
-                                  test_net=False,
-                                  num_workers=4,
-                                  # weight_decay=5e-4,
-                                  learning_rate_decay=True,
-                                  learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                  learning_rate_decay_factor=0.1,
-                                  scheduler_name='MultiStepLR',
-                                  top_acc=1,
-                                  paint_loss=True,
-                                  save_at_each_step=False,
-                                  gradient_clip_value=gradient_clip_value
-                                  )
-
+                                      num_epochs=num_epochs,
+                                      batch_size=batch_size,
+                                      evaluate_step=5000,
+                                      load_net=False,
+                                      test_net=False,
+                                      num_workers=4,
+                                      # weight_decay=5e-4,
+                                      learning_rate_decay=True,
+                                      learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                      learning_rate_decay_factor=0.1,
+                                      scheduler_name='MultiStepLR',
+                                      top_acc=1,
+                                      paint_loss=True,
+                                      save_at_each_step=False,
+                                      gradient_clip_value=gradient_clip_value
+                                      )
+    print('load checkpoint from:',os.path.join(checkpoint_path,'checkpoint','masked_net.tar'))
+    ck=torch.load(os.path.join(checkpoint_path,'checkpoint','masked_net.tar'))
+    net.load_state_dict(ck['state_dict'])
 
     net.mask_net()
     net.print_mask()
