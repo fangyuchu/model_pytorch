@@ -257,11 +257,11 @@ def find_useless_filters_data_version(net,
     :param num_filters_to_prune_at_most: list containing the minimum number of filters in each layer
     :return:
     '''
-    if dead_or_inactive is 'dead':
+    if dead_or_inactive == 'dead':
         if neural_dead_times is None or filter_FIRE is None:
             print('neural_dead_times and filter_FIRE are required to find dead filters.')
             raise AttributeError
-    elif dead_or_inactive is 'inactive':
+    elif dead_or_inactive == 'inactive':
         if percent_of_inactive_filter is None:
             print('percent_of_inactive_filter is required to find dead filters.')
             raise AttributeError
@@ -294,7 +294,7 @@ def find_useless_filters_data_version(net,
                                                                      )
 
             num_test_images = min(train_set_size, math.ceil(max_data_to_test / batch_size) * batch_size)
-            if neural_dead_times is None and dead_or_inactive is 'inactive':
+            if neural_dead_times is None and dead_or_inactive == 'inactive':
                 neural_dead_times=0.8*num_test_images
 
             if isinstance(net,torch.nn.DataParallel):
@@ -314,7 +314,7 @@ def find_useless_filters_data_version(net,
 
 
     useless_filter_index=[[] for i in range(num_conv)]
-    if dead_or_inactive is 'inactive':
+    if dead_or_inactive == 'inactive':
         # filter_index=[]                                 #index of the filter in its layer
         # filter_layer=[]                                 #which layer the filter is in
         FIRE=[]
@@ -324,7 +324,7 @@ def find_useless_filters_data_version(net,
                 dead_times = copy.deepcopy(neural_list[module_key])
                 neural_num = dead_times.shape[1] * dead_times.shape[2]  # neural num for one filter
 
-                if dead_or_inactive is 'dead':
+                if dead_or_inactive == 'dead':
                     print('warning!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! may be wrong!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     # judge dead filter by neural_dead_times and dead_filter_ratio
                     dead_times[dead_times < neural_dead_times] = 0
@@ -334,7 +334,7 @@ def find_useless_filters_data_version(net,
                     df_num=np.where(dead_times >= neural_num * filter_FIRE)[0].shape[0]                    #number of dead filters
                     df_index=np.argsort(-dead_times)[:df_num].tolist()                                           #dead filters' indices. sorted by the times that they died.
                     useless_filter_index.append(df_index)
-                elif dead_or_inactive is 'inactive':
+                elif dead_or_inactive == 'inactive':
                     # compute sum(dead_times)/(batch_size*neural_num) as label for each filter
                     dead_times = np.sum(dead_times, axis=(1, 2))
                     # if use_random_data is True:
@@ -344,9 +344,9 @@ def find_useless_filters_data_version(net,
                     # filter_layer += [i for j in range(dead_times.shape[0])]
                     # filter_index+=[j for j in range(dead_times.shape[0])]
 
-    if dead_or_inactive is 'dead':
+    if dead_or_inactive == 'dead':
         return useless_filter_index, module_list, neural_list
-    elif dead_or_inactive is 'inactive':
+    elif dead_or_inactive == 'inactive':
         useless_filter_index=sort_inactive_filters(net,percent_of_inactive_filter,FIRE,num_filters_to_prune_at_most)
         # cutoff_rank_increase=-1
         # delta=0

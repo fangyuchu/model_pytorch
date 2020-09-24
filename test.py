@@ -13,7 +13,7 @@ import logger
 import copy
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
 # import torchsnooper
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 torch.autograd.set_detect_anomaly(True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

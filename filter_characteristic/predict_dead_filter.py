@@ -8,7 +8,8 @@ from torch import optim
 from sklearn.metrics import mean_absolute_error
 import copy
 from sklearn import preprocessing
-from sklearn.externals import joblib
+# from sklearn.externals import joblib
+import joblib
 from sklearn import ensemble
 from sklearn.model_selection import GridSearchCV
 import math
@@ -20,11 +21,11 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
               num_images=None,
               sample_num=None):
     #note that classification function is abandoned, the code involved might be wrong
-    if regression_or_classification is 'regression':
+    if regression_or_classification == 'regression':
         filter=[]
         filter_layer=[]
         filter_label=[]
-    elif regression_or_classification is 'classification':
+    elif regression_or_classification == 'classification':
         dead_filter = []
         dead_filter_layer = []
         living_filter = []
@@ -44,7 +45,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                 module_list=checkpoint['module_list']
             except KeyError:
                 module_list=checkpoint['relu_list']
-            if regression_or_classification is 'classification':
+            if regression_or_classification == 'classification':
                 # neural_dead_times=checkpoint['neural_dead_times']
                 neural_dead_times=8000
                 filter_FIRE=checkpoint['filter_FIRE']
@@ -74,7 +75,7 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                         neural_num=dead_times.shape[1]*dead_times.shape[2]  #neural num for one filter
                         filter_weight = filters[i].weight.data.cpu().numpy()
 
-                        if regression_or_classification is 'classification':
+                        if regression_or_classification == 'classification':
                             # judge dead filter by neural_dead_times and dead_filter_ratio
                             dead_times[dead_times<neural_dead_times]=0
                             dead_times[dead_times>=neural_dead_times]=1
@@ -97,13 +98,13 @@ def read_data(path='/home/victorfang/Desktop/dead_filter(normal_distribution)',
                             filter_label+=prediction.tolist()
                             filter_layer+=[layers[i] for j in range(filter_weight.shape[0])]
 
-    if regression_or_classification is 'classification' and balance is True:
+    if regression_or_classification == 'classification' and balance is True:
         living_filter=living_filter[:len(dead_filter)]
         living_filter_layer=living_filter_layer[:len(living_filter_index)]
 
-    if regression_or_classification is 'classification':
+    if regression_or_classification == 'classification':
         return dead_filter,living_filter,dead_filter_layer,living_filter_layer
-    elif regression_or_classification is 'regression':
+    elif regression_or_classification == 'regression':
         if sample_num is not None:
             index=random.sample([i for i in range(len(filter))],sample_num)
             filter=np.array(filter)[index].tolist()
@@ -258,7 +259,7 @@ class predictor:
     def __init__(self, name):
         self.name=name
         self.min_max_scaler=None
-        if name is 'gradient_boosting':
+        if name == 'gradient_boosting':
             #todo:容易过拟合
             self.regressor=ensemble.GradientBoostingRegressor(alpha=0.9, criterion='friedman_mse', init=None,
                           learning_rate=0.01, loss='ls', max_depth=17,
@@ -269,7 +270,7 @@ class predictor:
                           n_iter_no_change=None, presort='auto',
                           random_state=None, subsample=1.0, tol=0.0001,
                           test_fraction=0.1, verbose=0, warm_start=False)
-        elif name is 'random_forest':
+        elif name == 'random_forest':
             self.regressor=ensemble.RandomForestRegressor(bootstrap=True, criterion='mae', max_depth=17,
                       max_features='sqrt', max_leaf_nodes=None,
                       min_impurity_decrease=0.0, min_impurity_split=None,
@@ -281,9 +282,9 @@ class predictor:
     def fit(self, filter,filter_layer, filter_label,):
         stat,self.min_max_scaler,_,_=statistics(filters=filter,layer=filter_layer,balance_channel=False)
         print('training the regressor')
-        if self.name is 'gradient_boosting':
+        if self.name == 'gradient_boosting':
             self.regressor.fit(stat,filter_label)
-        if self.name is 'random_forest':
+        if self.name == 'random_forest':
             self.regressor.fit(stat, filter_label)
 
     # def predict_proba(self,filter):
