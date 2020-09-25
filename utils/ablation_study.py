@@ -103,7 +103,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #gcn round
 optimizer_net = optim.SGD
 optimizer_extractor = optim.SGD
-learning_rate = {'default': 0.1, 'extractor': 0.001}
+learning_rate = {'default': 0.1, 'extractor': 0.0001}
 weight_decay = {'default': 5e-4, 'extractor': 5e-4}
 momentum = {'default': 0.9, 'extractor': 0.9}
 batch_size=128
@@ -115,13 +115,13 @@ mask_training_stop_epoch=20
 
 
 total_flop=126550666
-prune_ratio=0.90
+prune_ratio=0.85
 flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
 gradient_clip_value=None
 learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
 num_epochs=160*1+mask_training_stop_epoch
 
-rounds = [3,2,1]
+rounds = [1,2,3,4,5]
 for r in rounds:
     print("gcn round: ",r)
     net=resnet_cifar.resnet56(num_classes=10).to(device)
@@ -138,7 +138,7 @@ for r in rounds:
                                                                            add_shortcut_ratio=0.9
                                                                            )
     net=net.to(device)
-    exp_name = 'ablation_gcn_round_predicted_mask_and_variable_shortcut_net/resnet56_gcnRound_' + str(r)
+    exp_name = 'ablation_gcn_round_predicted_mask_and_variable_shortcut_net_'+str(prune_ratio*100)+'pruned/resnet56_gcnRound_' + str(r)
     description = exp_name + '  ' + ''
     print(exp_name)
 
@@ -150,7 +150,7 @@ for r in rounds:
     sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
     sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
     print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value,r)
-    if r!=1 and r !=4:
+    if r !=4:
         train.train_extractor_network(net=net,
                                       net_name='resnet56',
                                       exp_name=exp_name,
