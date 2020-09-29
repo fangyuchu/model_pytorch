@@ -386,7 +386,7 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     :param exp_name:
     :return:
     '''
-    marker_list=['o','*','+']
+    marker_list=['o','*','+','v']
     if type(acc_list[0]) is not list:
         acc_list=[acc_list]
     if acc_list[0][0]<1:
