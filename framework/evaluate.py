@@ -115,6 +115,7 @@ def evaluate_net(  net,
                    max_data_to_test=99999999,
                    top_acc=1,
                    device=None,
+                   optimizer=None,
                    ):
     '''
     :param net: net of NN
@@ -166,6 +167,11 @@ def evaluate_net(  net,
                     'sample_num':sample_num,
                     'flop_num':flop_num,
                     'exp_name':exp_name}
+
+        if optimizer is not None:
+            checkpoint['optimizer']=optimizer
+            checkpoint['optimizer_state_dict']=optimizer.state_dict()
+
         checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
         torch.save(checkpoint,'%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num,accuracy))
         print("{} net saved at sample num = {}".format(datetime.now(), sample_num))

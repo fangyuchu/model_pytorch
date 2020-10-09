@@ -86,7 +86,7 @@ for ratio in l:
                 num_epochs=num_epochs,
                 batch_size=batch_size,
                 evaluate_step=5000,
-                load_net=False,
+                resume=False,
                 test_net=True,
                 num_workers=2,
                 learning_rate_decay=True,

@@ -125,7 +125,7 @@ if dataset == 'cifar10':
                     num_epochs=num_epochs,
                     batch_size=batch_size,
                     evaluate_step=5000,
-                    load_net=False,
+                    resume=False,
                     test_net=True,
                     num_workers=2,
                     learning_rate_decay=True,
@@ -240,7 +240,7 @@ if dataset == 'cifar10':
                     num_epochs=num_epochs,
                     batch_size=batch_size,
                     evaluate_step=5000,
-                    load_net=False,
+                    resume=False,
                     test_net=False,
                     num_workers=2,
                     learning_rate_decay=True,
@@ -383,7 +383,7 @@ elif dataset == 'cifar100':
                     num_epochs=num_epochs,
                     batch_size=batch_size,
                     evaluate_step=5000,
-                    load_net=False,
+                    resume=False,
                     test_net=False,
                     num_workers=2,
                     learning_rate_decay=True,
@@ -519,6 +519,10 @@ elif dataset=='imagenet':
         # net = nn.parallel.DistributedDataParallel(net)
         net = nn.DataParallel(net)
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=16, dataset_name='imagenet')
+        checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_70_6/checkpoint/flop=1248796198,accuracy=0.53916.tar')
+        net.load_state_dict(checkpoint['state_dict'])
+        exp_name+='_train'
+
         net = net.cuda()
         train.train(net=net,
                     net_name='resnet50',
@@ -528,15 +532,21 @@ elif dataset=='imagenet':
                     optimizer=optim.SGD,
                     weight_decay=weight_decay,
                     momentum=momentum,
-                    learning_rate=learning_rate,
-                    num_epochs=num_epochs,
+                    learning_rate=0.01,
+                    learning_rate_decay_epoch=[30],
+                    num_epochs=60,
+                    # learning_rate=0.01,
+                    # learning_rate_decay_epoch=[17],
+                    # num_epochs=47,
+                    # learning_rate=learning_rate,
+                    # learning_rate_decay_epoch=learning_rate_decay_epoch,
+                    # num_epochs=num_epochs,
                     batch_size=batch_size,
                     evaluate_step=2000,
-                    load_net=True,
-                    test_net=False,
+                    resume=True,
+                    test_net=True,
                     num_workers=4,
                     learning_rate_decay=True,
-                    learning_rate_decay_epoch=learning_rate_decay_epoch,
                     learning_rate_decay_factor=0.1,
                     scheduler_name='MultiStepLR',
                     top_acc=1,

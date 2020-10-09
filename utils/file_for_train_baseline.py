@@ -29,7 +29,7 @@ for i in range(3,6):
                 num_epochs=160,
                 learning_rate_decay_epoch=[80, 120],
                 weight_decay=5e-4,
-                load_net=True
+                resume=True
                 )
 
 # net=vgg.vgg16_bn(dataset_name='cifar10').to(device)

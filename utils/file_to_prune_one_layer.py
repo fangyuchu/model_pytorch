@@ -46,7 +46,7 @@ for i in range(0,100,10):
                 num_epochs=160,
                 batch_size=128,
                 evaluate_step=5000,
-                load_net=False,
+                resume=False,
                 test_net=False,
                 num_workers=4,
                 learning_rate_decay=True,

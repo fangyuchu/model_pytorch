@@ -119,7 +119,7 @@ def train(
         num_epochs=conf.num_epochs,
         batch_size=conf.batch_size,
         evaluate_step=conf.evaluate_step,
-        load_net=True,
+        resume=True,
         test_net=False,
         root_path=conf.root_path,
         momentum=conf.momentum,
@@ -140,7 +140,6 @@ def train(
         data_parallel=False,
         save_at_each_step=False,
         gradient_clip_value=None,
-
 ):
     '''
 
@@ -158,7 +157,7 @@ def train(
     :param num_epochs: max number of epochs for training
     :param batch_size:
     :param evaluate_step: how often will the net be tested on test set. At least one test every epoch is guaranteed
-    :param load_net: boolean, whether loading net from previous checkpoint. The newest checkpoint will be selected.
+    :param resume: boolean, whether loading net from previous checkpoint. The newest checkpoint will be selected.
     :param test_net:boolean, if true, the net will be tested before training.
     :param root_path:
     :param checkpoint_path:
@@ -212,6 +211,8 @@ def train(
     if not os.path.exists(crash_path):
         os.makedirs(crash_path, exist_ok=True)
 
+    optimizer=prepare_optimizer(net, optimizer, momentum, learning_rate, weight_decay ,requires_grad)
+
     #get the latest checkpoint
     lists = os.listdir(checkpoint_path)
     file_new=checkpoint_path
@@ -221,7 +222,7 @@ def train(
 
     sample_num=0
     if os.path.isfile(file_new):
-        if load_net:
+        if resume:
             checkpoint = torch.load(file_new,map_location='cpu')
             print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
             # net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
@@ -235,6 +236,7 @@ def train(
                 net.load_state_dict(checkpoint['state_dict'])
             net.cuda()
             sample_num = checkpoint['sample_num']
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
     #set up summary writer for tensorboard
     writer=SummaryWriter(log_dir=tensorboard_path,
@@ -258,7 +260,8 @@ def train(
                                         dataset_name=dataset_name,
                                         top_acc=top_acc,
                                         net_name=net_name,
-                                        exp_name=exp_name
+                                        exp_name=exp_name,
+                                        optimizer=optimizer
                                         )
 
         if accuracy >= target_accuracy:
@@ -270,7 +273,6 @@ def train(
         evaluate_step= math.ceil(num_train / batch_size) - 1
 
 
-    optimizer=prepare_optimizer(net, optimizer, momentum, learning_rate, weight_decay ,requires_grad)
     if learning_rate_decay:
         if scheduler_name =='MultiStepLR':
             scheduler = lr_scheduler.MultiStepLR(optimizer,
@@ -307,7 +309,8 @@ def train(
                                                 dataset_name=dataset_name,
                                                 top_acc=top_acc,
                                                 net_name=net_name,
-                                                exp_name=exp_name)
+                                                exp_name=exp_name,
+                                                optimizer=optimizer)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
@@ -358,7 +361,8 @@ def train(
                                                  dataset_name=dataset_name,
                                                  top_acc=top_acc,
                                                  net_name=net_name,
-                                                 exp_name=exp_name)
+                                                 exp_name=exp_name,
+                                                optimizer=optimizer)
 
                 if accuracy >= target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
@@ -386,8 +390,8 @@ def train(
                     plt.close()
 
                 print('{} continue training'.format(datetime.now()))
+        scheduler.step()
         if learning_rate_decay:
-            scheduler.step()
             print(optimizer.state_dict()['param_groups'][0]['lr'],
                   optimizer.state_dict()['param_groups'][-1]['lr'])
 
@@ -401,7 +405,8 @@ def train(
                                      dataset_name=dataset_name,
                                      top_acc=top_acc,
                                      net_name=net_name,
-                                     exp_name=exp_name)
+                                     exp_name=exp_name,
+                                     optimizer=optimizer)
     accuracy = float(accuracy)
     checkpoint = {
         'highest_accuracy': accuracy,
@@ -693,7 +698,7 @@ def train_extractor_network(
                                         dataset_name=dataset_name,
                                         top_acc=top_acc,
                                         net_name=net_name,
-                                        exp_name=exp_name
+                                        exp_name=exp_name,
                                         )
 
         if accuracy >= target_accuracy:
@@ -754,7 +759,8 @@ def train_extractor_network(
                                                 dataset_name=dataset_name,
                                                 top_acc=top_acc,
                                                 net_name=net_name,
-                                                exp_name=exp_name)
+                                                exp_name=exp_name,
+                                                optimizer=optimizer)
                 if accuracy>=target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
                     return success
@@ -901,7 +907,8 @@ def train_extractor_network(
                                                  dataset_name=dataset_name,
                                                  top_acc=top_acc,
                                                  net_name=net_name,
-                                                 exp_name=exp_name)
+                                                 exp_name=exp_name,
+                                                 optimizer=optimizer)
 
                 if accuracy >= target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
@@ -942,7 +949,8 @@ def train_extractor_network(
                                      dataset_name=dataset_name,
                                      top_acc=top_acc,
                                      net_name=net_name,
-                                     exp_name=exp_name)
+                                     exp_name=exp_name,
+                                     optimizer=optimizer)
     accuracy = float(accuracy)
     checkpoint = {
         'highest_accuracy': accuracy,
