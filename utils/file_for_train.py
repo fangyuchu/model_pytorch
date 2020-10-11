@@ -519,7 +519,7 @@ elif dataset=='imagenet':
         # net = nn.parallel.DistributedDataParallel(net)
         net = nn.DataParallel(net)
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=16, dataset_name='imagenet')
-        checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_70_6/checkpoint/flop=1248796198,accuracy=0.53916.tar')
+        checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_70_6/checkpoint/flop=1248796198,accuracy=0.66620.tar')
         net.load_state_dict(checkpoint['state_dict'])
         exp_name+='_train'
 
@@ -535,13 +535,14 @@ elif dataset=='imagenet':
                     learning_rate=0.01,
                     learning_rate_decay_epoch=[30],
                     num_epochs=60,
+                    batch_size=256,
                     # learning_rate=0.01,
                     # learning_rate_decay_epoch=[17],
                     # num_epochs=47,
                     # learning_rate=learning_rate,
                     # learning_rate_decay_epoch=learning_rate_decay_epoch,
                     # num_epochs=num_epochs,
-                    batch_size=batch_size,
+                    # batch_size=batch_size,
                     evaluate_step=2000,
                     resume=True,
                     test_net=True,
