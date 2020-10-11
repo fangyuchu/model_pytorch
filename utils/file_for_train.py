@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
@@ -536,6 +536,7 @@ elif dataset=='imagenet':
                     learning_rate_decay_epoch=[30],
                     num_epochs=60,
                     batch_size=256,
+                    criterion=train.CrossEntropyLabelSmooth(num_classes=1000, epsilon=0.1).cuda(),
                     # learning_rate=0.01,
                     # learning_rate_decay_epoch=[17],
                     # num_epochs=47,
@@ -545,7 +546,7 @@ elif dataset=='imagenet':
                     # batch_size=batch_size,
                     evaluate_step=2000,
                     resume=True,
-                    test_net=True,
+                    test_net=False,
                     num_workers=4,
                     learning_rate_decay=True,
                     learning_rate_decay_factor=0.1,
