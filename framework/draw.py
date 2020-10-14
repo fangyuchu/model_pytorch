@@ -80,6 +80,7 @@ def draw_masked_net(net,pic_name,path):
     w_delta = (1 - 2 * margin) / max_out_channels  # space of each col
     square_h = 0.5 * h_delta  # height of a square
     square_w = 0.5 * w_delta  # width of a square
+    plt.style.use('fivethirtyeight')
 
     fig = plt.figure()
     # ax = fig.add_subplot(111)
