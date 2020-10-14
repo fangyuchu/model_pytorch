@@ -15,7 +15,8 @@ import copy
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
 # import torchsnooper
 # os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
-
+net=resnet_cifar.resnet56(num_classes=100).cuda()
+measure_flops.measure_model(net,'cifar10')
 
 class Bottleneck(nn.Module):
     expansion = 4

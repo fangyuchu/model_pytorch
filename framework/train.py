@@ -850,7 +850,13 @@ def train_extractor_network(
                     else:
                         alpha=0.05
                 elif isinstance(net.net,resnet_cifar.CifarResNet):
-                    alpha=0.02
+                    # alpha=0.02
+
+                    if net.dataset_name == 'cifar100':
+                        alpha=0.002
+                    else:
+                        alpha=0.02
+
                 elif isinstance(net.net,resnet.ResNet):
                     alpha=0.02
                 else:
