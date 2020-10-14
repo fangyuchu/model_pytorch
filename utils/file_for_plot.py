@@ -1,3 +1,5 @@
+import os,sys
+sys.path.append('../')
 import torch
 import torch.nn as nn
 import numpy as np
@@ -386,7 +388,7 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     :param exp_name:
     :return:
     '''
-    plt.style.use('seaborn-whitegrid')
+    # plt.style.use('seaborn-whitegrid')
 
     marker_list=['o','*','v','d','|','+']
     if type(acc_list[0]) is not list:
@@ -396,24 +398,31 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     if prune_ratio[0]<1:
         prune_ratio=np.array(prune_ratio)*100
     x=prune_ratio
-    plt.figure(figsize=(8, 5))
+    fig,ax=plt.subplots(figsize=(8, 5))
     # plt.axes(yscale="log")
     for i,y in enumerate(acc_list):
-        plt.plot(x,y,marker=marker_list[i],label=legends[i],markersize=9)
+        ax.plot(x,y,marker=marker_list[i],label=legends[i],markersize=9)
     # plt.ylim(0.6,1)
-    plt.xlabel('Pruned Flops%',fontsize=17)
-    plt.ylabel('Accuracy%',fontsize=17)
+    ax.set_xlabel('Pruned Flops%',fontsize=17)
+    ax.set_ylabel('Accuracy%',fontsize=17)
     # plt.yticks([80,85,90],('80','85','90'))
-    plt.ylim(bottom=30)
+    ax.set_ylim(bottom=30)
     # plt.ylim(bottom=70)
-    plt.yticks([30,40,60,80,90,100],('0','40','60','80','90','100'),)
+    ax.set_yticks([30,40,60,80,90,100],('0','40','60','80','90','100'),)
 
-    plt.tick_params(labelsize=13)
+    ax.tick_params(labelsize=13)
+    ax.grid()
+
+    bwith=2
+    ax.spines['bottom'].set_linewidth(bwith)
+    ax.spines['left'].set_linewidth(bwith)
+    ax.spines['top'].set_linewidth(bwith)
+    ax.spines['right'].set_linewidth(bwith)
 
     # plt.yticks([60,70,80,85,90],('60','70','80','85','90'))
     # plt.yticks([70,80,90],('70','80','90'))
     # plt.title(exp_name)
-    plt.legend(fontsize=17)
+    ax.legend(fontsize=17,loc='best')
     plt.savefig('/home/victorfang/'+exp_name+'.png')
     plt.show()
 
