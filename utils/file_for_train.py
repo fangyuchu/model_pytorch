@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='cifar100'
 net_type='resnet56'
@@ -342,7 +342,7 @@ elif dataset == 'cifar100':
             #                               )
             #
 
-            i = 4
+            i = 2
             exp_name = 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
             description = exp_name + '  ' + ''
 

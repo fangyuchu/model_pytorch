@@ -1,3 +1,5 @@
+import os,sys
+sys.path.append('../')
 import matplotlib.pyplot as plt
 from network.modules import conv2d_with_mask
 import numpy as np
@@ -65,7 +67,7 @@ def draw_masked_net(net,pic_name,path):
             layer_mask += [mod.mask.detach().cpu().numpy()]
             max_out_channels = max(mod.out_channels, max_out_channels)
             num_layer += 1
-
+    layer_mask=layer_mask.reverse()
     for i, mask in enumerate(layer_mask):
         if len(mask) < max_out_channels:
             if (max_out_channels - len(mask)) % 2 != 0:
@@ -73,7 +75,8 @@ def draw_masked_net(net,pic_name,path):
             pad_len = int((max_out_channels - len(mask)) / 2)
             layer_mask[i] = np.pad(mask, (pad_len, pad_len), 'constant',
                                    constant_values=-2)  # pad the mask with -2 indicating a placeholder
-
+    layer_mask=np.array(layer_mask)
+    layer_mask=layer_mask.T
     margin = 0.02  # margin of the figure
     # draw in 0.1~0.9
     h_delta = (1 - 2 * margin) / num_layer  # space of each row
@@ -102,7 +105,7 @@ def draw_masked_net(net,pic_name,path):
     # plt.yticks([])
     plt.xlabel('width', fontsize=20)
     plt.ylabel('depth', fontsize=20)
-    plt.savefig(os.path.join(path,pic_name+'.eps'))
+    plt.savefig(os.path.join(path,pic_name+'.png'))
     plt.show()
     return fig
 
@@ -186,7 +189,7 @@ if __name__ == "__main__":
                                                                            add_shortcut_ratio=add_shortcut_ratio
                                                                            )
     net = net.cuda()
-    i = 5
+    i = 2
 
     checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16', str(i) + '.tar'),map_location='cpu')
     net.load_state_dict(checkpoint['state_dict'])
@@ -201,6 +204,6 @@ if __name__ == "__main__":
             lo = hi
             last_conv_mask = mod.mask
 
-    fig=draw_masked_net(net,pic_name='vgg16_'+str(i),path='/home/victorfang/Desktop')
+    fig=draw_masked_net(net,pic_name='vgg16_'+str(i),path='/home/victorfang/')
     print()
 
