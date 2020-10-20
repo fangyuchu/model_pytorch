@@ -411,7 +411,7 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     # ax.set_yticks([30,40,60,80,90,100],('0','40','60','80','90','100'),)
     # ax.set_yticks([50,60,80,90,100],('50','60','80','90','100'),)
     # ax.set_ylim(bottom=79)
-    ax.set_yticks([80,85,90],('80','85','90'))
+    # ax.set_yticks([80,85,90],('80','85','90'))
 
     ax.tick_params(labelsize=13)
     ax.grid()
@@ -480,14 +480,27 @@ if __name__ == "__main__":
     #                legends=['Ours','PFS','EB-Tickets','Rethinking','SFP'],
     #                exp_name='Pruning_VGG-16_on_CIFAR-10')
 
-    #ablation study part module
-    acc_pruneratio(acc_list=[[0.9004, 0.8908, 0.8865, 0.8849, 0.8748, 0.832, 0.8076],
-                             [0.9001, 0.8915, 0.8872, 0.8792, 0.867, 0.8312, 0.798],
-                             [0.9054, 0.9038, 0.9012, 0.895, 0.8847, 0.8743, 0.8656]],
-                   prune_ratio=[0.796654646, 0.829760074, 0.846118297, 0.869739508, 0.896758742, 0.92985532,0.946386375],
-                   legends=['Only Graph Embedding', 'Only Filter Embedding', 'Filter2Vec'],
-                   exp_name='effect_of_filter2vec'
-                   )
+
+    # Pruning VGG-16 on CIFAR-100
+    acc_pruneratio(acc_list=[[0.6983,0.692,0.68479,0.67695,0.6787,0.663,0.6584,0.624,0.569],
+                             [0.691567,0.682667,0.679367,0.6694,0.663167,0.654067,0.636767,0.6233,0.569],
+                             [0.61093,0.5156,0.54867,0.55353,0.5317,0.43793,0.50293,0.464367,0.2717],
+                             [0.54595,0.53205,0.41285,0.3951,0.4863,0.34245,0.4291,0.3141,0.147],
+                             [0.6968,0.6874,0.6794,0.6668,0.6629,0.61545,0.55025,0.42025,0.1464]
+                             ],
+
+                   prune_ratio=[0.75,0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
+                   legends=['ours','PFS','EB-Tickets','Rethinking','SFP'],
+                   exp_name='Pruning_VGG-16_on_CIFAR-100')
+
+    # #ablation study part module
+    # acc_pruneratio(acc_list=[[0.9004, 0.8908, 0.8865, 0.8849, 0.8748, 0.832, 0.8076],
+    #                          [0.9001, 0.8915, 0.8872, 0.8792, 0.867, 0.8312, 0.798],
+    #                          [0.9054, 0.9038, 0.9012, 0.895, 0.8847, 0.8743, 0.8656]],
+    #                prune_ratio=[0.796654646, 0.829760074, 0.846118297, 0.869739508, 0.896758742, 0.92985532,0.946386375],
+    #                legends=['Only Graph Embedding', 'Only Filter Embedding', 'Filter2Vec'],
+    #                exp_name='effect_of_filter2vec'
+    #                )
 
     # fontsize=14
     # pruned_flop=[9.48,31.63,63.72,84.54,88.30]

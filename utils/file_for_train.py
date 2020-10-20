@@ -7,10 +7,10 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '5'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='cifar100'
-net_type='resnet56'
+net_type='vgg16_bn'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -265,7 +265,7 @@ elif dataset == 'cifar100':
     optimizer_net = optim.SGD
     optimizer_extractor = optim.SGD
     learning_rate = {'default': 0.1, 'extractor': 0.0001}
-    weight_decay = {'default':1e-4,'extractor':1e-4}
+    weight_decay = {'default':5e-4,'extractor':1e-4}
     momentum = {'default':0.9,'extractor':0.9}
     batch_size=128
     #网络参数
@@ -274,14 +274,16 @@ elif dataset == 'cifar100':
     mask_update_epochs = 900
     mask_training_start_epoch=1
     mask_training_stop_epoch=40
+    gradient_clip_value=2
 
     if net_type =='resnet56':
-        exp_name='resnet56_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_4'
+        exp_name='resnet56_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=126556516
         prune_ratio=0.70
-        for prune_ratio in [0.75,0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98,0.5,0.6,0.65,0.7]:
+        # for prune_ratio in [0.83,0.85,0.87,0.9,0.93,0.95,0.98,0.5,0.6,0.65,0.7]:
+        for prune_ratio in [0.98,0.95,0.93,0.5,0.6,0.65,0.7]:
             print('pruning ratio:',prune_ratio)
             flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
             gradient_clip_value=None
@@ -342,7 +344,7 @@ elif dataset == 'cifar100':
             #                               )
             #
 
-            i = 2
+            i = 5
             exp_name = 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
             description = exp_name + '  ' + ''
 
@@ -363,10 +365,10 @@ elif dataset == 'cifar100':
             net.print_mask()
             net.prune_net()
             net.current_epoch = net.mask_training_stop_epoch + 1
-            learning_rate_decay_epoch = [60,120,160]#[1*i for i in [80,120]]##
-            learning_rate_decay_factor=0.2
+            learning_rate_decay_epoch = [2*i for i in [80,120]]##
+            learning_rate_decay_factor=0.1
 
-            num_epochs = 200
+            num_epochs = 320
             train.train(net=net,
                         net_name='resnet56',
                         exp_name=exp_name,
@@ -398,129 +400,125 @@ elif dataset == 'cifar100':
 
 
     elif net_type =='vgg16_bn':
-        exp_name='vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
+        exp_name='vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_6'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
-        total_flop=316813412
+        total_flop=313754634
         prune_ratio=0.70
-        flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
-        gradient_clip_value=None
-        learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
-        num_epochs=160*1+mask_training_stop_epoch
+        add_shortcut_ratio=0.05
+        for prune_ratio in [0.95,0.98,0.9]:
+            print('pruning ratio:',prune_ratio)
+            flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
+            gradient_clip_value=None
+            learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
+            num_epochs=160*1+mask_training_stop_epoch
 
-        net=vgg.vgg16_bn(dataset_name='cifar100').to(device)
-        measure_flops.measure_model(net,dataset_name='cifar100')
-        net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
-                                                                               net_name='vgg16_bn',
-                                                                               dataset_name='cifar100',
-                                                                               mask_update_epochs=mask_update_epochs,
-                                                                               mask_update_freq=mask_update_freq,
-                                                                               flop_expected=flop_expected,
-                                                                               gcn_rounds=2,
-                                                                               mask_training_start_epoch=mask_training_start_epoch,
-                                                                               mask_training_stop_epoch=mask_training_stop_epoch,
-                                                                               batch_size=batch_size,
-                                                                               add_shortcut_ratio=add_shortcut_ratio
-                                                                               )
-        net=net.to(device)
-        # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
-        # # save the output to log
-        # print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
-        # if not os.path.exists(checkpoint_path):
-        #     os.makedirs(checkpoint_path, exist_ok=True)
-        # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-        # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-        # print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
-        # train.train_extractor_network(net=net,
-        #                               net_name='vgg16_bn',
-        #                               exp_name=exp_name,
-        #                               description=description,
-        #                               dataset_name='cifar100',
-        #
-        #                               optim_method_net=optimizer_net,
-        #                               optim_method_extractor=optimizer_extractor,
-        #                               weight_decay=weight_decay,
-        #                               momentum=momentum,
-        #                               learning_rate=learning_rate,
-        #
-        #                               num_epochs=num_epochs,
-        #                               batch_size=batch_size,
-        #                               evaluate_step=5000,
-        #                               load_net=False,
-        #                               test_net=False,
-        #                               num_workers=2,
-        #                               # weight_decay=5e-4,
-        #                               learning_rate_decay=True,
-        #                               learning_rate_decay_epoch=learning_rate_decay_epoch,
-        #                               learning_rate_decay_factor=0.1,
-        #                               scheduler_name='MultiStepLR',
-        #                               top_acc=1,
-        #                               data_distributed=False,
-        #                               paint_loss=True,
-        #                               save_at_each_step=True,
-        #                               gradient_clip_value=gradient_clip_value
-        #                               )
-        #
+            net=vgg.vgg16_bn(dataset_name='cifar100').to(device)
+            measure_flops.measure_model(net,dataset_name='cifar100')
+            net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+                                                                                   net_name='vgg16_bn',
+                                                                                   dataset_name='cifar100',
+                                                                                   mask_update_epochs=mask_update_epochs,
+                                                                                   mask_update_freq=mask_update_freq,
+                                                                                   flop_expected=flop_expected,
+                                                                                   gcn_rounds=2,
+                                                                                   mask_training_start_epoch=mask_training_start_epoch,
+                                                                                   mask_training_stop_epoch=mask_training_stop_epoch,
+                                                                                   batch_size=batch_size,
+                                                                                   add_shortcut_ratio=add_shortcut_ratio
+                                                                                   )
+            net=net.to(device)
+            # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+            # # save the output to log
+            # print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+            # if not os.path.exists(checkpoint_path):
+            #     os.makedirs(checkpoint_path, exist_ok=True)
+            # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+            # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+            # print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
+            # train.train_extractor_network(net=net,
+            #                               net_name='vgg16_bn',
+            #                               exp_name=exp_name,
+            #                               description=description,
+            #                               dataset_name='cifar100',
+            #
+            #                               optim_method_net=optimizer_net,
+            #                               optim_method_extractor=optimizer_extractor,
+            #                               weight_decay=weight_decay,
+            #                               momentum=momentum,
+            #                               learning_rate=learning_rate,
+            #
+            #                               num_epochs=num_epochs,
+            #                               batch_size=batch_size,
+            #                               evaluate_step=5000,
+            #                               load_net=False,
+            #                               test_net=False,
+            #                               num_workers=2,
+            #                               # weight_decay=5e-4,
+            #                               learning_rate_decay=True,
+            #                               learning_rate_decay_epoch=learning_rate_decay_epoch,
+            #                               learning_rate_decay_factor=0.1,
+            #                               scheduler_name='MultiStepLR',
+            #                               top_acc=1,
+            #                               data_distributed=False,
+            #                               paint_loss=True,
+            #                               save_at_each_step=True,
+            #                               gradient_clip_value=gradient_clip_value
+            #                               )
+            #
 
-        i = 5
-        exp_name = 'vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
-        description = exp_name + '  ' + ''
+            i = 6
+            exp_name = 'vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
+            description = exp_name + '  ' + ''
 
-        checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
-        # save the output to log
-        print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
-        if not os.path.exists(checkpoint_path):
-            os.makedirs(checkpoint_path, exist_ok=True)
-        sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-        print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
+            checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+            # save the output to log
+            print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+            if not os.path.exists(checkpoint_path):
+                os.makedirs(checkpoint_path, exist_ok=True)
+            sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+            sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+            print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
 
 
-        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16_cifar100', str(i) + '.tar'),map_location='cpu')
-        net.load_state_dict(checkpoint['state_dict'])
+            checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16_cifar100', str(i) + '.tar'),map_location='cpu')
+            net.load_state_dict(checkpoint['state_dict'])
+            net.mask_net()
+            net.print_mask()
+            net.prune_net()
+            net.current_epoch = net.mask_training_stop_epoch + 1
+            learning_rate_decay_epoch = [2*i for i in [80,120]]
+            learning_rate_decay_factor=0.1
 
-        a=0
-        for name,mod in net.named_modules():
-            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
-                a+=mod.out_channels
-        print(a)
+            num_epochs = 320
+            train.train(net=net,
+                        net_name='vgg16_bn',
+                        exp_name=exp_name,
+                        description=description,
+                        dataset_name='cifar100',
+                        optimizer=optim.SGD,
+                        weight_decay=weight_decay,
+                        momentum=momentum,
+                        learning_rate=learning_rate,
+                        num_epochs=num_epochs,
+                        batch_size=batch_size,
+                        evaluate_step=5000,
+                        resume=False,
+                        test_net=False,
+                        num_workers=2,
+                        learning_rate_decay=True,
+                        learning_rate_decay_epoch=learning_rate_decay_epoch,
+                        learning_rate_decay_factor=learning_rate_decay_factor,
+                        scheduler_name='MultiStepLR',
+                        top_acc=1,
+                        data_parallel=False,
+                        paint_loss=True,
+                        save_at_each_step=False,
+                        gradient_clip_value=gradient_clip_value
+                        )
 
-        net.mask_net()
-        net.print_mask()
-        net.prune_net()
-        net.current_epoch = net.mask_training_stop_epoch + 1
-        learning_rate_decay_epoch = [60,120,160]#[1*i for i in [80,120]]
-        learning_rate_decay_factor=0.2
-
-        num_epochs = 200#160*1
-        train.train(net=net,
-                    net_name='vgg16_bn',
-                    exp_name=exp_name,
-                    description=description,
-                    dataset_name='cifar100',
-                    optimizer=optim.SGD,
-                    weight_decay=weight_decay,
-                    momentum=momentum,
-                    learning_rate=learning_rate,
-                    num_epochs=num_epochs,
-                    batch_size=batch_size,
-                    evaluate_step=5000,
-                    resume=False,
-                    test_net=False,
-                    num_workers=2,
-                    learning_rate_decay=True,
-                    learning_rate_decay_epoch=learning_rate_decay_epoch,
-                    learning_rate_decay_factor=learning_rate_decay_factor,
-                    scheduler_name='MultiStepLR',
-                    top_acc=1,
-                    data_parallel=False,
-                    paint_loss=True,
-                    save_at_each_step=False,
-                    gradient_clip_value=gradient_clip_value
-                    )
-
-        eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
-        evaluate.evaluate_net(net, eval_loader, save_net=False)
+            eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
+            evaluate.evaluate_net(net, eval_loader, save_net=False)
     else:
         raise AttributeError
 
