@@ -318,7 +318,7 @@ def train(
 
             # 准备数据
             images, labels = data
-            images, labels = images.cuda(), labels.cuda()
+            images, labels = images.cuda(non_blocking=True), labels.cuda(non_blocking=True)
             sample_num += int(images.shape[0])
 
             optimizer.zero_grad()

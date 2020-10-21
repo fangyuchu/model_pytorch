@@ -4,13 +4,14 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import math
 from framework import config as conf
+from framework.imagenet_loader import HybridTrainPipe,HybridValPipe
 from PIL import Image
 import os
 import os.path
 import numpy as np
 import sys
 from torch.utils.data.sampler import SubsetRandomSampler
-
+from base import DALIDataloader
 
 def create_train_loader(
         batch_size,
@@ -200,41 +201,56 @@ class Lighting(object):
         return self.__class__.__name__ + '()'
 
 
+
 def get_imagenet_loader(root, batch_size, type='train', mobile_setting=True):
-    crop_scale = 0.25 if mobile_setting else 0.08
-    jitter_param = 0.4
-    lighting_param = 0.1
     if type == 'train':
-        transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, scale=(crop_scale, 1.0)),
-            transforms.ColorJitter(
-                brightness=jitter_param, contrast=jitter_param,
-                saturation=jitter_param),
-            Lighting(lighting_param),
-            transforms.RandomHorizontalFlip(),
-        ])
+        pip_train = HybridTrainPipe(batch_size=batch_size, num_threads=4, device_id=0,
+                                    data_dir=root , crop=224, world_size=1, local_rank=0)
+        train_loader = DALIDataloader(pipeline=pip_train, size=1281167, batch_size=batch_size,
+                                      onehot_label=True)
+        return train_loader
+    elif type =='test':
+        pip_test = HybridValPipe(batch_size=batch_size, num_threads=4, device_id=0, data_dir=root ,
+                                 crop=224, size=256, world_size=1, local_rank=0)
 
-    elif type == 'test':
-        transform = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-        ])
-
-    dataset = datasets.ImageFolder(root, transform)
-    # sampler = data.distributed.DistributedSampler(dataset)
-    if type == 'train':
-        data_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=batch_size, shuffle=True,
-            num_workers=4, pin_memory=True
-        )
-        return data_loader
-
-    elif type == 'test':
-        data_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=batch_size, shuffle=False,
-            num_workers=4, pin_memory=True
-        )
-        return data_loader
+        test_loader = DALIDataloader(pipeline=pip_test, size=50000, batch_size=batch_size,
+                                     onehot_label=True)
+        return test_loader
+    # #from pruning from scratch
+    # crop_scale = 0.25 if mobile_setting else 0.08
+    # jitter_param = 0.4
+    # lighting_param = 0.1
+    # if type == 'train':
+    #     transform = transforms.Compose([
+    #         transforms.RandomResizedCrop(224, scale=(crop_scale, 1.0)),
+    #         transforms.ColorJitter(
+    #             brightness=jitter_param, contrast=jitter_param,
+    #             saturation=jitter_param),
+    #         Lighting(lighting_param),
+    #         transforms.RandomHorizontalFlip(),
+    #     ])
+    #
+    # elif type == 'test':
+    #     transform = transforms.Compose([
+    #         transforms.Resize(256),
+    #         transforms.CenterCrop(224),
+    #     ])
+    #
+    # dataset = datasets.ImageFolder(root, transform)
+    # # sampler = data.distributed.DistributedSampler(dataset)
+    # if type == 'train':
+    #     data_loader = torch.utils.data.DataLoader(
+    #         dataset, batch_size=batch_size, shuffle=True,
+    #         num_workers=4, pin_memory=True
+    #     )
+    #     return data_loader
+    #
+    # elif type == 'test':
+    #     data_loader = torch.utils.data.DataLoader(
+    #         dataset, batch_size=batch_size, shuffle=False,
+    #         num_workers=4, pin_memory=True
+    #     )
+    #     return data_loader
 
 
 

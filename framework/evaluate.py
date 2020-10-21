@@ -42,8 +42,8 @@ def validate(val_loader, model,max_data_to_test=99999999,device=None):
         end = time.time()
         s_n=0
         for i, (input, target) in enumerate(val_loader):
-            target = target.cuda()
-            input = input.cuda()
+            target = target.cuda(non_blocking=True)
+            input = input.cuda(non_blocking=True)
             s_n+=input.shape[0]
             # compute output
             output = model(input)
