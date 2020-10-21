@@ -84,7 +84,10 @@ def draw_masked_net(net,pic_name,path):
 
 
     layer_mask=np.array(layer_mask)
-    # layer_mask=layer_mask.T
+    layer_mask=layer_mask.T
+    for i,l in enumerate(layer_mask):
+        layer_mask[i]=l[::-1]
+    # layer_mask=layer_mask[::-1]
     margin = 0.02  # margin of the figure
     # draw in 0.1~0.9
     h_delta = (1 - 2 * margin) / num_layer  # space of each row
@@ -93,7 +96,7 @@ def draw_masked_net(net,pic_name,path):
     square_w = 0.5 * w_delta  # width of a square
     # plt.style.use('fivethirtyeight')
 
-    fig,ax=plt.subplots()
+    fig,ax=plt.subplots(figsize=(8,5))
 
     im=ax.imshow(layer_mask,cmap=plt.cm.YlOrRd,interpolation='nearest',vmin=0, vmax=1,aspect='auto')
     cmap_custom=plt.get_cmap('YlOrRd')
@@ -103,20 +106,48 @@ def draw_masked_net(net,pic_name,path):
     # heatmap.cmap.set_under('black')
     # bar = fig.colorbar(heatmap, extend='both')
 
-    cb=ax.figure.colorbar(im,ax=ax)
-    cb.ax.tick_params(labelsize=13)
+    fontsize = 15
 
-    ax.tick_params(labelsize=13)
-    ax.set_xticks(np.array(list(layer_width))-1)
-    ax.set_xticklabels(list(layer_width))
-    ax.xaxis.set_ticks_position('top')
-    ytick_num=7
-    gap=int(len(layer_mask)/ytick_num)
-    yticks=[i for i in range(0,len(layer_mask),gap)]
-    yticks+=[len(layer_mask)-1]
-    yticks=np.array(yticks)
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(yticks+1)
+    cb=ax.figure.colorbar(im,ax=ax)
+    cb.ax.tick_params(labelsize=fontsize)
+    ax.tick_params(labelsize=fontsize)
+    # ax.set_xticks(np.array(list(layer_width))-1)
+    # ax.set_xticklabels(list(layer_width))
+
+    xtick_num=8
+    gap=int(layer_mask.shape[1]/xtick_num)
+    #todo:这里不对，横纵坐标搞错
+    xticks=[i for i in range(0,layer_mask.shape[1],gap)]
+    # xticks+=[layer_mask.shape[1]-1]
+    xticks=np.array(xticks)
+    ax.set_xticks(xticks)
+    xticks=xticks[::-1]
+    ax.set_xticklabels(xticks+1)
+    ax.set_yticks([])
+
+    # for i in range(0,14,1):
+    #     ax.text(i, 1, str(i), fontsize=12)
+    # for i in range(0,560,20):
+    #     ax.text(1, i, str(i), fontsize=12)
+
+
+    # #resnet56
+    # ax.text(18,3,'1',fontsize=fontsize)
+    # ax.text(18,63,'64',fontsize=fontsize)
+    # ax.text(36,18,'1',fontsize=fontsize)
+    # ax.text(36,47,'32',fontsize=fontsize)
+    # ax.text(52,23,'1',fontsize=fontsize)
+    # ax.text(52,43,'16',fontsize=fontsize)
+    # #vgg16
+    ax.text(5.5,25,'1',fontsize=fontsize)
+    ax.text(5.5,505,'512',fontsize=fontsize)
+    ax.text(8.5,140,'1',fontsize=fontsize)
+    ax.text(8.5,380,'256',fontsize=fontsize)
+    ax.text(10.5,205,'1',fontsize=fontsize)
+    ax.text(10.5,330,'128',fontsize=fontsize)
+    ax.text(11.9,215,'1',fontsize=fontsize)
+    ax.text(11.9,310,'64',fontsize=fontsize)
+
 
     bwith = 2
     ax.spines['bottom'].set_linewidth(bwith)
@@ -126,8 +157,8 @@ def draw_masked_net(net,pic_name,path):
     # ax.spines['bottom'].set_visible(False)
     # ax.spines['right'].set_visible(False)
 
-    ax.set_ylabel('Layer', fontsize=20)
-    ax.set_xlabel('Width', fontsize=20)
+    ax.set_xlabel('Layer', fontsize=20)
+    ax.set_ylabel('Width', fontsize=20)
     fig.tight_layout()
 
     plt.savefig(os.path.join(path,pic_name+'.png'))
@@ -182,7 +213,7 @@ if __name__ == "__main__":
     #         lo = hi
     #         last_conv_mask = mod.mask
     #
-    # fig=draw_masked_net(net,pic_name='resnet56_'+str(i),path='/home/victorfang/Desktop')
+    # fig=draw_masked_net(net,pic_name='resnet56_'+str(i),path='/home/victorfang/')
     # print()
 
 

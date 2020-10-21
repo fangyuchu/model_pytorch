@@ -797,7 +797,7 @@ def train_extractor_network(
                         'sample_num': sample_num,
                         }
                     checkpoint.update(storage.get_net_information(net, dataset_name, net_name))
-                    torch.save(checkpoint, '%s/masked_net.tar' % checkpoint_path)
+                    torch.save(checkpoint, '%s/masked_net.pth' % checkpoint_path)
                     print("{} mask is trained. Save the net. = {}".format(datetime.now(), sample_num))
                     return
 

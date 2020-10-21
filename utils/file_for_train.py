@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-# os.environ["CUDA_VISIBLE_DEVICES"] = '5'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='cifar100'
 net_type='vgg16_bn'
@@ -400,13 +400,13 @@ elif dataset == 'cifar100':
 
 
     elif net_type =='vgg16_bn':
-        exp_name='vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_6'
+        exp_name='vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_7'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=313754634
         prune_ratio=0.70
         add_shortcut_ratio=0.05
-        for prune_ratio in [0.95,0.98,0.9]:
+        for prune_ratio in [0.98,0.95,0.9]:
             print('pruning ratio:',prune_ratio)
             flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
             gradient_clip_value=None
@@ -467,7 +467,7 @@ elif dataset == 'cifar100':
             #                               )
             #
 
-            i = 6
+            i = 7
             exp_name = 'vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
             description = exp_name + '  ' + ''
 
@@ -481,7 +481,7 @@ elif dataset == 'cifar100':
             print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
 
 
-            checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16_cifar100', str(i) + '.tar'),map_location='cpu')
+            checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16_cifar100', str(i) + '.pth'),map_location='cpu')
             net.load_state_dict(checkpoint['state_dict'])
             net.mask_net()
             net.print_mask()
