@@ -109,13 +109,21 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
 
         if out.shape[1] < identity.shape[1]:
-            shape = out.shape
-            add_zeros = torch.zeros((shape[0], identity.shape[1] - shape[1], shape[2], shape[3])).to(out.device)
-            out = torch.cat((out, add_zeros), 1)
+            # shape = out.shape
+            # add_zeros = torch.zeros((shape[0], identity.shape[1] - shape[1], shape[2], shape[3])).to(out.device)
+            # out = torch.cat((out, add_zeros), 1)
+            out=nn.functional.pad(out,(0,0,0,0,0,identity.shape[1]-out.shape[1]))
+            # identity[:,:out.shape[1]] = out+identity[:,:out.shape[1]]
+            # out=identity
+
         elif out.shape[1] > identity.shape[1]:
-            shape = out.shape
-            add_zeros = torch.zeros((shape[0], shape[1] - identity.shape[1], shape[2], shape[3])).to(out.device)
-            identity = torch.cat((identity, add_zeros), 1)
+            # shape = out.shape
+            # add_zeros = torch.zeros((shape[0], shape[1] - identity.shape[1], shape[2], shape[3])).to(out.device)
+            # identity = torch.cat((identity, add_zeros), 1)
+            identity = nn.functional.pad(identity,(0,0,0,0,0,out.shape[1]-identity.shape[1]))
+
+            # out[:,:identity.shape[1]]=out[:,:identity.shape[1]]+identity
+
 
         out += identity
         out = self.relu3(out)

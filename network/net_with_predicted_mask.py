@@ -378,7 +378,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         # temporarily used for resnet50
         # 1:0.8:16167;2:0.8:17615 ;3:0.8:19670; 4:0.9:20884 0.75:16530 0.8：19124; 5:0.8:13633,0.85:14755; 6:0.9:14166,0.85:10620,0.8:9318/9200,0.75:/8170,0.7:/7200,0.5:/3150
         if isinstance(self.net, resnet.ResNet):
-            num = 8170
+            num = 7200
             print('prune:{} filters'.format(num))
             return num
 
@@ -427,6 +427,25 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
                 mod.flops = None
         raise Exception('Can\'t find appropriate prune_rate. Consider decreasing prune_num')
+
+    def print_mask(self):
+        channel_num_list = []
+        layer = -1
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+                layer += 1
+                if self.pruned is True:
+                    print('in_channels:',mod.in_channels,end='\t')
+                if isinstance(mod, conv2d_with_mask):
+                    channel_num = torch.sum(mod.mask != 0)
+                else:
+                    channel_num = mod.out_channels
+                channel_num_list += [int(channel_num)]
+                print('channel_num:  ', int(channel_num), end='\t')  # print the number of channels without being pruned
+                print('layer', layer, end='\t')
+                print(name)
+        print(channel_num_list)
+
 
     def reshape_data_to_net_structure_resnet(self, data):
         '''

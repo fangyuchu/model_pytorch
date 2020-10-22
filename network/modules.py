@@ -161,11 +161,18 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
             #add zero if num of output feature maps differentiate between conv and shortcut
             #todo: shibushi keyi zhijie jia ,buxuyao bu 0
             if downsample.size()[1]< x.size()[1]:  # downsample has less feature maps
-                add_zeros = torch.zeros(x.shape[0], x.shape[1] - downsample.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
-                downsample = torch.cat((downsample, add_zeros), 1)
+                # add_zeros = torch.zeros(x.shape[0], x.shape[1] - downsample.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
+                # downsample = torch.cat((downsample, add_zeros), 1)
+                downsample = nn.functional.pad(downsample, (0, 0, 0, 0, 0, x.shape[1] - downsample.shape[1]))
+
+                # x[:, :downsample.shape[1]]=x[:, :downsample.shape[1]] + downsample
             elif downsample.size()[1]> x.size()[1]:
-                add_zeros = torch.zeros(x.shape[0], downsample.shape[1]-x.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
-                x = torch.cat((x, add_zeros), 1)
+                # add_zeros = torch.zeros(x.shape[0], downsample.shape[1]-x.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
+                # x = torch.cat((x, add_zeros), 1)
+                x = nn.functional.pad(x, (0, 0, 0, 0, 0, downsample.shape[1] - x.shape[1]))
+
+                # downsample[:, :x.shape[1]]=x + downsample[:, :x.shape[1]]
+                # x=downsample
 
             x = x + downsample
 
