@@ -4,14 +4,13 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import math
 from framework import config as conf
-from framework.imagenet_loader import HybridTrainPipe,HybridValPipe
+from framework.imagenet_loader import HybridTrainPipe,HybridValPipe,DALIDataloader
 from PIL import Image
 import os
 import os.path
 import numpy as np
 import sys
 from torch.utils.data.sampler import SubsetRandomSampler
-from base import DALIDataloader
 
 def create_train_loader(
         batch_size,

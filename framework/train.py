@@ -140,6 +140,7 @@ def train(
         data_parallel=False,
         save_at_each_step=False,
         gradient_clip_value=None,
+        use_tensorboard=True,
 ):
     '''
 
@@ -238,17 +239,19 @@ def train(
             sample_num = checkpoint['sample_num']
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
-    #set up summary writer for tensorboard
-    writer=SummaryWriter(log_dir=tensorboard_path,
-                         purge_step=int(sample_num/batch_size))
+    if use_tensorboard is True:
+        #set up summary writer for tensorboard
+        writer=SummaryWriter(log_dir=tensorboard_path,
+                             purge_step=int(sample_num/batch_size))
     if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
         image=torch.zeros(2,3,224,224).to(device)
     elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
         image=torch.zeros(2,3,32,32).to(device)
 
-    # writer.add_graph(net, image)
-    for k in params.keys():
-        writer.add_text(tag=k,text_string=params[k])
+    if use_tensorboard is True:
+        # writer.add_graph(net, image)
+        for k in params.keys():
+            writer.add_text(tag=k,text_string=params[k])
 
     if test_net:
         print('{} test the net'.format(datetime.now()))                      #no previous checkpoint
@@ -345,11 +348,12 @@ def train(
             if paint_loss:
                 loss_list += [float(loss.detach())]
                 xaxis_loss += [xaxis]
-            writer.add_scalar(tag='status/loss',
-                              scalar_value=float(loss.detach()),
-                              global_step=int(sample_num / batch_size))
+            if use_tensorboard is True:
+                writer.add_scalar(tag='status/loss',
+                                  scalar_value=float(loss.detach()),
+                                  global_step=int(sample_num / batch_size))
 
-            if step % 20 == 0:
+            if step % 100 == 0:
                 print('{} loss is {}'.format(datetime.now(), float(loss.data)))
 
             if step % evaluate_step == 0 and step != 0:
@@ -369,15 +373,15 @@ def train(
                     return success
                 accuracy = float(accuracy)
 
+
+                if use_tensorboard is True:
+                    writer.add_scalar(tag='status/val_acc',
+                                      scalar_value=accuracy,
+                                      global_step=epoch)
+
                 if paint_loss:
                     acc_list += [accuracy]
                     xaxis_acc += [xaxis]
-
-                writer.add_scalar(tag='status/val_acc',
-                                  scalar_value=accuracy,
-                                  global_step=epoch)
-
-                if paint_loss:
                     fig, ax1 = plt.subplots()
                     ax2 = ax1.twinx()
                     ax1.plot(xaxis_loss, loss_list, 'g')

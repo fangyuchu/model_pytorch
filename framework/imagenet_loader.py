@@ -5,12 +5,12 @@ import torch
 import pickle
 import numpy as np
 import nvidia.dali.ops as ops
-from base import DALIDataloader
 from torchvision import datasets
 from sklearn.utils import shuffle
 import nvidia.dali.types as types
 from nvidia.dali.pipeline import Pipeline
 import torchvision.transforms as transforms
+from nvidia.dali.plugin.pytorch import DALIGenericIterator
 
 IMAGENET_MEAN = [0.49139968, 0.48215827, 0.44653124]
 IMAGENET_STD = [0.24703233, 0.24348505, 0.26158768]
@@ -23,6 +23,33 @@ NUM_WORKERS = 4
 VAL_SIZE = 256
 CROP_SIZE = 224
 
+
+class DALIDataloader(DALIGenericIterator):
+    def __init__(self, pipeline, size, batch_size, output_map=["data", "label"], auto_reset=True, onehot_label=False):
+        self.size_1 = size
+        self.batch_size = batch_size
+        self.onehot_label = onehot_label
+        self.output_map = output_map
+        super().__init__(pipelines=pipeline, size=size, auto_reset=auto_reset, output_map=output_map)
+
+    def __next__(self):
+        if self._first_batch is not None:
+            batch = self._first_batch
+            self._first_batch = None
+            return batch
+        data = super().__next__()[0]
+        if self.onehot_label:
+            return [data[self.output_map[0]], data[self.output_map[1]].squeeze().long()]
+        else:
+            return [data[self.output_map[0]], data[self.output_map[1]]]
+
+    def __len__(self):
+        if self.size % self.batch_size == 0:
+            return self.size // self.batch_size
+        else:
+            return self.size // self.batch_size + 1
+
+
 class HybridTrainPipe(Pipeline):
     def __init__(self, batch_size, num_threads, device_id, data_dir, crop, dali_cpu=False, local_rank=0, world_size=1):
         super(HybridTrainPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
@@ -31,9 +58,8 @@ class HybridTrainPipe(Pipeline):
         self.decode = ops.ImageDecoder(device="mixed", output_type=types.RGB)
         self.res = ops.RandomResizedCrop(device="gpu", size=crop, random_area=[0.08, 1.25])
         self.cmnp = ops.CropMirrorNormalize(device="gpu",
-                                            output_dtype=types.FLOAT,
+                                            dtype=types.FLOAT,
                                             output_layout=types.NCHW,
-                                            image_type=types.RGB,
                                             mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
                                             std=[0.229 * 255, 0.224 * 255, 0.225 * 255])
         self.coin = ops.CoinFlip(probability=0.5)
@@ -56,10 +82,9 @@ class HybridValPipe(Pipeline):
         self.decode = ops.ImageDecoder(device="mixed", output_type=types.RGB)
         self.res = ops.Resize(device="gpu", resize_shorter=size, interp_type=types.INTERP_TRIANGULAR)
         self.cmnp = ops.CropMirrorNormalize(device="gpu",
-                                            output_dtype=types.FLOAT,
+                                            dtype=types.FLOAT,
                                             output_layout=types.NCHW,
                                             crop=(crop, crop),
-                                            image_type=types.RGB,
                                             mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
                                             std=[0.229 * 255, 0.224 * 255, 0.225 * 255])
 
