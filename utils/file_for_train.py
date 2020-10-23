@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '3'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
@@ -426,7 +426,7 @@ elif dataset=='imagenet':
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
         total_flop = 4133641192
-        prune_ratio = 0.7
+        prune_ratio = 0.85
         flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value = None
         learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [30, 60]]
@@ -518,26 +518,22 @@ elif dataset=='imagenet':
         learning_rate_decay_epoch = [2 * i for i in [30, 60,90]]
         num_epochs = 100 * 2
 
-        # net = nn.parallel.DistributedDataParallel(net)
         net = nn.DataParallel(net)
-        # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=16, dataset_name='imagenet')
-        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_70_6/checkpoint/flop=1248796198,accuracy=0.66620.tar')
+
+        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_6/checkpoint/flop=1045292769,accuracy=0.49408.tar')
+        # epoch_runs=26
+        #
+        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_50_6/checkpoint/flop=2021782516,accuracy=0.53024.tar')
+        # epoch_runs=24
+        #
+        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_70_6/checkpoint/flop=1248796198,accuracy=0.49992.tar')
+        # epoch_runs=25
+        #
+        # num_epochs=200-epoch_runs
+        # learning_rate_decay_epoch=[2 * i -epoch_runs for i in [30, 60,90]]
+        #
         # net.load_state_dict(checkpoint['state_dict'])
-        # exp_name+='_train'
-        checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_6/checkpoint/flop=1045292769,accuracy=0.49408.tar')
-        epoch_runs=26
 
-        checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_50_6/checkpoint/flop=2021782516,accuracy=0.53024.tar')
-        epoch_runs=24
-
-        checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_70_6/checkpoint/flop=1248796198,accuracy=0.49992.tar')
-        epoch_runs=25
-
-        num_epochs=200-epoch_runs
-        learning_rate_decay_epoch=[2 * i -epoch_runs for i in [30, 60,90]]
-
-
-        net.load_state_dict(checkpoint['state_dict'])
         net=net.module.net
         net=nn.DataParallel(net)
         exp_name+='_onlyNet'
