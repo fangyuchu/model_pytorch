@@ -15,8 +15,13 @@ import copy
 #ssh -L 16006:127.0.0.1:6006 -p 20029 victorfang@210.28.133.13
 # import torchsnooper
 # os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
-net=resnet_cifar.resnet56(num_classes=100).cuda()
-measure_flops.measure_model(net,'cifar10')
+# net=resnet_cifar.resnet56(num_classes=100)
+# measure_flops.measure_model(net,'cifar10')
+c=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_6_onlyNet/checkpoint/flop=1045292769,accuracy=0.65143.tar')
+net=c['net']
+measure_flops.count_params(net)
+
+
 
 class Bottleneck(nn.Module):
     expansion = 4

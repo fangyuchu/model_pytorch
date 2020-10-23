@@ -143,6 +143,13 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
     count_ops_tmp=int(count_ops)
     count_ops=0
     return count_ops_tmp
+
+def count_params(net):
+    num_param=0
+    for param in net.parameters():
+        num_param+=param.numel()
+    return num_param
+
 if __name__ == '__main__':
     net = vgg.vgg16_bn(pretrained=True)
     net.classifier = nn.Sequential(
