@@ -12,7 +12,10 @@ from math import ceil
 from network import storage,vgg,resnet,resnet_cifar
 from torch.utils.tensorboard import SummaryWriter
 from framework.draw import draw_masked_net_pruned
-
+from PIL import Image
+import matplotlib.cm as cm
+import torchvision.transforms as transforms
+import numpy as np
 
 def exponential_decay_learning_rate(optimizer, sample_num, num_train,learning_rate_decay_epoch,learning_rate_decay_factor,batch_size):
     """Sets the learning rate to the initial LR decayed by learning_rate_decay_factor every decay_steps"""
@@ -483,70 +486,105 @@ def check_grad(net,step):
             print(name,grad_no_zero.mean())
     print()
 
-# def show_feature_map(
-#                     net,
-#                     data_loader,
-#                     layer_indexes,
-#                     num_image_show=64
-#                      ):
-#     '''
-#     show the feature converted feature maps of a cnn
-#     :param net: full net net
-#     :param data_loader: data_loader to load data
-#     :param layer_indexes: list of indexes of conv layer whose feature maps will be extracted and showed
-#     :param num_image_show: number of feature maps showed in one conv_layer. Supposed to be a square number
-#     :return:
-#     '''
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#
-#     sub_net=[]
-#     conv_index = 0
-#     ind_in_features=-1
-#     j=0
-#     for mod in net.features:
-#         ind_in_features+=1
-#         if isinstance(mod, torch.nn.modules.conv.Conv2d):
-#             conv_index+=1
-#             if conv_index in layer_indexes:
-#                 sub_net.append(nn.Sequential(*list(net.children())[0][:ind_in_features+1]))
-#                 j+=1
-#
-#     #sub_net = nn.Sequential(*list(net.children())[0][:conv_index+1])
-#     for step, data in enumerate(data_loader, 0):
-#         # 准备数据
-#         images, labels = data
-#         images, labels = images.to(device), labels.to(device)
-#         for i in range(len(layer_indexes)):
-#             # forward
-#             sub_net[i].eval()
-#             outputs = sub_net[i](images)
-#             outputs=outputs.detach().cpu().numpy()
-#             outputs=outputs[0,:num_image_show,:,:]
-#             outputs=pixel_transform(outputs)
-#
-#             #using pca to reduce the num of channels
-#             image_dim_reduced=np.swapaxes(np.swapaxes(outputs,0,1),1,2)
-#             shape=image_dim_reduced.shape
-#             image_dim_reduced=np.resize(image_dim_reduced,(shape[0]*shape[1],shape[2]))
-#             pca = PCA(n_components=40)#int(image_dim_reduced.shape[1]*0.5))  # 加载PCA算法，设置降维后主成分数目为32
-#             image_dim_reduced = pca.fit_transform(image_dim_reduced)  # 对样本进行降维
-#             image_dim_reduced=np.resize(image_dim_reduced,(shape[0],shape[1],image_dim_reduced.shape[1]))
-#             image_dim_reduced = np.swapaxes(np.swapaxes(image_dim_reduced, 1, 2), 0, 1)
-#             image_dim_reduced=pixel_transform(image_dim_reduced)
-#             plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i]+100)
-#             for j in range(32):
-#                 im=Image.fromarray(image_dim_reduced[j])
-#                 plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),j+1)
-#                 plt.imshow(im,cmap='Greys_r')
-#
-#
-#             plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i])
-#             for j in range(num_image_show):
-#                 im=Image.fromarray(outputs[j])
-#                 plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),j+1)
-#                 plt.imshow(im,cmap='Greys_r')
-#         plt.show()
-#         break
+def show_feature_map(
+                    net,
+                    data_loader,
+                    layer_indexes,
+                    num_image_show=64,
+                    col=4,
+                     ):
+    '''
+    show the feature converted feature maps of a cnn
+    :param net: full net net
+    :param data_loader: data_loader to load data
+    :param layer_indexes: list of indexes of conv layer whose feature maps will be extracted and showed
+    :param num_image_show: number of feature maps showed in one conv_layer.
+    :param col: number of pictures each row
+    :return:
+    '''
+    def draw(module, input, output):
+
+        # feature_map = output.detach().cpu().numpy()
+        original_output=nn.functional.conv2d(input[0], module.weight, module.bias, module.stride,module.padding, module.dilation, module.groups)
+        feature_map=original_output.detach().cpu().numpy()
+
+        feature_map = feature_map[0, :num_image_show, :, :]
+
+        mean = torch.Tensor([0.4914, 0.4822, 0.4465]).reshape(3,1,1)
+        std = torch.Tensor([0.2023, 0.1994, 0.2010]).reshape(3,1,1)
+        original_figure = input[0][0].cpu()
+        original_figure = original_figure * std + mean
+        original_figure = transforms.ToPILImage()(original_figure)
+
+        row=round(num_image_show/col)
+        f, ax = plt.subplots(row, col+1,figsize=[9, 8]) ## plus one for original figure
+        ax[0][0].imshow(original_figure)
+        ax[0][0].set_title('original image')
+        num_pic=0
+        for x in range(row):
+            for y in range(col + 1):
+                ax[x][y].get_xaxis().set_visible(False)
+                ax[x][y].get_yaxis().set_visible(False)
+                if num_pic >= num_image_show or y == 0:
+                    if row != 0:
+                        ax[x][y].spines['top'].set_visible(False)
+                        ax[x][y].spines['right'].set_visible(False)
+                        ax[x][y].spines['bottom'].set_visible(False)
+                        ax[x][y].spines['left'].set_visible(False)
+                    continue
+                im=Image.fromarray(feature_map[num_pic])
+                ax[x][y].set_title("SA=%.2f" % float(module.mask[num_pic]))
+                ax[x][y].imshow(im, vmin=feature_map.min(), vmax=feature_map.max(), interpolation='bicubic', cmap=cm.hot)
+                num_pic+=1
+        plt.savefig('/home/victorfang/test.png')
+        plt.show()
+
+    for name, mod in net.named_modules():
+        if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+            handle = mod.register_forward_hook(draw)
+
+
+    for step, data in enumerate(data_loader, 0):
+        # 准备数据
+        images, labels = data
+        images, labels = images.cuda(), labels.cuda()
+        net.eval()
+        net(images)
+        del handle
+        # for i in range(len(layer_indexes)):
+        #     # forward
+
+        #     sub_net[i].eval()
+        #     outputs = sub_net[i](images)
+        #     outputs=outputs.detach().cpu().numpy()
+        #     outputs=outputs[0,:num_image_show,:,:]
+        #     outputs=pixel_transform(outputs)
+        #
+        #     #using pca to reduce the num of channels
+        #     image_dim_reduced=np.swapaxes(np.swapaxes(outputs,0,1),1,2)
+        #     shape=image_dim_reduced.shape
+        #     image_dim_reduced=np.resize(image_dim_reduced,(shape[0]*shape[1],shape[2]))
+        #     pca = PCA(n_components=40)#int(image_dim_reduced.shape[1]*0.5))  # 加载PCA算法，设置降维后主成分数目为32
+        #     image_dim_reduced = pca.fit_transform(image_dim_reduced)  # 对样本进行降维
+        #     image_dim_reduced=np.resize(image_dim_reduced,(shape[0],shape[1],image_dim_reduced.shape[1]))
+        #     image_dim_reduced = np.swapaxes(np.swapaxes(image_dim_reduced, 1, 2), 0, 1)
+        #     image_dim_reduced=pixel_transform(image_dim_reduced)
+        #     plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i]+100)
+        #     for j in range(32):
+        #         im=Image.fromarray(image_dim_reduced[j])
+        #         plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),j+1)
+        #         plt.imshow(im,cmap='Greys_r')
+        #
+        #
+        #     plt.figure(figsize=[14,20],clear=True,num=layer_indexes[i])
+        #     for j in range(num_image_show):
+        #         im=Image.fromarray(outputs[j])
+        #         plt.subplot(math.sqrt(num_image_show),math.sqrt(num_image_show),j+1)
+        #         plt.imshow(im,cmap='Greys_r')
+        # plt.show()
+        break
+
+
 
 def pixel_transform(feature_maps):
     #把feature maps数值移至0-255区间
@@ -826,13 +864,15 @@ def train_extractor_network(
                     writer.add_figure(tag='net structure', figure=fig, global_step=int(sample_num / batch_size))
 
                 target_mask_mean = 0
-                block_penalty = torch.zeros(1).cuda()
+                mean_penalty = torch.zeros(1).cuda()
+                std_penalty = torch.zeros(1).cuda()
                 # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
                 i = 0
                 for name, mod in net.named_modules():
                     if isinstance(mod, modules.conv2d_with_mask):
                         # mask_abs = mod.shortcut_mask.abs()
                         mask_mean=torch.mean(mod.mask.abs())
+                        std=torch.std(mod.mask.abs())
                         # if 'conv_a' in name:#mask_mean<=0.5:# and last_conv_prune is False:
                         #     target_mask_mean=0
                         #     positive_penalty= positive_penalty+(target_mask_mean - mask_mean).abs()
@@ -841,13 +881,15 @@ def train_extractor_network(
                         #     target_mask_mean=1
                         #     negative_penalty = negative_penalty + (target_mask_mean - mask_mean).abs()
                             # last_conv_prune=False
-                        block_penalty = block_penalty + (target_mask_mean - mask_mean).abs()
+                        mean_penalty = mean_penalty + (target_mask_mean - mask_mean).abs()
+                        std_penalty = std_penalty + std#-std
 
                     # if isinstance(mod,modules.conv2d_with_mask):
-                    #     block_penalty = block_penalty + l1loss(mod.mask, mask_last_step[i])
+                    #     mean_penalty = mean_penalty + l1loss(mod.mask, mask_last_step[i])
                     #     mask_last_step[i]=mod.mask.clone().detach()
                     #     i+=1
                 # alpha = 0.2#resnet56:0.02,vgg16bn:0.05/0.4 for cifar100, resnet50:0.2
+                lamda=0.05
                 if isinstance(net.net,vgg.VGG):
                     if net.dataset_name == 'cifar100':
                         alpha=0.05
@@ -869,15 +911,21 @@ def train_extractor_network(
                 if step == 0:
                     writer.add_text(tag='alpha', text_string=str(alpha))
                     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
-                weighted_block_penalty = alpha * block_penalty
-
-                writer.add_scalar(tag='block_penalty',
-                                  scalar_value=block_penalty,
+                weighted_mean_penalty = alpha * mean_penalty
+                writer.add_scalar(tag='penalty/mean_penalty',
+                                  scalar_value=mean_penalty,
                                   global_step=int(sample_num / batch_size))
-                writer.add_scalar(tag='weighted_block_penalty',
-                                  scalar_value=weighted_block_penalty,
+                writer.add_scalar(tag='weighted_penalty/weighted_mean_penalty',
+                                  scalar_value=weighted_mean_penalty,
                                   global_step=int(sample_num / batch_size))
-                loss = loss + weighted_block_penalty
+                weighted_std_penalty = lamda*std_penalty
+                writer.add_scalar(tag='penalty/std_penalty',
+                                  scalar_value=std_penalty,
+                                  global_step=int(sample_num / batch_size))
+                writer.add_scalar(tag='weighted_penalty/weighted_std_penalty',
+                                  scalar_value=weighted_std_penalty,
+                                  global_step=int(sample_num / batch_size))
+                loss = loss + weighted_mean_penalty - weighted_std_penalty
 
 
 

@@ -106,7 +106,7 @@ def draw_masked_net(net,pic_name,path):
     # heatmap.cmap.set_under('black')
     # bar = fig.colorbar(heatmap, extend='both')
 
-    fontsize = 15
+    fontsize = 20
 
     cb=ax.figure.colorbar(im,ax=ax)
     cb.ax.tick_params(labelsize=fontsize)
@@ -132,21 +132,21 @@ def draw_masked_net(net,pic_name,path):
 
 
     # #resnet56
-    # ax.text(18,3,'1',fontsize=fontsize)
-    # ax.text(18,63,'64',fontsize=fontsize)
-    # ax.text(36,18,'1',fontsize=fontsize)
-    # ax.text(36,47,'32',fontsize=fontsize)
-    # ax.text(52,23,'1',fontsize=fontsize)
-    # ax.text(52,43,'16',fontsize=fontsize)
+    ax.text(18,3,'1',fontsize=fontsize)
+    ax.text(18,63,'64',fontsize=fontsize)
+    ax.text(36,18,'1',fontsize=fontsize)
+    ax.text(36,47,'32',fontsize=fontsize)
+    ax.text(52,23,'1',fontsize=fontsize)
+    ax.text(51,43,'16',fontsize=fontsize)
     # #vgg16
-    ax.text(5.5,25,'1',fontsize=fontsize)
-    ax.text(5.5,505,'512',fontsize=fontsize)
-    ax.text(8.5,140,'1',fontsize=fontsize)
-    ax.text(8.5,380,'256',fontsize=fontsize)
-    ax.text(10.5,205,'1',fontsize=fontsize)
-    ax.text(10.5,330,'128',fontsize=fontsize)
-    ax.text(11.9,215,'1',fontsize=fontsize)
-    ax.text(11.9,310,'64',fontsize=fontsize)
+    # ax.text(5.5,25,'1',fontsize=fontsize)
+    # ax.text(5.5,505,'512',fontsize=fontsize)
+    # ax.text(8.5,140,'1',fontsize=fontsize)
+    # ax.text(8.5,380,'256',fontsize=fontsize)
+    # ax.text(10.5,205,'1',fontsize=fontsize)
+    # ax.text(10.5,335,'128',fontsize=fontsize)
+    # ax.text(11.9,215,'1',fontsize=fontsize)
+    # ax.text(11.7,315,'64',fontsize=fontsize)
 
 
     bwith = 2
@@ -157,8 +157,8 @@ def draw_masked_net(net,pic_name,path):
     # ax.spines['bottom'].set_visible(False)
     # ax.spines['right'].set_visible(False)
 
-    ax.set_xlabel('Layer', fontsize=20)
-    ax.set_ylabel('Width', fontsize=20)
+    ax.set_xlabel('Layer', fontsize=fontsize)
+    ax.set_ylabel('Width', fontsize=fontsize)
     fig.tight_layout()
 
     plt.savefig(os.path.join(path,pic_name+'.png'))
@@ -170,70 +170,23 @@ def draw_masked_net(net,pic_name,path):
 if __name__ == "__main__":
     from network import resnet_cifar,vgg
     import torch.nn as nn
-    # # resnet56
-    # add_shortcut_ratio = 0.9  # 不是这儿！！！
-    # mask_update_freq = 1000
-    # mask_update_epochs = 900
-    # mask_training_start_epoch = 1
-    # mask_training_stop_epoch = 80
-    #
-    # total_flop = 126550666
-    # prune_ratio = 0
-    # flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
-    # gradient_clip_value = None
-    # learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
-    # num_epochs = 160 * 1 + mask_training_stop_epoch
-    # #
-    # net = resnet_cifar.resnet56(num_classes=10).cuda()
-    # net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
-    #                                                                        net_name='resnet56',
-    #                                                                        dataset_name='cifar10',
-    #                                                                        mask_update_epochs=mask_update_epochs,
-    #                                                                        mask_update_freq=mask_update_freq,
-    #                                                                        flop_expected=flop_expected,
-    #                                                                        gcn_rounds=2,
-    #                                                                        mask_training_start_epoch=mask_training_start_epoch,
-    #                                                                        mask_training_stop_epoch=mask_training_stop_epoch,
-    #                                                                        batch_size=128,
-    #                                                                        add_shortcut_ratio=add_shortcut_ratio
-    #                                                                        )
-    # net = net.cuda()
-    # i = 4
-    #
-    # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56', str(i) + '.tar'),map_location='cpu')
-    # net.load_state_dict(checkpoint['state_dict'])
-    # mask = net.extractor(net, net.net_name, net.dataset_name)  # predict mask using extractor
-    # mask=mask.abs()
-    # lo = hi = 0
-    # last_conv_mask = None
-    # for name, mod in net.net.named_modules():
-    #     if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
-    #         hi += mod.out_channels
-    #         mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
-    #         lo = hi
-    #         last_conv_mask = mod.mask
-    #
-    # fig=draw_masked_net(net,pic_name='resnet56_'+str(i),path='/home/victorfang/')
-    # print()
-
-
-    # vgg16
+    # resnet56
     add_shortcut_ratio = 0.9  # 不是这儿！！！
     mask_update_freq = 1000
     mask_update_epochs = 900
     mask_training_start_epoch = 1
     mask_training_stop_epoch = 80
 
-    total_flop = 314017290
+    total_flop = 126550666
     prune_ratio = 0
     flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
     gradient_clip_value = None
     learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
     num_epochs = 160 * 1 + mask_training_stop_epoch
     #
-    net = vgg.vgg16_bn(dataset_name='cifar10').cuda()
+    net = resnet_cifar.resnet56(num_classes=10).cuda()
     net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
-                                                                           net_name='vgg16_bn',
+                                                                           net_name='resnet56',
                                                                            dataset_name='cifar10',
                                                                            mask_update_epochs=mask_update_epochs,
                                                                            mask_update_freq=mask_update_freq,
@@ -245,9 +198,12 @@ if __name__ == "__main__":
                                                                            add_shortcut_ratio=add_shortcut_ratio
                                                                            )
     net = net.cuda()
-    i = 2
+    i = 10086
 
-    checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16', str(i) + '.tar'),map_location='cpu')
+    # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56', str(i) + '.tar'),map_location='cpu')
+
+    checkpoint=torch.load('/home/disk_new/model_saved/resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_80epoch_std_8/checkpoint/masked_net.pth')
+
     net.load_state_dict(checkpoint['state_dict'])
     mask = net.extractor(net, net.net_name, net.dataset_name)  # predict mask using extractor
     mask=mask.abs()
@@ -260,6 +216,53 @@ if __name__ == "__main__":
             lo = hi
             last_conv_mask = mod.mask
 
-    fig=draw_masked_net(net,pic_name='vgg16_'+str(i),path='/home/victorfang/')
+    fig=draw_masked_net(net,pic_name='resnet56_'+str(i),path='/home/victorfang/')
     print()
+
+
+    # # vgg16
+    # add_shortcut_ratio = 0.9  # 不是这儿！！！
+    # mask_update_freq = 1000
+    # mask_update_epochs = 900
+    # mask_training_start_epoch = 1
+    # mask_training_stop_epoch = 80
+    #
+    # total_flop = 314017290
+    # prune_ratio = 0
+    # flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
+    # gradient_clip_value = None
+    # learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
+    # num_epochs = 160 * 1 + mask_training_stop_epoch
+    # #
+    # net = vgg.vgg16_bn(dataset_name='cifar10').cuda()
+    # net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+    #                                                                        net_name='vgg16_bn',
+    #                                                                        dataset_name='cifar10',
+    #                                                                        mask_update_epochs=mask_update_epochs,
+    #                                                                        mask_update_freq=mask_update_freq,
+    #                                                                        flop_expected=flop_expected,
+    #                                                                        gcn_rounds=2,
+    #                                                                        mask_training_start_epoch=mask_training_start_epoch,
+    #                                                                        mask_training_stop_epoch=mask_training_stop_epoch,
+    #                                                                        batch_size=128,
+    #                                                                        add_shortcut_ratio=add_shortcut_ratio
+    #                                                                        )
+    # net = net.cuda()
+    # i = 2
+    #
+    # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16', str(i) + '.tar'),map_location='cpu')
+    # net.load_state_dict(checkpoint['state_dict'])
+    # mask = net.extractor(net, net.net_name, net.dataset_name)  # predict mask using extractor
+    # mask=mask.abs()
+    # lo = hi = 0
+    # last_conv_mask = None
+    # for name, mod in net.net.named_modules():
+    #     if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+    #         hi += mod.out_channels
+    #         mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+    #         lo = hi
+    #         last_conv_mask = mod.mask
+    #
+    # fig=draw_masked_net(net,pic_name='vgg16_'+str(i),path='/home/victorfang/')
+    # print()
 

@@ -32,8 +32,7 @@ class conv2d_with_mask(nn.modules.Conv2d):
         else:
             masked_bias = self.bias * self.mask.view(-1)
 
-        out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,
-                                   self.padding, self.dilation, self.groups)
+        out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,self.padding, self.dilation, self.groups)
 
         return out
 
