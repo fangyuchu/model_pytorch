@@ -16,6 +16,13 @@ from filter_characteristic import predict_dead_filter
 import os
 
 class extractor(nn.Module):
+    def __init__(self,net,layer_num):
+        filter_num=0
+        for name,mod in net.named_modules():
+
+
+
+class extractor_cvpr(nn.Module):
     def __init__(self,feature_len,gcn_rounds=2,only_gcn=False,only_inner_features=False):
         super(extractor, self).__init__()
         self.only_gcn = only_gcn
