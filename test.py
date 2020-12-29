@@ -36,6 +36,7 @@ flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
 gradient_clip_value=None
 learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
 num_epochs=160*1+mask_training_stop_epoch
+
 #
 net=resnet_cifar.resnet56(num_classes=10).cuda()
 net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
@@ -55,9 +56,9 @@ i = 4
 
 checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56',str(i) + '.tar'),map_location='cpu')
 net.load_state_dict(checkpoint['state_dict'])
-# net.mask_net()
-# net.print_mask()
-# net.prune_net()
+net.mask_net()
+net.print_mask()
+net.prune_net()
 net.current_epoch = net.mask_training_stop_epoch + 1
 net.eval()
 dl=data_loader.create_test_loader(batch_size=1,num_workers=0,dataset_name='cifar10',shuffle=True)

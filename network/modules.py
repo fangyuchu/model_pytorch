@@ -92,7 +92,7 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
             stride = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / (w_out - 1))
             self.downsample = nn.Sequential(OrderedDict([
                 ('downsampleConv', nn.Conv2d(in_channels=conv.in_channels,
-                                             out_channels=self.add_shortcut_num,
+                                             out_channels=max(1,self.add_shortcut_num),
                                              stride=stride,
                                              kernel_size=1,
                                              bias=False)),
