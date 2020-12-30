@@ -495,6 +495,7 @@ def show_feature_map(
                      ):
     '''
     show the feature converted feature maps of a cnn
+    ex: show_feature_map(net,dl,0,16)
     :param net: full net net
     :param data_loader: data_loader to load data
     :param layer_indexes: list of indexes of conv layer whose feature maps will be extracted and showed
@@ -534,7 +535,8 @@ def show_feature_map(
                     continue
                 im=Image.fromarray(feature_map[num_pic])
                 ax[x][y].set_title("SA=%.2f" % float(module.mask[num_pic]))
-                ax[x][y].imshow(im, vmin=feature_map.min(), vmax=feature_map.max(), interpolation='bicubic', cmap=cm.hot)
+                # ax[x][y].imshow(im, vmin=feature_map.min(), vmax=feature_map.max(), interpolation='bicubic', cmap=cm.hot)
+                ax[x][y].imshow(im, vmin=feature_map.min(), vmax=feature_map.max(), interpolation='bicubic', cmap=cm.coolwarm)
                 num_pic+=1
         plt.savefig('/home/victorfang/test.png')
         plt.show()
@@ -548,6 +550,7 @@ def show_feature_map(
         # 准备数据
         images, labels = data
         images, labels = images.cuda(), labels.cuda()
+        torch.save(images,'/home/victorfang/images.pth')
         net.eval()
         net(images)
         del handle
@@ -787,9 +790,9 @@ def train_extractor_network(
         print(optimizer.state_dict()['param_groups'][0]['lr'])
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
-            # if step==0 and epoch==0:      # debug code
-            #     old_data=data             #use the same batch of data over and over again
-            # data=old_data                 #the loss should decrease if the net is defined properly
+        #     if step==0 and epoch==0:      # debug code
+        #         old_data=data             #use the same batch of data over and over again
+        #     data=old_data                 #the loss should decrease if the net is defined properly
 
             xaxis+=1
             if sample_num / num_train==epoch+1:               #one epoch of training finished

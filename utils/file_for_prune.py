@@ -867,6 +867,6 @@ prune_and_train.prune_inactive_neural_with_extractor(net=net,
                                                      max_data_to_test=1000,
                                                      extractor_epoch=300,
                                                      extractor_feature_len=15,
-                                                     gcn_rounds=1
+                                                     gcn_layer_num=1
                                                      )
 

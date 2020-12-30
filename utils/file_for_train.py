@@ -11,6 +11,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='cifar10'
 net_type='resnet56'
+exp_name='gat_version_'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -28,7 +29,7 @@ if dataset == 'cifar10':
     mask_training_stop_epoch=20
 
     if net_type=='resnet56':
-        exp_name='resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_80epoch_std_8'
+        exp_name+='resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_20epoch_std_1'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=126550666#125485706
@@ -45,56 +46,13 @@ if dataset == 'cifar10':
                                                                                mask_update_epochs=mask_update_epochs,
                                                                                mask_update_freq=mask_update_freq,
                                                                                flop_expected=flop_expected,
-                                                                               gcn_rounds=2,
+                                                                               gcn_layer_num=2,
                                                                                mask_training_start_epoch=mask_training_start_epoch,
                                                                                mask_training_stop_epoch=mask_training_stop_epoch,
                                                                                batch_size=batch_size,
                                                                                add_shortcut_ratio=add_shortcut_ratio
                                                                                )
         net=net.to(device)
-        # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
-        # # save the output to log
-        # print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
-        # if not os.path.exists(checkpoint_path):
-        #     os.makedirs(checkpoint_path, exist_ok=True)
-        # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-        # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-        #
-        # print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
-        # train.train_extractor_network(net=net,
-        #                               net_name='resnet56',
-        #                               exp_name=exp_name,
-        #                               description=description,
-        #                               dataset_name='cifar10',
-        #
-        #                               optim_method_net=optimizer_net,
-        #                               optim_method_extractor=optimizer_extractor,
-        #                               weight_decay=weight_decay,
-        #                               momentum=momentum,
-        #                               learning_rate=learning_rate,
-        #
-        #                               num_epochs=num_epochs,
-        #                               batch_size=batch_size,
-        #                               evaluate_step=5000,
-        #                               load_net=False,
-        #                               test_net=False,
-        #                               num_workers=4,
-        #                               # weight_decay=5e-4,
-        #                               learning_rate_decay=True,
-        #                               learning_rate_decay_epoch=learning_rate_decay_epoch,
-        #                               learning_rate_decay_factor=0.1,
-        #                               scheduler_name='MultiStepLR',
-        #                               top_acc=1,
-        #                               paint_loss=True,
-        #                               save_at_each_step=False,
-        #                               gradient_clip_value=gradient_clip_value
-        #                               )
-        #
-        #
-        i = 9
-        exp_name = 'resnet56_predicted_mask_and_variable_shortcut_net_newinner_doubleschedule' + str(int(prune_ratio * 100)) + '_' + str(i)
-        description = exp_name + '  ' + ''
-
         checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
         # save the output to log
         print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
@@ -102,47 +60,90 @@ if dataset == 'cifar10':
             os.makedirs(checkpoint_path, exist_ok=True)
         sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
         sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-        print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
 
+        print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
+        train.train_extractor_network(net=net,
+                                      net_name='resnet56',
+                                      exp_name=exp_name,
+                                      description=description,
+                                      dataset_name='cifar10',
 
-        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56',str(i) + '.pth'),map_location='cpu')
-        net.load_state_dict(checkpoint['state_dict'])
-        net.mask_net()
-        net.print_mask()
-        net.prune_net()
-        net.current_epoch = net.mask_training_stop_epoch + 1
-        learning_rate_decay_epoch = [2*i for i in [80,120]]
-        num_epochs = 160*2
-        train.train(net=net,
-                    net_name='resnet56',
-                    exp_name=exp_name,
-                    description=description,
-                    dataset_name='cifar10',
-                    optimizer=optim.SGD,
-                    weight_decay=weight_decay,
-                    momentum=momentum,
-                    learning_rate=learning_rate,
-                    num_epochs=num_epochs,
-                    batch_size=batch_size,
-                    evaluate_step=5000,
-                    resume=False,
-                    test_net=True,
-                    num_workers=2,
-                    learning_rate_decay=True,
-                    learning_rate_decay_epoch=learning_rate_decay_epoch,
-                    learning_rate_decay_factor=0.1,
-                    scheduler_name='MultiStepLR',
-                    top_acc=1,
-                    data_parallel=False,
-                    paint_loss=True,
-                    save_at_each_step=False,
-                    gradient_clip_value=gradient_clip_value
-                    )
+                                      optim_method_net=optimizer_net,
+                                      optim_method_extractor=optimizer_extractor,
+                                      weight_decay=weight_decay,
+                                      momentum=momentum,
+                                      learning_rate=learning_rate,
 
-        eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
-        evaluate.evaluate_net(net, eval_loader, save_net=False)
+                                      num_epochs=num_epochs,
+                                      batch_size=batch_size,
+                                      evaluate_step=5000,
+                                      load_net=False,
+                                      test_net=False,
+                                      num_workers=4,
+                                      # weight_decay=5e-4,
+                                      learning_rate_decay=True,
+                                      learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                      learning_rate_decay_factor=0.1,
+                                      scheduler_name='MultiStepLR',
+                                      top_acc=1,
+                                      paint_loss=True,
+                                      save_at_each_step=False,
+                                      gradient_clip_value=gradient_clip_value
+                                      )
+        #
+        #
+        # i = 9
+        # exp_name += 'resnet56_predicted_mask_and_variable_shortcut_net_newinner_doubleschedule' + str(int(prune_ratio * 100)) + '_' + str(i)
+        # description = exp_name + '  ' + ''
+        #
+        # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+        # # save the output to log
+        # print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+        # if not os.path.exists(checkpoint_path):
+        #     os.makedirs(checkpoint_path, exist_ok=True)
+        # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+        # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+        # print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
+        #
+        #
+        # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56',str(i) + '.pth'),map_location='cpu')
+        # net.load_state_dict(checkpoint['state_dict'])
+        # net.mask_net()
+        # net.print_mask()
+        # net.prune_net()
+        # net.current_epoch = net.mask_training_stop_epoch + 1
+        # learning_rate_decay_epoch = [2*i for i in [80,120]]
+        # num_epochs = 160*2
+        # train.train(net=net,
+        #             net_name='resnet56',
+        #             exp_name=exp_name,
+        #             description=description,
+        #             dataset_name='cifar10',
+        #             optimizer=optim.SGD,
+        #             weight_decay=weight_decay,
+        #             momentum=momentum,
+        #             learning_rate=learning_rate,
+        #             num_epochs=num_epochs,
+        #             batch_size=batch_size,
+        #             evaluate_step=5000,
+        #             resume=False,
+        #             test_net=True,
+        #             num_workers=2,
+        #             learning_rate_decay=True,
+        #             learning_rate_decay_epoch=learning_rate_decay_epoch,
+        #             learning_rate_decay_factor=0.1,
+        #             scheduler_name='MultiStepLR',
+        #             top_acc=1,
+        #             data_parallel=False,
+        #             paint_loss=True,
+        #             save_at_each_step=False,
+        #             gradient_clip_value=gradient_clip_value
+        #             )
+        #
+        # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
+        # evaluate.evaluate_net(net, eval_loader, save_net=False)
     elif net_type=='vgg16_bn':
-        exp_name='vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
+        exp_name+='vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=314017290
@@ -159,7 +160,7 @@ if dataset == 'cifar10':
                                                                                mask_update_epochs=mask_update_epochs,
                                                                                mask_update_freq=mask_update_freq,
                                                                                flop_expected=flop_expected,
-                                                                               gcn_rounds=2,
+                                                                               gcn_layer_num=2,
                                                                                mask_training_start_epoch=mask_training_start_epoch,
                                                                                mask_training_stop_epoch=mask_training_stop_epoch,
                                                                                batch_size=batch_size,
@@ -207,7 +208,7 @@ if dataset == 'cifar10':
 
 
         i = 5
-        exp_name = 'vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        exp_name += 'vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
         checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -276,7 +277,7 @@ elif dataset == 'cifar100':
     mask_training_stop_epoch=20
 
     if net_type =='vgg16_bn':
-        exp_name='vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
+        exp_name+='vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=316813412
@@ -294,7 +295,7 @@ elif dataset == 'cifar100':
                                                                                mask_update_epochs=mask_update_epochs,
                                                                                mask_update_freq=mask_update_freq,
                                                                                flop_expected=flop_expected,
-                                                                               gcn_rounds=2,
+                                                                               gcn_layer_num=2,
                                                                                mask_training_start_epoch=mask_training_start_epoch,
                                                                                mask_training_stop_epoch=mask_training_stop_epoch,
                                                                                batch_size=batch_size,
@@ -341,7 +342,7 @@ elif dataset == 'cifar100':
         #
 
         i = 5
-        exp_name = 'vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        exp_name += 'vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
         checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -401,7 +402,7 @@ elif dataset == 'cifar100':
         eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
         evaluate.evaluate_net(net, eval_loader, save_net=False)
     elif net_type == 'resnet56':
-        exp_name = 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
+        exp_name += 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
         total_flop = 126556516
@@ -419,7 +420,7 @@ elif dataset == 'cifar100':
                                                                                mask_update_epochs=mask_update_epochs,
                                                                                mask_update_freq=mask_update_freq,
                                                                                flop_expected=flop_expected,
-                                                                               gcn_rounds=2,
+                                                                               gcn_layer_num=2,
                                                                                mask_training_start_epoch=mask_training_start_epoch,
                                                                                mask_training_stop_epoch=mask_training_stop_epoch,
                                                                                batch_size=batch_size,
@@ -466,7 +467,7 @@ elif dataset == 'cifar100':
         #
 
         i = 5
-        exp_name = 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_newinner_repeat' + str(
+        exp_name += 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_newinner_repeat' + str(
             int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
@@ -548,7 +549,7 @@ elif dataset=='imagenet':
         mask_training_start_epoch = 1
         mask_training_stop_epoch = 3
 
-        exp_name = 'resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
+        exp_name += 'resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
         total_flop = 4133641192
@@ -565,7 +566,7 @@ elif dataset=='imagenet':
                                                                                mask_update_epochs=mask_update_epochs,
                                                                                mask_update_freq=mask_update_freq,
                                                                                flop_expected=flop_expected,
-                                                                               gcn_rounds=2,
+                                                                               gcn_layer_num=2,
                                                                                mask_training_start_epoch=mask_training_start_epoch,
                                                                                mask_training_stop_epoch=mask_training_stop_epoch,
                                                                                batch_size=batch_size,
@@ -616,7 +617,7 @@ elif dataset=='imagenet':
 
         #
         i = 6
-        exp_name = 'resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_' + str(
+        exp_name += 'resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_' + str(
             int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 

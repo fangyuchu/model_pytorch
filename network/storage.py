@@ -34,7 +34,7 @@ def get_net_information(net,dataset_name,net_name):
     if isinstance(net,net_with_predicted_mask.predicted_mask_net):
         checkpoint['net_type']=type(net)
         checkpoint['feature_len']=net.feature_len
-        checkpoint['gcn_rounds']=net.gcn_rounds
+        checkpoint['gcn_layer_num']=net.gcn_layer_num
         checkpoint['flop_expected']=net.flop_expected
         checkpoint['only_gcn']=net.extractor.only_gcn
         checkpoint['only_inner_features']=net.extractor.only_inner_features
@@ -98,7 +98,7 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
                                                              dataset_name,
                                                              checkpoint['flop_expected'],
                                                              checkpoint['feature_len'],
-                                                             checkpoint['gcn_rounds'],
+                                                             checkpoint['gcn_layer_num'],
                                                              only_gcn=checkpoint['only_gcn'],
                                                              only_inner_features=checkpoint['only_inner_features']
                                                              )
@@ -108,7 +108,7 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
                                                                                    dataset_name=dataset_name,
                                                                                    flop_expected=checkpoint['flop_expected'],
                                                                                    feature_len=checkpoint['feature_len'],
-                                                                                   gcn_rounds=checkpoint['gcn_rounds'],
+                                                                                   gcn_layer_num=checkpoint['gcn_layer_num'],
                                                                                    only_gcn=checkpoint['only_gcn'],
                                                                                    only_inner_features=checkpoint['only_inner_features'])
             net.set_structure(checkpoint['structure'])
