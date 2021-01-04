@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='cifar100'
 net_type='resnet56'
@@ -29,7 +29,7 @@ if dataset == 'cifar10':
     mask_training_stop_epoch=20
 
     if net_type=='resnet56':
-        exp_name+='resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_20epoch_std_3'
+        exp_name='gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_20epoch_std_3'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=126550666#125485706
@@ -93,7 +93,7 @@ if dataset == 'cifar10':
         #
         #
         i = 3
-        exp_name += 'resnet56_predicted_mask_and_variable_shortcut_net_newinner' + str(int(prune_ratio * 100)) + '_' + str(i)
+        exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_newinner' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
         checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -143,7 +143,7 @@ if dataset == 'cifar10':
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
         # evaluate.evaluate_net(net, eval_loader, save_net=False)
     elif net_type=='vgg16_bn':
-        exp_name+='vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
+        exp_name='gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=314017290
@@ -208,7 +208,7 @@ if dataset == 'cifar10':
 
 
         # i = 5
-        # exp_name += 'vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        # exp_name = 'gat_vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
         # description = exp_name + '  ' + ''
         #
         # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -277,7 +277,7 @@ elif dataset == 'cifar100':
     mask_training_stop_epoch=20
 
     if net_type =='vgg16_bn':
-        exp_name+='vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
+        exp_name='gat_vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=316813412
@@ -342,7 +342,7 @@ elif dataset == 'cifar100':
         #
 
         # i = 5
-        # exp_name += 'vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        # exp_name = 'gat_vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
         # description = exp_name + '  ' + ''
         #
         # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -402,11 +402,11 @@ elif dataset == 'cifar100':
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
         # evaluate.evaluate_net(net, eval_loader, save_net=False)
     elif net_type == 'resnet56':
-        exp_name += 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
+        exp_name = 'gat_resnet56_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
         total_flop = 126556516
-        prune_ratio = 0.90
+        prune_ratio = 0.70
         flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value = None
         learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
@@ -467,7 +467,7 @@ elif dataset == 'cifar100':
         #
 
         i = 1
-        exp_name += 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_newinner_repeat' + str(
+        exp_name = 'gat_resnet56_cifar100_predicted_mask_and_variable_shortcut_net_doubleschedule' + str(
             int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
@@ -489,10 +489,10 @@ elif dataset == 'cifar100':
         net.print_mask()
         net.prune_net()
         net.current_epoch = net.mask_training_stop_epoch + 1
-        learning_rate_decay_epoch = [1 * i for i in [80, 120]]
+        learning_rate_decay_epoch = [2 * i for i in [80, 120]]
         learning_rate_decay_factor = 0.1
 
-        num_epochs = 160  # 160*1
+        num_epochs = 2*160  # 160*1
         train.train(net=net,
                     net_name='resnet56',
                     exp_name=exp_name,
