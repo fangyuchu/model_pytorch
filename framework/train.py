@@ -692,7 +692,7 @@ def train_extractor_network(
 
     # prepare the data
     train_set_size = getattr(conf, dataset_name)['train_set_size']
-    num_train = train_set_size
+    num_train = int(np.floor(train_val_split_ratio * train_set_size))
     # if train_loader is None:
     train_loader, _ = data_loader.create_train_loader(batch_size=batch_size,
                                                       num_workers=num_workers,
