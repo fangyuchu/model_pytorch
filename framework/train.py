@@ -640,7 +640,7 @@ def train_extractor_network(
         data_distributed=False,
         save_at_each_step=False,
         gradient_clip_value=None,
-        train_val_split_ratio=0.1
+        train_val_split_ratio='all',
 
 ):
     '''
@@ -697,7 +697,7 @@ def train_extractor_network(
     train_loader, _ = data_loader.create_train_loader(batch_size=batch_size,
                                                       num_workers=num_workers,
                                                       dataset_name=dataset_name,
-                                                      train_val_split_ratio=None)
+                                                      train_val_split_ratio=train_val_split_ratio)
     val_loader = data_loader.create_test_loader(batch_size=batch_size,
                                                 num_workers=num_workers,
                                                 dataset_name=dataset_name, )

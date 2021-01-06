@@ -74,13 +74,15 @@ class BasicBlock(nn.Module):
             residual = self.downsample(x)
 
         if basicblock.shape[1] < residual.shape[1]:
-            shape = basicblock.shape
-            add_zeros = torch.zeros((shape[0], residual.shape[1] - shape[1], shape[2], shape[3])).to(basicblock.device)
-            basicblock = torch.cat((basicblock, add_zeros), 1)
+            # shape = basicblock.shape
+            # add_zeros = torch.zeros((shape[0], residual.shape[1] - shape[1], shape[2], shape[3])).to(basicblock.device)
+            # basicblock = torch.cat((basicblock, add_zeros), 1)
+            basicblock = nn.functional.pad(basicblock,(0,0,0,0,0,residual.shape[1] - basicblock.shape[1]))
         elif basicblock.shape[1] > residual.shape[1]:
-            shape = basicblock.shape
-            add_zeros = torch.zeros((shape[0], shape[1] - residual.shape[1], shape[2], shape[3])).to(basicblock.device)
-            residual = torch.cat((residual, add_zeros), 1)
+            # shape = basicblock.shape
+            # add_zeros = torch.zeros((shape[0], shape[1] - residual.shape[1], shape[2], shape[3])).to(basicblock.device)
+            # residual = torch.cat((residual, add_zeros), 1)
+            residual= nn.functional.pad(residual,(0,0,0,0,0,basicblock.shape[1] - residual.shape[1]))
 
         return F.relu(residual + basicblock, inplace=False)
 

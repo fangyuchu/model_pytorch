@@ -26,7 +26,7 @@ class gat(nn.Module):
                 filter_num+=[mod.out_channels]
                 filter_weight_num[mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]]=1
 
-        self.register_buffer('initial_h',torch.zeros((sum(filter_num),embedding_feature_len)))
+        self.register_buffer('initial_h',torch.ones((sum(filter_num),embedding_feature_len)))
         self.register_buffer('adj',torch.zeros((sum(filter_num),sum(filter_num))))
         row=last_num=filter_num[0]
         for i,num in enumerate(filter_num,start=1):
@@ -45,6 +45,7 @@ class gat(nn.Module):
         self.gat_layers=nn.Sequential(*gat_layers)
 
     def forward(self,net):
+        # self.initial_h_list=[]
         self.initial_h=torch.ones_like(self.initial_h)
         i=0
         for name,mod in net.named_modules():
@@ -52,8 +53,10 @@ class gat(nn.Module):
                 weight=conv_to_matrix(mod)
                 filter_weight_num=mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]
                 self.initial_h[i:i+mod.out_channels]=self.w[str(filter_weight_num)](weight)
+                # self.initial_h_list+=[self.w[str(filter_weight_num)](weight)]
                 i+=mod.out_channels
         embedding_features=self.gat_layers(self.initial_h)
+        # embedding_features=self.gat_layers(self.initial_h_list)
         return embedding_features
 
 
@@ -74,6 +77,10 @@ class GAT_layer(nn.Module):
         self.A=F.softmax(self.A,dim=1)
 
         self.A=self.A+self.eye_mat # set the attention of the node itself to 1.(the sum of neighbor's attention is also 1)
+
+        # for i in range(len(h)):
+
+
         #forward propagation
         h_new=self.linear(h)
         h_new=F.relu(self.A.mm(h_new))
