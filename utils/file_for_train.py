@@ -9,9 +9,8 @@ from framework import config as conf
 import logger
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dataset='cifar100'
+dataset='cifar10'
 net_type='resnet56'
-exp_name='gat_version_'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -33,7 +32,7 @@ if dataset == 'cifar10':
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=126550666#125485706
-        prune_ratio=0.9
+        prune_ratio=0.98
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=5
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -92,8 +91,8 @@ if dataset == 'cifar10':
         #                               )
         #
         #
-        i = 3
-        exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_newinner' + str(int(prune_ratio * 100)) + '_' + str(i)
+        i = 1
+        exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_doubleschedule' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
         checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -112,8 +111,8 @@ if dataset == 'cifar10':
         net.print_mask()
         net.prune_net()
         net.current_epoch = net.mask_training_stop_epoch + 1
-        learning_rate_decay_epoch = [1*i for i in [80,120]]
-        num_epochs = 160*1
+        learning_rate_decay_epoch = [2*i for i in [80,120]]
+        num_epochs = 160*2
         train.train(net=net,
                     net_name='resnet56',
                     exp_name=exp_name,
@@ -126,7 +125,7 @@ if dataset == 'cifar10':
                     num_epochs=num_epochs,
                     batch_size=batch_size,
                     evaluate_step=5000,
-                    resume=False,
+                    resume=True,
                     test_net=True,
                     num_workers=2,
                     learning_rate_decay=True,

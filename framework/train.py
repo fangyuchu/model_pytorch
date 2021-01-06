@@ -589,6 +589,8 @@ def show_feature_map(
 
 
 
+
+
 def pixel_transform(feature_maps):
     #把feature maps数值移至0-255区间
     mean = feature_maps.mean()
@@ -866,71 +868,99 @@ def train_extractor_network(
                     fig = draw_masked_net_pruned(net)
                     writer.add_figure(tag='net structure', figure=fig, global_step=int(sample_num / batch_size))
 
-                target_mask_mean = 0
-                mean_penalty = torch.zeros(1).cuda()
-                std_penalty = torch.zeros(1).cuda()
-                # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
-                i = 0
-                for name, mod in net.named_modules():
-                    if isinstance(mod, modules.conv2d_with_mask):
-                        # mask_abs = mod.shortcut_mask.abs()
-                        mask_mean=torch.mean(mod.mask.abs())
-                        std=torch.std(mod.mask.abs())
-                        # if 'conv_a' in name:#mask_mean<=0.5:# and last_conv_prune is False:
-                        #     target_mask_mean=0
-                        #     positive_penalty= positive_penalty+(target_mask_mean - mask_mean).abs()
-                        #     # last_conv_prune=True
-                        # else:
-                        #     target_mask_mean=1
-                        #     negative_penalty = negative_penalty + (target_mask_mean - mask_mean).abs()
-                            # last_conv_prune=False
-                        mean_penalty = mean_penalty + (target_mask_mean - mask_mean).abs()
-                        std_penalty = std_penalty + std#-std
-
-                    # if isinstance(mod,modules.conv2d_with_mask):
-                    #     mean_penalty = mean_penalty + l1loss(mod.mask, mask_last_step[i])
-                    #     mask_last_step[i]=mod.mask.clone().detach()
-                    #     i+=1
-                # alpha = 0.2#resnet56:0.02,vgg16bn:0.05/0.4 for cifar100, resnet50:0.2
-                lamda=0.05
-                if isinstance(net.net,vgg.VGG):
-                    if net.dataset_name == 'cifar100':
-                        alpha=0.05
-                    else:
-                        alpha=0.05
-                elif isinstance(net.net,resnet_cifar.CifarResNet):
-                    # alpha=0.02
-
-                    if net.dataset_name == 'cifar100':
-                        alpha=0.002
-                    else:
-                        alpha=0.02
-
-                elif isinstance(net.net,resnet.ResNet):
-                    alpha=0.02
-                else:
-                    raise Exception('What is this net???')
-
+                # target_mask_mean = 0
+                # mean_penalty = torch.zeros(1).cuda()
+                # std_penalty = torch.zeros(1).cuda()
+                # # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
+                # i = 0
+                # for name, mod in net.named_modules():
+                #     if isinstance(mod, modules.conv2d_with_mask):
+                #         # mask_abs = mod.shortcut_mask.abs()
+                #         mask_mean=torch.mean(mod.mask.abs())
+                #         std=torch.std(mod.mask.abs())
+                #         # if 'conv_a' in name:#mask_mean<=0.5:# and last_conv_prune is False:
+                #         #     target_mask_mean=0
+                #         #     positive_penalty= positive_penalty+(target_mask_mean - mask_mean).abs()
+                #         #     # last_conv_prune=True
+                #         # else:
+                #         #     target_mask_mean=1
+                #         #     negative_penalty = negative_penalty + (target_mask_mean - mask_mean).abs()
+                #             # last_conv_prune=False
+                #         mean_penalty = mean_penalty + (target_mask_mean - mask_mean).abs()
+                #         std_penalty = std_penalty + std#-std
+                #
+                #     # if isinstance(mod,modules.conv2d_with_mask):
+                #     #     mean_penalty = mean_penalty + l1loss(mod.mask, mask_last_step[i])
+                #     #     mask_last_step[i]=mod.mask.clone().detach()
+                #     #     i+=1
+                # # alpha = 0.2#resnet56:0.02,vgg16bn:0.05/0.4 for cifar100, resnet50:0.2
+                # lamda=0.05
+                # if isinstance(net.net,vgg.VGG):
+                #     if net.dataset_name == 'cifar100':
+                #         alpha=0.05
+                #     else:
+                #         alpha=0.05
+                # elif isinstance(net.net,resnet_cifar.CifarResNet):
+                #     # alpha=0.02
+                #
+                #     if net.dataset_name == 'cifar100':
+                #         alpha=0.002
+                #     else:
+                #         alpha=0.02
+                #
+                # elif isinstance(net.net,resnet.ResNet):
+                #     alpha=0.02
+                # else:
+                #     raise Exception('What is this net???')
+                #
+                # if step == 0:
+                #     writer.add_text(tag='alpha', text_string=str(alpha))
+                #     writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
+                # weighted_mean_penalty = alpha * mean_penalty
+                # writer.add_scalar(tag='penalty/mean_penalty',
+                #                   scalar_value=mean_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # writer.add_scalar(tag='weighted_penalty/weighted_mean_penalty',
+                #                   scalar_value=weighted_mean_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # weighted_std_penalty = lamda*std_penalty
+                # writer.add_scalar(tag='penalty/std_penalty',
+                #                   scalar_value=std_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # writer.add_scalar(tag='weighted_penalty/weighted_std_penalty',
+                #                   scalar_value=weighted_std_penalty,
+                #                   global_step=int(sample_num / batch_size))
+                # loss = loss + weighted_mean_penalty - weighted_std_penalty
+                lamda=1e-3
+                alpha=0.5
                 if step == 0:
                     writer.add_text(tag='alpha', text_string=str(alpha))
-                    writer.add_text(tag='target_mask_mean', text_string=str(target_mask_mean))
-                weighted_mean_penalty = alpha * mean_penalty
-                writer.add_scalar(tag='penalty/mean_penalty',
-                                  scalar_value=mean_penalty,
-                                  global_step=int(sample_num / batch_size))
-                writer.add_scalar(tag='weighted_penalty/weighted_mean_penalty',
-                                  scalar_value=weighted_mean_penalty,
-                                  global_step=int(sample_num / batch_size))
-                weighted_std_penalty = lamda*std_penalty
-                writer.add_scalar(tag='penalty/std_penalty',
-                                  scalar_value=std_penalty,
-                                  global_step=int(sample_num / batch_size))
-                writer.add_scalar(tag='weighted_penalty/weighted_std_penalty',
-                                  scalar_value=weighted_std_penalty,
-                                  global_step=int(sample_num / batch_size))
-                loss = loss + weighted_mean_penalty - weighted_std_penalty
+                    writer.add_text(tag='lamda', text_string=str(lamda))
+                l1 = torch.zeros(1).cuda()
+                l2 = torch.zeros(1).cuda()
+                for name, mod in net.named_modules():
+                    if isinstance(mod, modules.conv2d_with_mask):
+                        mask_abs = mod.mask.abs()
+                        l1 = l1 + torch.norm(mask_abs,p=1)
+                        l2 = l2 + torch.norm(mask_abs)
+                weighted_penalty=lamda*(alpha*l1+(1-alpha)*l2)
+                loss=loss+weighted_penalty
 
-
+                writer.add_scalar(tag='penalty/l1',
+                                  scalar_value=l1,
+                                  global_step=int(sample_num / batch_size))
+                writer.add_scalar(tag='penalty/l2',
+                                  scalar_value=l2,
+                                  global_step=int(sample_num / batch_size))
+                writer.add_scalar(tag='weighted_penalty/l1',
+                                  scalar_value=l1*alpha,
+                                  global_step=int(sample_num / batch_size))
+                writer.add_scalar(tag='weighted_penalty/l2',
+                                  scalar_value=l2*(1-alpha),
+                                  global_step=int(sample_num / batch_size))
+                writer.add_scalar(tag='weighted_penalty/sum',
+                                  scalar_value=weighted_penalty,
+                                  global_step=int(sample_num / batch_size))
 
             # net.net.stage_1[0].conv_a.mask.retain_grad()
             loss.backward()

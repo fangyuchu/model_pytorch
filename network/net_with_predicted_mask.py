@@ -15,6 +15,7 @@ from network import storage, resnet_cifar, resnet
 import os, sys
 import numpy as np
 from collections import OrderedDict
+from sklearn import manifold
 
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
@@ -278,6 +279,29 @@ class predicted_mask_net(nn.Module):
                     mod.running_mean[last_conv_mask == 0] = 0
                     mod.running_var[last_conv_mask == 0] = 1
                 last_conv_mask = None
+
+    def t_sne(self):
+        hidden_states=self.extractor.gat(self)
+        mask=self.extractor.network(hidden_states)
+        prune_num = self.find_prune_num(mask)
+        _, mask_index = torch.topk(torch.abs(mask), k=prune_num, dim=0, largest=False)
+        mask = mask.detach().cpu().numpy()
+        index = np.ones(mask.shape).reshape(-1)
+        index[mask_index.cpu().view(-1)] = 0
+        mask = mask.reshape(-1) * index
+        mask[mask!=0]=1
+
+        tsne = manifold.TSNE(n_components=2, perplexity=40, learning_rate=600, init='pca', random_state=501)
+        X_tsne = tsne.fit_transform(hidden_states.detach().cpu().numpy())
+        x_min, x_max = X_tsne.min(0), X_tsne.max(0)
+        X_norm = (X_tsne - x_min) / (x_max - x_min)  # 归一化
+        plt.figure(figsize=(8, 8))
+        for i in range(X_norm.shape[0]):
+            plt.text(X_norm[i, 0], X_norm[i, 1], 'o', color=plt.cm.Set1(mask[i]),
+                     fontdict={'weight': 'bold', 'size': 9})
+        plt.xticks([])
+        plt.yticks([])
+        plt.show()
 
 
 class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
