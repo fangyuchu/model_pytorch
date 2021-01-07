@@ -990,7 +990,7 @@ def train_extractor_network(
             if step % 20 == 0:
                 print('{} loss is {}'.format(datetime.now(), float(loss.data)))
 
-            if step % evaluate_step == 0 and step != 0 or step==5:
+            if step % evaluate_step == 0 and step != 0 :
                 accuracy = evaluate.evaluate_net(net, val_loader,
                                                  save_net=True,
                                                  checkpoint_path=checkpoint_path,
