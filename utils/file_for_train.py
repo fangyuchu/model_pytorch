@@ -9,7 +9,7 @@ from framework import config as conf
 import logger
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dataset='cifar100'
+dataset='cifar10'
 net_type='vgg16_bn'
 train_val_split_ratio=0.1
 # # #for cifar

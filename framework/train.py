@@ -699,7 +699,7 @@ def train_extractor_network(
                                                       num_workers=num_workers,
                                                       dataset_name=dataset_name,
                                                       train_val_split_ratio=train_val_split_ratio)
-    val_loader = data_loader.create_test_loader(batch_size=batch_size,
+    val_loader = data_loader.create_test_loader(batch_size=10,#batch_size,
                                                 num_workers=num_workers,
                                                 dataset_name=dataset_name, )
 
@@ -932,7 +932,7 @@ def train_extractor_network(
                 #                   scalar_value=weighted_std_penalty,
                 #                   global_step=int(sample_num / batch_size))
                 # loss = loss + weighted_mean_penalty - weighted_std_penalty
-                lamda=1e-3
+                lamda=5e-4
                 alpha=0.5
                 if step == 0:
                     writer.add_text(tag='alpha', text_string=str(alpha))
@@ -990,7 +990,7 @@ def train_extractor_network(
             if step % 20 == 0:
                 print('{} loss is {}'.format(datetime.now(), float(loss.data)))
 
-            if step % evaluate_step == 0 and step != 0:
+            if step % evaluate_step == 0 and step != 0 or step==5:
                 accuracy = evaluate.evaluate_net(net, val_loader,
                                                  save_net=True,
                                                  checkpoint_path=checkpoint_path,

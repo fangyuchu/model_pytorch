@@ -89,7 +89,7 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
     if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
         shape=(1,3,224,224)
     elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
-        shape=(1,3,32,32)
+        shape=(2,3,32,32)
 
     if isinstance(net, nn.DataParallel):
         net_entity = net.module

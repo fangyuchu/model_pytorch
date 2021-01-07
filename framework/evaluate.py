@@ -45,9 +45,28 @@ def validate(val_loader, model,max_data_to_test=99999999,device=None):
             target = target.cuda(non_blocking=True)
             input = input.cuda(non_blocking=True)
             s_n+=input.shape[0]
+
+
+            def f_h(module, input, output):
+                print()
+                module.train()
+                o=module(input[0])
+                num_o=torch.sum(o==output)
+                num=output.shape[0]*output.shape[1]*output.shape[2]*output.shape[3]
+                if num!=num_o:
+                    print('fuck, it is here!!!!!!!!!!!!!!!!!!')
+                module.eval()
+
+            for name,mod in model.named_modules():
+                if isinstance(mod,nn.BatchNorm2d) or isinstance(mod,nn.BatchNorm1d):
+                    print(mod.training or not mod.track_running_stats)
+                    if (mod.training or not mod.track_running_stats) is False:
+                        print(name)
+                mod.register_forward_hook(f_h)
+
+
             # compute output
             output = model(input)
-
             # measure accuracy and record loss
             prec1, prec5 = accuracy(output.data, target.data, topk=(1, 5))
             #losses.update(loss.data.item(), input.size(0))
