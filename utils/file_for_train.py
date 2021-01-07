@@ -11,7 +11,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='cifar10'
 net_type='vgg16_bn'
-train_val_split_ratio=0.1
+train_val_split_ratio=0.3
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':

@@ -699,7 +699,7 @@ def train_extractor_network(
                                                       num_workers=num_workers,
                                                       dataset_name=dataset_name,
                                                       train_val_split_ratio=train_val_split_ratio)
-    val_loader = data_loader.create_test_loader(batch_size=10,#batch_size,
+    val_loader = data_loader.create_test_loader(batch_size=batch_size,
                                                 num_workers=num_workers,
                                                 dataset_name=dataset_name, )
 

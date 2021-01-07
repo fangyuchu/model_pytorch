@@ -96,19 +96,27 @@ class predicted_mask_net(nn.Module):
     def track_running_stats(self, track=True):
         for name, mod in self.named_modules():
             if 'net.' in name and (isinstance(mod, nn.BatchNorm2d) or isinstance(mod, nn.BatchNorm1d)):
-                # if track is False:
-                mod.reset_running_stats()  # reset all tracked value
                 mod.track_running_stats = track
+                if track is False:
+                    # self.register_parameter('running_mean', None)
+                    # self.register_parameter('running_var', None)
+                    # self.register_parameter('num_batches_tracked', None)
+                    mod.running_mean=mod.running_var=mod.num_batches_tracked=None
+                else:
+                    mod.register_buffer('running_mean', torch.zeros(mod.num_features))
+                    mod.register_buffer('running_var', torch.ones(mod.num_features))
+                    mod.register_buffer('num_batches_tracked', torch.tensor(0, dtype=torch.long))
+                    mod.cuda()
+                    # mod.reset_running_stats()  # reset all tracked value
+
 
     def train_mask(self):
         # update mask and track_running_stats in BN according to current step
         if self.training:
             if self.mask_training_start_epoch <= self.current_epoch < self.mask_training_stop_epoch:
-                if (
-                        self.current_epoch - self.mask_training_start_epoch) % self.mask_update_freq < self.mask_update_epochs:  # mask need to be trained
+                if (self.current_epoch - self.mask_training_start_epoch) % self.mask_update_freq < self.mask_update_epochs:  # mask need to be trained
                     self.update_mask()
-                    if (
-                            self.current_epoch - self.mask_training_start_epoch) % self.mask_update_freq == 0 and self.step_tracked == 1:
+                    if (self.current_epoch - self.mask_training_start_epoch) % self.mask_update_freq == 0 and self.step_tracked == 1:
                         self.mask_updating = True
                         self.print_mask()
                         print('{} start updating the mask.'.format(datetime.now()))
@@ -668,6 +676,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             if torch.cuda.is_available():
                 data = data.cuda()
             self.net(data)
+        self.track_running_stats(True)
 
     def prune_net_vgg(self):
         self.detach_mask()
