@@ -793,9 +793,9 @@ def train_extractor_network(
         print(optimizer.state_dict()['param_groups'][0]['lr'])
         # one epoch for one loop
         for step, data in enumerate(train_loader, 0):
-        #     if step==0 and epoch==0:      # debug code
-        #         old_data=data             #use the same batch of data over and over again
-        #     data=old_data                 #the loss should decrease if the net is defined properly
+            # if step==0 and epoch==0:      # debug code
+            #     old_data=data             #use the same batch of data over and over again
+            # data=old_data                 #the loss should decrease if the net is defined properly
 
             xaxis+=1
             if sample_num / num_train==epoch+1:               #one epoch of training finished
