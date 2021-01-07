@@ -63,12 +63,12 @@ class predicted_mask_net(nn.Module):
         # self.num_train = train_set_size - int(train_set_size * 0.1)
         self.copied_time = 0
 
-    def train(self, mode=True):
-        super().train(mode)
-        return self
+    # def train(self, mode=True):
+    #     super().train(mode)
+    #     return self
 
-    def eval(self):
-        return self.train(False)
+    # def eval(self):
+    #     return self.train(False)
 
     def copy(self):
         '''

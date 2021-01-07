@@ -77,7 +77,7 @@ def create_train_loader(
         split = int(np.floor(train_val_split_ratio * train_set_size))
         # np.random.seed(random_seed)
         np.random.shuffle(indices)
-        train_idx, valid_idx = indices[split:], indices[:split]
+        train_idx, valid_idx = indices[:split], indices[split:]
         train_sampler = SubsetRandomSampler(train_idx)
         val_sampler = SubsetRandomSampler(valid_idx)
         train_loader = torch.utils.data.DataLoader(train_folder, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers,pin_memory=True)

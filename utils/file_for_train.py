@@ -7,11 +7,11 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dataset='cifar10'
+dataset='cifar100'
 net_type='vgg16_bn'
-train_val_split_ratio=0.3
+train_val_split_ratio=0.1
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -192,7 +192,7 @@ if dataset == 'cifar10':
                                       num_epochs=num_epochs,
                                       batch_size=batch_size,
                                       evaluate_step=5000,
-                                      load_net=True,
+                                      load_net=False,
                                       test_net=False,
                                       num_workers=2,
                                       # weight_decay=5e-4,
@@ -279,7 +279,7 @@ elif dataset == 'cifar100':
     mask_training_stop_epoch=20
 
     if net_type =='vgg16_bn':
-        exp_name='gat_vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_2'
+        exp_name='gat_vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_3'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=316813412
@@ -327,7 +327,7 @@ elif dataset == 'cifar100':
                                       num_epochs=num_epochs,
                                       batch_size=batch_size,
                                       evaluate_step=5000,
-                                      load_net=True,
+                                      load_net=False,
                                       test_net=False,
                                       num_workers=2,
                                       # weight_decay=5e-4,
