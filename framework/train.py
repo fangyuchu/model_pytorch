@@ -9,7 +9,7 @@ import math
 import matplotlib.pyplot as plt
 from framework import data_loader, measure_flops, evaluate, config as conf
 from math import ceil
-from network import storage,vgg,resnet,resnet_cifar
+from network import storage,vgg,resnet,resnet_cifar,mobilenet
 from torch.utils.tensorboard import SummaryWriter
 from framework.draw import draw_masked_net_pruned
 from PIL import Image
@@ -323,7 +323,8 @@ def train(
                 break
 
             # 准备数据
-            images, labels = data
+            # images, labels = data[0]['data'],data[0]['label']
+            images,labels=data
             images, labels = images.cuda(non_blocking=True), labels.cuda(non_blocking=True)
             sample_num += int(images.shape[0])
 
@@ -779,7 +780,6 @@ def train_extractor_network(
     xaxis_loss=[]
     xaxis_acc=[]
     xaxis=0
-    #todo:可以改成先训练mask，训练完后保存模型，然后开始可选比例的prune
     print("{} Start training ".format(datetime.now())+net_name+"...")
     for epoch in range(math.floor(sample_num/num_train),num_epochs):
         print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
@@ -905,6 +905,8 @@ def train_extractor_network(
 
                 elif isinstance(net.net,resnet.ResNet):
                     alpha=0.02
+                elif isinstance(net.net,mobilenet.MobileNet):
+                    alpha=0.02#todo:tmp
                 else:
                     raise Exception('What is this net???')
 

@@ -1,5 +1,5 @@
 import torch.nn as nn
-from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg,net_with_predicted_mask
+from network import resnet,resnet_cifar,resnet_tinyimagenet,vgg,net_with_predicted_mask,mobilenet
 from network.modules import conv2d_with_mask
 import re
 from prune import prune_module
@@ -70,6 +70,8 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
             net = getattr(globals()['resnet_cifar'], net_name)(num_classes=100)
         else:
             raise Exception('Please input right dataset_name.')
+    elif 'mobilenet' in net_name:
+        net = getattr(globals()['mobilenet'], net_name)(num_class=1000)
     else:
         raise Exception('Unsupported net type:'+net_name)
 

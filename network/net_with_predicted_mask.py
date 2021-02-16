@@ -19,7 +19,6 @@ from collections import OrderedDict
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
-
 class predicted_mask_net(nn.Module):
     def __init__(self, net, net_name, dataset_name, flop_expected, feature_len=15, gcn_rounds=2, only_gcn=False,
                  only_inner_features=False, mask_update_freq=10, mask_update_epochs=1, batch_size=128,
@@ -394,6 +393,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         total_flop = self.measure_self_flops(num_filter_unmasked=out_channel_list)
         if abs(total_flop - self.flop_expected) / total_flop <= delta:
             return 0
+        #todo:这里需要找到
         prune_num = start_prune_num - 1
         top_k_idx = mask.argsort()[0:prune_num]  # find the top k smallest mask
         mask[top_k_idx] = 999  # set mask to 999 to simulate that this mask is set to 0
@@ -469,7 +469,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
     def compute_net_structure(self, filter_num_list):
         if 'resnet' in self.net_name:
             return self.compute_net_structure_resnet(filter_num_list)
-        elif 'vgg' in self.net_name:
+        elif 'vgg' in self.net_name or 'mobilenet_v1' in self.net_name:
             in_channel_list = [3]
             first_conv = False
             i = -1
@@ -794,9 +794,9 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 if next_conv is not None:
                     raise Exception('Where is this bn from?')
                 batch_norm_name, batch_norm = name, mod
-                if 'bn_b' in name or 'bn_1' in name \
-                        or (
-                        'layer' not in name and 'bn1' in name) or 'bn3' in name:  # do not prune the in_channels of first conv in each block(because it will be pruned in prune_net())
+                if 'bn_b' in name or 'bn_1' in name or ('layer' not in name and 'bn1' in name) or 'bn3' in name:
+                    # do not prune the in_channels of first conv in each block(because it will be pruned in prune_net())
+                    #including the second and third layer in resnet 56 and resnet 56 and the first layer in miblienet_v1
                     next_conv = 0
                     break
         try:

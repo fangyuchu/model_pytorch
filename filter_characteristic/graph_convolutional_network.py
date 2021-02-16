@@ -27,13 +27,16 @@ class gcn(nn.Module):
         self.normalization = nn.BatchNorm1d(num_features=in_features,track_running_stats=False,affine=True)
     def forward(self, net,net_name,dataset_name, rounds=2):
         if 'vgg' in net_name:
-            return self.forward_vgg(net,rounds)
+            return self.forward_straight_net(net, rounds)
         elif 'resnet' in net_name:
-            return self.forward_resnet(net,rounds)
+            return self.forward_resnet(net, rounds)
+        elif 'mobilenet_v1' == net_name:
+            return self.forward_straight_net(net, rounds)
 
-    def forward_vgg(self, net, rounds):
+
+    def forward_straight_net(self, net, rounds):
         '''
-
+        # gcn used for straight net without residual conenctions (like vgg and mobilenet_v1)
         :param net:
         :param rounds:
         :return: extracted-features representing the cross layer relationship for each filter
@@ -179,17 +182,20 @@ class gcn(nn.Module):
         #     else:
         #         mean = weight_list[i].mean(dim=1).reshape([-1, 1])  # calculate the mean of current layer
 
-        for i in range(len(conv_list)):
-            kernel_size=conv_list[i].kernel_size[0]*conv_list[i].kernel_size[1]
-            old_mean=mean
-            mean = mean.repeat(1, kernel_size).view(-1)  # expand each value for 9 times.
-            weight_list[i] += mean  # aggregate the mean from previous layer
+        for i, conv in enumerate(conv_list):
+            kernel_size = conv.kernel_size[0] * conv.kernel_size[1]
+            old_mean = mean
+            if conv.groups == conv.out_channels:  # for depthwise convolution in MobileNet v1
+                pass
+            else:  # for other normal convolution
+                mean = mean.repeat(1, kernel_size).view(-1)  # expand each value for 9 times.
+            # weight_list[i] += mean  # aggregate the mean from previous layer
             weight_list[i]=weight_list[i]/2+mean/2
-            if isinstance(conv_list[i], block_with_mask_shortcut):
-                if len(conv_list[i].downsample) == 0:  # direct shortcut w/o 1x1 conv
+            if isinstance(conv, block_with_mask_shortcut):
+                if len(conv.downsample) == 0:  # direct shortcut w/o 1x1 conv
                     mean = weight_list[i].mean(dim=1).reshape([-1, 1])/2 + old_mean/2
                 else:  # shortcut with 1x1 conv
-                    weight_downsample = conv_to_matrix(conv_list[i].downsample[0])
+                    weight_downsample = conv_to_matrix(conv.downsample[0])
                     downsample_mean = (weight_downsample + old_mean.view(-1)).mean(dim=1)/2
                     mean = (weight_list[i].mean(dim=1) + downsample_mean).reshape([-1, 1])/2
             else:
