@@ -1,3 +1,5 @@
+import os,sys
+sys.path.append('../')
 import torch
 import transform_conv
 from transform_conv import conv_to_matrix,pca
@@ -5,7 +7,85 @@ import torch.nn as nn
 from network import vgg,resnet_cifar,resnet,net_with_predicted_mask
 import copy
 from network.modules import block_with_mask_shortcut,block_with_mask_weighted_shortcut
+import math
+import torch.nn.functional as F
+
 from framework import evaluate
+
+class gat(nn.Module):
+    def __init__(self,net,layer_num,embedding_feature_len):
+        # self.adj
+        # self.w
+        # self.gat_layers
+        super(gat, self).__init__()
+
+        filter_num=[]
+        filter_weight_num={}
+        for name,mod in net.named_modules():
+            if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+                filter_num+=[mod.out_channels]
+                filter_weight_num[mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]]=1
+
+        self.register_buffer('initial_h',torch.ones((sum(filter_num),embedding_feature_len)))
+        self.register_buffer('adj',torch.zeros((sum(filter_num),sum(filter_num))))
+        row=last_num=filter_num[0]
+        for i,num in enumerate(filter_num,start=1):
+            self.adj[row:row+num,row-last_num:row]=1
+            row+=num
+            last_num=num
+        for i in range(sum(filter_num)):
+            self.adj[i][i]=0
+
+        self.w={}
+        for key in filter_weight_num.keys():
+            self.w[str(key)]=nn.Linear(in_features=key,out_features=embedding_feature_len,bias=False)
+        self.w=nn.ModuleDict(self.w)
+
+        gat_layers=[GAT_layer(self.adj,embedding_feature_len,embedding_feature_len) for i in range(layer_num)]
+        self.gat_layers=nn.Sequential(*gat_layers)
+
+    def forward(self,net):
+        # self.initial_h_list=[]
+        self.initial_h=torch.ones_like(self.initial_h)
+        i=0
+        for name,mod in net.named_modules():
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+                weight=conv_to_matrix(mod)
+                filter_weight_num=mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]
+                self.initial_h[i:i+mod.out_channels]=self.w[str(filter_weight_num)](weight)
+                # self.initial_h_list+=[self.w[str(filter_weight_num)](weight)]
+                i+=mod.out_channels
+        embedding_features=self.gat_layers(self.initial_h)
+        # embedding_features=self.gat_layers(self.initial_h_list)
+        return embedding_features
+
+
+
+class GAT_layer(nn.Module):
+    def __init__(self,adjacent_matrix,in_feature_len,out_feature_len):
+        super(GAT_layer, self).__init__()
+        self.register_buffer('adj',adjacent_matrix)
+        self.linear=nn.Linear(in_feature_len,out_feature_len)
+        self.A=None
+        self.register_buffer('zero_vec',-9e15*torch.ones_like(self.adj)) #so the output of softmax will be 0 for unconnected node
+        self.register_buffer('eye_mat',torch.eye(self.adj.shape[0]))
+
+    def forward(self,h):
+        #compute attention matrix
+        attention=h.mm(h.T)/math.sqrt(h.shape[1])
+        self.A=torch.where(self.adj > 0, attention, self.zero_vec)
+        self.A=F.softmax(self.A,dim=1)
+
+        self.A=self.A+self.eye_mat # set the attention of the node itself to 1.(the sum of neighbor's attention is also 1)
+
+        # for i in range(len(h)):
+
+
+        #forward propagation
+        h_new=self.linear(h)
+        h_new=F.relu(self.A.mm(h_new))
+        return h_new
+
 
 
 class gcn(nn.Module):

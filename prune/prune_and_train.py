@@ -589,7 +589,7 @@ def prune_inactive_neural_with_extractor(net,
                                          max_data_to_test=10000,
                                          extractor_epoch=300,
                                          extractor_feature_len=27,
-                                         gcn_rounds=2,
+                                         gcn_layer_num=2,
                                          only_gcn=False,
                                          no_grad=[],
                                          scheduler_name='MultiStepLR',
@@ -664,7 +664,7 @@ def prune_inactive_neural_with_extractor(net,
     print('max_data_to_test',max_data_to_test )
     print('extractor_epoch',extractor_epoch )
     print('extractor_feature_len', extractor_feature_len)
-    print('gcn_rounds',gcn_rounds )
+    print('gcn_layer_num',gcn_layer_num )
     print('only_gcn:',only_gcn)
     print('scheduler_name:',scheduler_name)
 
@@ -812,7 +812,7 @@ def prune_inactive_neural_with_extractor(net,
                                 num_images=num_test_images,
                                 epoch=extractor_epoch,
                                 feature_len=extractor_feature_len,
-                                gcn_rounds=gcn_rounds,
+                                gcn_layer_num=gcn_layer_num,
                                 checkpoint_path=os.path.join(checkpoint_path, 'extractor'),
                                 only_gcn=only_gcn)
 
@@ -2640,7 +2640,7 @@ if __name__ == "__main__":
                                                          max_data_to_test=10000,
                                                          extractor_epoch=100,
                                                          extractor_feature_len=15,
-                                                         gcn_rounds=2
+                                                         gcn_layer_num=2
                                                          )
 
 

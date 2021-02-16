@@ -15,12 +15,13 @@ from network import storage, resnet_cifar, resnet
 import os, sys
 import numpy as np
 from collections import OrderedDict
+from sklearn import manifold
 
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 class predicted_mask_net(nn.Module):
-    def __init__(self, net, net_name, dataset_name, flop_expected, feature_len=15, gcn_rounds=2, only_gcn=False,
+    def __init__(self, net, net_name, dataset_name, flop_expected, feature_len=15, gcn_layer_num=2, only_gcn=False,
                  only_inner_features=False, mask_update_freq=10, mask_update_epochs=1, batch_size=128,
                  mask_training_start_epoch=10, mask_training_stop_epoch=80):
         '''
@@ -30,19 +31,20 @@ class predicted_mask_net(nn.Module):
         :param net_name:
         :param dataset_name:
         :param feature_len: expected length of features to extract
-        :param gcn_rounds:
+        :param gcn_layer_num:
         :param only_gcn:
         :param only_inner_features:
         :param mask_update_freq: how often does the extractor being updated. The extractor will be updated every mask_update_freq EPOCHs!
         :param mask_update_epochs: how many epochs used to update mask in each update
         '''
         super(predicted_mask_net, self).__init__()
-        self.extractor = filter_feature_extractor.extractor(feature_len=feature_len, gcn_rounds=gcn_rounds,
-                                                            only_gcn=only_gcn, only_inner_features=only_inner_features)
+        # self.extractor = filter_feature_extractor.extractor(feature_len=feature_len, gcn_rounds=gcn_rounds,
+        #                                                     only_gcn=only_gcn, only_inner_features=only_inner_features)
+        self.extractor=filter_feature_extractor.extractor(net, feature_len=feature_len, layer_num=gcn_layer_num)
         self.net_name = net_name
         self.dataset_name = dataset_name
         self.feature_len = feature_len
-        self.gcn_rounds = gcn_rounds
+        self.gcn_layer_num = gcn_layer_num
         # self.data_parallel=True
         self.mask_update_freq = mask_update_freq
         self.mask_update_epochs = mask_update_epochs
@@ -60,12 +62,12 @@ class predicted_mask_net(nn.Module):
         # self.num_train = train_set_size - int(train_set_size * 0.1)
         self.copied_time = 0
 
-    def train(self, mode=True):
-        super().train(mode)
-        return self
+    # def train(self, mode=True):
+    #     super().train(mode)
+    #     return self
 
-    def eval(self):
-        return self.train(False)
+    # def eval(self):
+    #     return self.train(False)
 
     def copy(self):
         '''
@@ -93,19 +95,27 @@ class predicted_mask_net(nn.Module):
     def track_running_stats(self, track=True):
         for name, mod in self.named_modules():
             if 'net.' in name and (isinstance(mod, nn.BatchNorm2d) or isinstance(mod, nn.BatchNorm1d)):
-                # if track is False:
-                mod.reset_running_stats()  # reset all tracked value
                 mod.track_running_stats = track
+                if track is False:
+                    # self.register_parameter('running_mean', None)
+                    # self.register_parameter('running_var', None)
+                    # self.register_parameter('num_batches_tracked', None)
+                    mod.running_mean=mod.running_var=mod.num_batches_tracked=None
+                else:
+                    mod.register_buffer('running_mean', torch.zeros(mod.num_features))
+                    mod.register_buffer('running_var', torch.ones(mod.num_features))
+                    mod.register_buffer('num_batches_tracked', torch.tensor(0, dtype=torch.long))
+                    mod.cuda()
+                    # mod.reset_running_stats()  # reset all tracked value
+
 
     def train_mask(self):
         # update mask and track_running_stats in BN according to current step
         if self.training:
             if self.mask_training_start_epoch <= self.current_epoch < self.mask_training_stop_epoch:
-                if (
-                        self.current_epoch - self.mask_training_start_epoch) % self.mask_update_freq < self.mask_update_epochs:  # mask need to be trained
+                if (self.current_epoch - self.mask_training_start_epoch) % self.mask_update_freq < self.mask_update_epochs:  # mask need to be trained
                     self.update_mask()
-                    if (
-                            self.current_epoch - self.mask_training_start_epoch) % self.mask_update_freq == 0 and self.step_tracked == 1:
+                    if (self.current_epoch - self.mask_training_start_epoch) % self.mask_update_freq == 0 and self.step_tracked == 1:
                         self.mask_updating = True
                         self.print_mask()
                         print('{} start updating the mask.'.format(datetime.now()))
@@ -277,9 +287,32 @@ class predicted_mask_net(nn.Module):
                     mod.running_var[last_conv_mask == 0] = 1
                 last_conv_mask = None
 
+    def t_sne(self):
+        hidden_states=self.extractor.gat(self)
+        mask=self.extractor.network(hidden_states)
+        prune_num = self.find_prune_num(mask)
+        _, mask_index = torch.topk(torch.abs(mask), k=prune_num, dim=0, largest=False)
+        mask = mask.detach().cpu().numpy()
+        index = np.ones(mask.shape).reshape(-1)
+        index[mask_index.cpu().view(-1)] = 0
+        mask = mask.reshape(-1) * index
+        mask[mask!=0]=1
+
+        tsne = manifold.TSNE(n_components=2, perplexity=40, learning_rate=600, init='pca', random_state=501)
+        X_tsne = tsne.fit_transform(hidden_states.detach().cpu().numpy())
+        x_min, x_max = X_tsne.min(0), X_tsne.max(0)
+        X_norm = (X_tsne - x_min) / (x_max - x_min)  # 归一化
+        plt.figure(figsize=(8, 8))
+        for i in range(X_norm.shape[0]):
+            plt.text(X_norm[i, 0], X_norm[i, 1], 'o', color=plt.cm.Set1(mask[i]),
+                     fontdict={'weight': 'bold', 'size': 9})
+        plt.xticks([])
+        plt.yticks([])
+        plt.show()
+
 
 class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
-    def __init__(self, net, net_name, dataset_name, flop_expected, add_shortcut_ratio, feature_len=15, gcn_rounds=2,
+    def __init__(self, net, net_name, dataset_name, flop_expected, add_shortcut_ratio, feature_len=15, gcn_layer_num=2,
                  only_gcn=False,
                  only_inner_features=False, mask_update_freq=10, mask_update_epochs=1, batch_size=128,
                  mask_training_start_epoch=10, mask_training_stop_epoch=80,
@@ -291,7 +324,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         :param net_name:
         :param dataset_name:
         :param feature_len: expected length of features to extract
-        :param gcn_rounds:
+        :param gcn_layer_num:
         :param only_gcn:
         :param only_inner_features:
         :param mask_update_freq: how often does the extractor being updated. The extractor will be updated every mask_update_freq STEPs!
@@ -305,7 +338,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                                                                        dataset_name=dataset_name,
                                                                        flop_expected=flop_expected,
                                                                        feature_len=feature_len,
-                                                                       gcn_rounds=gcn_rounds,
+                                                                       gcn_layer_num=gcn_layer_num,
                                                                        only_gcn=only_gcn,
                                                                        only_inner_features=only_inner_features,
                                                                        mask_update_freq=mask_update_freq,
@@ -365,7 +398,6 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
 
     def find_prune_num(self, mask, delta=0.005, start_prune_num=100):
         '''
-
         determine the number of filters to prune for a given flops
         f(prune_rate) represents the flops of network w.r.t prune_rate. It's not monotonically decreasing.
         So this code try to find the target prune_rate in the left
@@ -644,6 +676,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             if torch.cuda.is_available():
                 data = data.cuda()
             self.net(data)
+        self.track_running_stats(True)
 
     def prune_net_vgg(self):
         self.detach_mask()

@@ -19,7 +19,7 @@ def create_train_loader(
         std=[0.229, 0.224, 0.225],
         dataset_name='',
         default_image_size=224,
-        train_val_split_ratio=0.1,
+        train_val_split_ratio='all',# ex.  0.1
 ):
     mean=getattr(conf,dataset_name)['mean']
     std = getattr(conf, dataset_name)['std']
@@ -67,19 +67,21 @@ def create_train_loader(
                                               transforms.Normalize(mean=mean, std=std),
                                           ]))
 
-    # #create indices to split train and val set
-    # train_set_size = getattr(conf,dataset_name)['train_set_size']
-    # indices = list(range(train_set_size))
-    # split = int(np.floor(train_val_split_ratio * train_set_size))
-    # # np.random.seed(random_seed)
-    # np.random.shuffle(indices)
-    # train_idx, valid_idx = indices[split:], indices[:split]
-    # train_sampler = SubsetRandomSampler(train_idx)
-    # val_sampler = SubsetRandomSampler(valid_idx)
-    # train_loader = torch.utils.data.DataLoader(train_folder, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers,pin_memory=True)
-    # val_loader=torch.utils.data.DataLoader(val_folder, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers,pin_memory=True)
-    train_loader=torch.utils.data.DataLoader(train_folder, batch_size=batch_size, num_workers=num_workers,pin_memory=True,shuffle=True)
-    val_loader=None
+    if train_val_split_ratio =='all':
+        train_loader=torch.utils.data.DataLoader(train_folder, batch_size=batch_size, num_workers=num_workers,pin_memory=True,shuffle=True)
+        val_loader = None
+    else:
+        #create indices to split train and val set
+        train_set_size = getattr(conf,dataset_name)['train_set_size']
+        indices = list(range(train_set_size))
+        split = int(np.floor(train_val_split_ratio * train_set_size))
+        # np.random.seed(random_seed)
+        np.random.shuffle(indices)
+        train_idx, valid_idx = indices[:split], indices[split:]
+        train_sampler = SubsetRandomSampler(train_idx)
+        val_sampler = SubsetRandomSampler(valid_idx)
+        train_loader = torch.utils.data.DataLoader(train_folder, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers,pin_memory=True)
+        val_loader=torch.utils.data.DataLoader(val_folder, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers,pin_memory=True)
     if dataset_name == 'imagenet':
         return get_imagenet_loader(dataset_path, batch_size, 'train', False),None
     return train_loader,val_loader

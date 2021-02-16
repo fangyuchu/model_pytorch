@@ -389,9 +389,11 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     :return:
     '''
     # plt.style.use('seaborn-whitegrid')
-    font_size=20
+    # font_size=20    #for small figure
+    font_size=15
     marker_size=15
-    marker_list=['+','*','d','s','o','v',]
+    # marker_list=['v','+','*','.','d','s','o',] # for baselines
+    marker_list=['v','o','*','d','.','s','+',]
     if type(acc_list[0]) is not list:
         acc_list=[acc_list]
     if acc_list[0][0]<1:
@@ -443,7 +445,7 @@ if __name__ == "__main__":
                              ],
 
                    prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
-                   legends=['PFS','EB-Tickets','Rethinking','SFP'],
+                   legends=['PFS','EB-Tickets','Rethink','SFP'],
                    exp_name='motivation')
 
 
@@ -457,7 +459,7 @@ if __name__ == "__main__":
     #
     #                          ],
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],#[0.7,0.75,0.8,0.85,0.9,0.95],
-    #                legends=['SAP','PFS','EB-Tickets','Rethinking','SFP'],
+    #                legends=['SAP','PFS','EB-Tickets','Rethink','SFP'],
     #                exp_name='Pruning_ResNet-56_on_CIFAR-10')
 
     # # Pruning VGG-16 on CIFAR-10
@@ -469,7 +471,7 @@ if __name__ == "__main__":
     #                          ],
     #
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
-    #                legends=['SAP','PFS','EB-Tickets','Rethinking','SFP'],
+    #                legends=['SAP','PFS','EB-Tickets','Rethink','SFP'],
     #                exp_name='Pruning_VGG-16_on_CIFAR-10')
 
 
@@ -482,7 +484,7 @@ if __name__ == "__main__":
     #                          ],
     #
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
-    #                legends=['SAP','PFS','EB-Tickets','Rethinking','SFP'],
+    #                legends=['SAP','PFS','EB-Tickets','Rethink','SFP'],
     #                exp_name='Pruning_VGG-16_on_CIFAR-100')
 
     # # Pruning ResNet-56 on CIFAR-100
@@ -493,7 +495,7 @@ if __name__ == "__main__":
     #                          [0.62945, 0.6123, 0.608, 0.5983, 0.52245, 0.5352, 0.4929, 0.07775]
     #                          ],
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],#[0.7,0.75,0.8,0.85,0.9,0.95],
-    #                legends=['SAP','PFS','EB-Tickets','Rethinking','SFP'],
+    #                legends=['SAP','PFS','EB-Tickets','Rethink','SFP'],
     #                exp_name='Pruning_ResNet-56_on_CIFAR-100')
 
     # #ablation study part module

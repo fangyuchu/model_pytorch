@@ -1,5 +1,7 @@
+import os,sys
+sys.path.append('../')
 import torch
-from filter_characteristic.graph_convolutional_network import gcn
+from filter_characteristic.graph_convolutional_network import gcn,gat
 from transform_conv import conv_to_matrix,pca
 import torch.nn as nn
 import transform_conv
@@ -13,11 +15,29 @@ from framework import config as conf
 from random import shuffle
 import copy
 from filter_characteristic import predict_dead_filter
-import os
-
 class extractor(nn.Module):
-    def __init__(self,feature_len,gcn_rounds=2,only_gcn=False,only_inner_features=False):
+    def __init__(self,net,feature_len=20,layer_num=2):
         super(extractor, self).__init__()
+        self.gat=gat(net,layer_num,feature_len)
+        self.network = nn.Sequential(
+            nn.Linear(feature_len, 1, bias=True),
+            nn.BatchNorm1d(1, track_running_stats=False),
+            nn.Tanh(),
+        )
+
+        # to be compatible with the older version
+        self.only_gcn=True
+        self.only_inner_features=False
+        self.feature_len=feature_len
+        self.gcn_layer_num=layer_num
+    def forward(self,net,*args):
+        hidden_states=self.gat(net)
+        return self.network(hidden_states)
+
+
+class extractor_cvpr(nn.Module):
+    def __init__(self,feature_len,gcn_layer_num=2,only_gcn=False,only_inner_features=False):
+        super(extractor_cvpr, self).__init__()
         self.only_gcn = only_gcn
         if only_gcn:  # only use gcn for prediction
             self.gcn = gcn(in_features=feature_len, out_features=1)
@@ -25,23 +45,23 @@ class extractor(nn.Module):
             self.gcn = gcn(in_features=feature_len, out_features=feature_len)
         self.only_inner_features = only_inner_features
         self.feature_len = feature_len
-        self.gcn_rounds = gcn_rounds
+        self.gcn_layer_num = gcn_layer_num
         if not only_inner_features:
             in_features = feature_len + feature_len
         else:
             in_features = feature_len
         self.network = nn.Sequential(
-            nn.Linear(in_features,128),
-            nn.BatchNorm1d(128,track_running_stats=False),
-            nn.ReLU(True),
-            nn.Linear(128,1,bias=True),
+            # nn.Linear(in_features,128),
+            # nn.BatchNorm1d(128,track_running_stats=False),
+            # nn.ReLU(True),
+            nn.Linear(in_features,1,bias=True),
             nn.BatchNorm1d(1,track_running_stats=False),
             nn.Tanh(),
         )
         self.normalization=nn.BatchNorm1d(num_features=in_features,track_running_stats=False)
         
     def forward(self,net,net_name,dataset_name ):
-        crosslayer_features=self.gcn.forward(net=net,rounds=self.gcn_rounds,net_name=net_name,dataset_name=dataset_name)
+        crosslayer_features=self.gcn.forward(net=net,rounds=self.gcn_layer_num,net_name=net_name,dataset_name=dataset_name)
         if self.only_gcn:                                                                      #only use gcn for prediction
             return crosslayer_features
 
@@ -132,27 +152,7 @@ class extractor(nn.Module):
 
 
 
-def load_extractor(path):
-    '''
-    load feature extractor from checkpoint in path
-    :param path:
-    :return:
-    '''
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    checkpoint=torch.load(path)
-    feature_len=checkpoint['feature_len']
-    gcn_rounds=checkpoint['gcn_rounds']
-    try:
-        only_gcn=checkpoint['only_gcn']
-    except KeyError:
-        only_gcn=False
-    try:
-        only_inner_features=checkpoint['only_inner_features']
-    except KeyError:
-        only_inner_features=False
-    net=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds,only_gcn=only_gcn,only_inner_features=only_inner_features).to(device)
-    net.load_state_dict(checkpoint['state_dict'])
-    return net
+
 
 def read_data(path,
               num_images=None):
@@ -204,184 +204,10 @@ def read_data(path,
 
     return sample
 
-def train_extractor(train_data_dir,
-                    net_name,
-                    dataset_name,
-                    num_images,
-                    epoch=1001,
-                    feature_len=27,
-                    gcn_rounds=2,
-                    criterion=torch.nn.MSELoss(),
-                    special='',
-                    checkpoint_path=None,
-                    only_gcn=False,
-                    only_inner_features=False):
-    print(criterion)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    extractor_model=extractor(feature_len=feature_len,gcn_rounds=gcn_rounds,only_gcn=only_gcn,only_inner_features=only_inner_features).to(device)
-    sample_list=read_data(path=train_data_dir, num_images=num_images)
-    optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.Adam,learning_rate=1e-2,weight_decay=0)
-    # optimizer=train.prepare_optimizer(net=extractor_model,optimizer=torch.optim.SGD,learning_rate=1e-3,weight_decay=0)
-    if checkpoint_path is None:
-        checkpoint_path = os.path.join(conf.root_path , 'filter_feature_extractor' , 'checkpoint',net_name,special+criterion.__class__.__name__)
-    if not os.path.exists(checkpoint_path):
-        os.makedirs(checkpoint_path, exist_ok=True)
-    order=[i for i in range(len(sample_list))]
-    for i in range(epoch):
-        total_loss=[0 for k in range(len(sample_list))]
-        shuffle(order)
-        for j in order:
-            sample=sample_list[j]
-            net=sample['net']
-            filter_label=sample['filter_label']
-            label=torch.Tensor(filter_label).reshape((-1,1)).to(device)
-            optimizer.zero_grad()
-            extractor_model.train()
-            output=extractor_model.forward(net,net_name,dataset_name)
 
-            loss=criterion(output,label)
-            loss.backward()
-
-            total_loss[j]=float(loss)
-            optimizer.step()
-
-        print('{}  Epoch:{}. loss is {}. Sum:'.format(datetime.now(),i, total_loss),end='')
-        print(sum(total_loss))
-        if i%10==0 and i!=0:
-            checkpoint={'feature_len':feature_len,
-                        'gcn_rounds':gcn_rounds,
-                        'state_dict':extractor_model.state_dict(),
-                        'only_gcn':only_gcn,
-                        'only_inner_features':only_inner_features,}
-            torch.save(checkpoint,os.path.join(checkpoint_path,str(i)+'.tar'))
-
-    checkpoint = {'feature_len': feature_len,
-                  'gcn_rounds': gcn_rounds,
-                  'state_dict': extractor_model.state_dict(),
-                  'only_gcn':only_gcn,
-                  'only_inner_features':only_inner_features,}
-
-    torch.save(checkpoint, os.path.join(checkpoint_path, str(epoch) + '.tar'))
 
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/train'),
-    #                 criterion=nn.MSELoss(),
-    #                 net_name='vgg16_bn',
-    #                 dataset_name='cifar10',
-    #                 feature_len=15,
-    #                 num_images=10000,
-    #                 special='combined_innerfeatures',
-    #                 only_gcn=False,
-    #                 epoch=150)
-
-    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/train'),
-    #                 criterion=nn.MSELoss(),
-    #                 net_name='vgg16_bn',
-    #                 dataset_name='cifar10',
-    #                 feature_len=15,
-    #                 num_images=10000,
-    #                 special='only_innerfeatures',
-    #                 only_gcn=False,
-    #                 epoch=150,
-    #                 only_inner_features=True)
-
-    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/train'),
-    #                 criterion=nn.MSELoss(),
-    #                 net_name='vgg16_bn',
-    #                 dataset_name='cifar10',
-    #                 feature_len=15,
-    #                 num_images=10000,
-    #                 special='only_gcn',
-    #                 only_gcn=True,
-    #                 epoch=150,
-    #                 only_inner_features=False)
-
-
-    #
-    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/resnet56/train'),
-    #                 criterion=nn.MSELoss(),
-    #                 net_name='resnet56',
-    #                 dataset_name='cifar10',
-    #                 feature_len=10,
-    #                 num_images=10000,
-    #                 special='combined_innerfeatures',
-    #                 only_gcn=False,
-    #                 epoch=500,
-    #                 gcn_rounds=1)
-    #
-    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/resnet56/train'),
-    #                 criterion=nn.MSELoss(),
-    #                 net_name='resnet56',
-    #                 dataset_name='cifar10',
-    #                 feature_len=10,
-    #                 num_images=10000,
-    #                 special='only_innerfeatures',
-    #                 only_gcn=False,
-    #                 epoch=500,
-    #                 only_inner_features=True,
-    #                 gcn_rounds=1)
-    #
-    # train_extractor(train_data_dir=os.path.join(conf.root_path,'filter_feature_extractor/model_data/resnet56/train'),
-    #                 criterion=nn.MSELoss(),
-    #                 net_name='resnet56',
-    #                 dataset_name='cifar10',
-    #                 feature_len=10,
-    #                 num_images=10000,
-    #                 special='only_gcn',
-    #                 only_gcn=True,
-    #                 epoch=500,
-    #                 only_inner_features=False,
-    #                 gcn_rounds=1)
-
-
-
-
-
-
-    sample_list=read_data(path='/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_imagenet/dead_neural',num_images=1000)
-    # sample_list=read_data(path=os.path.join(conf.root_path,'filter_feature_extractor/model_data/vgg16_bn_cifar10/test'),num_images=10000)
-
-    num_epoch='150'
-
-    path_list=[]
-    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/combined_innerfeaturesMSELoss/'+num_epoch+'.tar')]
-    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/only_gcnMSELoss/'+num_epoch+'.tar')]
-    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/vgg16_bn/only_innerfeaturesMSELoss/'+num_epoch+'.tar')]
-
-    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/combined_innerfeaturesMSELoss/'+num_epoch+'.tar')]
-    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/only_gcnMSELoss/'+'500'+'.tar')]
-    # path_list+=[os.path.join(conf.root_path,'filter_feature_extractor/checkpoint/resnet56/only_innerfeaturesMSELoss/'+'500'+'.tar')]
-    path_list+=['/home/victorfang/model_pytorch/data/model_saved/vgg16_extractor_static_imagenet/extractor/10.tar']
-    stat={}
-    for path in path_list:
-        print(path)
-        data = []
-        extractor_model=load_extractor(path).to(device)
-        extractor_model.eval()
-        criterion=torch.nn.L1Loss()
-        for sample in sample_list:
-            net = sample['net']
-
-            filter_label = sample['filter_label']
-            label = torch.Tensor(filter_label).reshape((-1, 1)).to(device)
-
-            output = extractor_model.forward(net,net_name=sample['net_name'],dataset_name=sample['dataset_name'])
-
-            loss = criterion(output, label)
-
-            data+=[predict_dead_filter.performance_evaluation(np.array(filter_label),output.data.detach().cpu().numpy().reshape(-1),0.1)]
-
-        data=np.array(data)
-        data=np.mean(data,axis=0)
-        stat[path.split('/')[-2]]=data
-        print(data)
-        print()
-    print(stat)
-
 
 
     # read_data(num_images=10000)
@@ -392,4 +218,4 @@ if __name__ == "__main__":
     # c=model.forward()
     # d=torch.sum(c)
     # d.backward()
-    # print()
+    print()

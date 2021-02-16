@@ -42,7 +42,7 @@ for ratio in l:
                                                                            mask_update_epochs=mask_update_epochs,
                                                                            mask_update_freq=mask_update_freq,
                                                                            flop_expected=flop_expected,
-                                                                           gcn_rounds=2,
+                                                                           gcn_layer_num=2,
                                                                            mask_training_start_epoch=mask_training_start_epoch,
                                                                            mask_training_stop_epoch=mask_training_stop_epoch,
                                                                            batch_size=batch_size,
