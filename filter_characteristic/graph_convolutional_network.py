@@ -25,7 +25,7 @@ class gat(nn.Module):
             if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
                 filter_num+=[mod.out_channels]
                 filter_weight_num[mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]]=1
-
+        self.embedding_feature_len=embedding_feature_len
         self.register_buffer('initial_h',torch.ones((sum(filter_num),embedding_feature_len)))
         self.register_buffer('adj',torch.zeros((sum(filter_num),sum(filter_num))))
         row=last_num=filter_num[0]
@@ -52,11 +52,10 @@ class gat(nn.Module):
             if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
                 weight=conv_to_matrix(mod)
                 filter_weight_num=mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]
+                # self.initial_h[i:i+mod.out_channels]=pca(weight,dim=self.embedding_feature_len)
                 self.initial_h[i:i+mod.out_channels]=self.w[str(filter_weight_num)](weight)
-                # self.initial_h_list+=[self.w[str(filter_weight_num)](weight)]
                 i+=mod.out_channels
         embedding_features=self.gat_layers(self.initial_h)
-        # embedding_features=self.gat_layers(self.initial_h_list)
         return embedding_features
 
 
@@ -71,12 +70,17 @@ class GAT_layer(nn.Module):
         self.register_buffer('eye_mat',torch.eye(self.adj.shape[0]))
 
     def forward(self,h):
-        #compute attention matrix
-        attention=h.mm(h.T)/math.sqrt(h.shape[1])
-        self.A=torch.where(self.adj > 0, attention, self.zero_vec)
-        self.A=F.softmax(self.A,dim=1)
+        # compute attention matrix
+        attention = h.mm(h.T) / math.sqrt(h.shape[1])
+        self.A = torch.where(self.adj > 0, attention, self.zero_vec)
+        # todo:bug alert！！！：zero_vec直接是0吧，然后自己和自己的attention没被包括进去
+        self.A = F.softmax(self.A, dim=1)
 
-        self.A=self.A+self.eye_mat # set the attention of the node itself to 1.(the sum of neighbor's attention is also 1)
+        self.A = (self.A + self.eye_mat)/2  # set the attention of the node itself to 0.5.(the sum of neighbor's attention is also 0.5)
+
+        num_filter_1layer=torch.sum(self.adj[:,0]!=0)
+        self.A[:num_filter_1layer]=self.eye_mat[:num_filter_1layer]
+
 
         # for i in range(len(h)):
 

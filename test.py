@@ -79,8 +79,7 @@ net.prune_net()
         #             )
 
 
-net.t_sne()
 
+train.show_feature_map(net,dl,0,16)
 
-print()
 

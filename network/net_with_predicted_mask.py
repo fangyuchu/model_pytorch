@@ -98,10 +98,10 @@ class predicted_mask_net(nn.Module):
             if 'net.' in name and (isinstance(mod, nn.BatchNorm2d) or isinstance(mod, nn.BatchNorm1d)):
                 mod.track_running_stats = track
                 if track is False:
-                    # self.register_parameter('running_mean', None)
-                    # self.register_parameter('running_var', None)
-                    # self.register_parameter('num_batches_tracked', None)
-                    mod.running_mean=mod.running_var=mod.num_batches_tracked=None
+                    self.register_parameter('running_mean', None)
+                    self.register_parameter('running_var', None)
+                    self.register_parameter('num_batches_tracked', None)
+                    # mod.running_mean=mod.running_var=mod.num_batches_tracked=None
                 else:
                     mod.register_buffer('running_mean', torch.zeros(mod.num_features))
                     mod.register_buffer('running_var', torch.ones(mod.num_features))

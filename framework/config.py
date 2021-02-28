@@ -1,5 +1,6 @@
-import numpy as np
 import os,sys
+sys.path.append('../')
+import numpy as np
 def get_root_path():
     working_directory=os.path.abspath(sys.argv[0])
     dirs=working_directory.split('/')
