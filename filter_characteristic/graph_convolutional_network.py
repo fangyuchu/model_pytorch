@@ -73,7 +73,6 @@ class GAT_layer(nn.Module):
         # compute attention matrix
         attention = h.mm(h.T) / math.sqrt(h.shape[1])
         self.A = torch.where(self.adj > 0, attention, self.zero_vec)
-        # todo:bug alert！！！：zero_vec直接是0吧，然后自己和自己的attention没被包括进去
         self.A = F.softmax(self.A, dim=1)
 
         self.A = (self.A + self.eye_mat)/2  # set the attention of the node itself to 0.5.(the sum of neighbor's attention is also 0.5)

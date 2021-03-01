@@ -934,17 +934,22 @@ def train_extractor_network(
                 # loss = loss + weighted_mean_penalty - weighted_std_penalty
                 lamda=5e-4
                 alpha=0.5
+                gamma=0.1
                 if step == 0:
                     writer.add_text(tag='alpha', text_string=str(alpha))
                     writer.add_text(tag='lamda', text_string=str(lamda))
                 l1 = torch.zeros(1).cuda()
                 squared_l2 = torch.zeros(1).cuda()
+                mean=torch.zeros(1).cuda()
                 for name, mod in net.named_modules():
                     if isinstance(mod, modules.conv2d_with_mask):
                         mask_abs = mod.mask.abs()
                         l1 = l1 + torch.norm(mask_abs,p=1)
                         squared_l2 = squared_l2 + torch.sum(mask_abs**2)
-                weighted_penalty=lamda*(alpha * l1 + (1-alpha) * squared_l2)
+
+                        mean=mean+torch.abs(torch.mean(mask_abs)-0.1)
+
+                weighted_penalty=lamda*(alpha * l1 + (1-alpha) * squared_l2) + gamma*mean
                 loss=loss+weighted_penalty
 
                 writer.add_scalar(tag='penalty/l1',
@@ -953,12 +958,20 @@ def train_extractor_network(
                 writer.add_scalar(tag='penalty/l2',
                                   scalar_value=squared_l2,
                                   global_step=int(sample_num / batch_size))
+                writer.add_scalar(tag='penalty/mean',
+                                  scalar_value=mean,
+                                  global_step=int(sample_num / batch_size))
+
                 writer.add_scalar(tag='weighted_penalty/l1',
                                   scalar_value=l1*alpha,
                                   global_step=int(sample_num / batch_size))
                 writer.add_scalar(tag='weighted_penalty/l2',
                                   scalar_value=squared_l2 * (1 - alpha),
                                   global_step=int(sample_num / batch_size))
+                writer.add_scalar(tag='weighted_penalty/mean',
+                                  scalar_value=gamma*mean,
+                                  global_step=int(sample_num / batch_size))
+
                 writer.add_scalar(tag='weighted_penalty/sum',
                                   scalar_value=weighted_penalty,
                                   global_step=int(sample_num / batch_size))

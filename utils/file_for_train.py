@@ -143,11 +143,11 @@ if dataset == 'cifar10':
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
         # evaluate.evaluate_net(net, eval_loader, save_net=False)
     elif net_type=='vgg16_bn':
-        exp_name='gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_noweightdecay_5'
+        exp_name='gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_mean2reg_test'
         batch_size=128
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
         total_flop=314017290
-        prune_ratio=0.98
+        prune_ratio=0.9
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -192,7 +192,7 @@ if dataset == 'cifar10':
                                       learning_rate=learning_rate,
 
                                       num_epochs=num_epochs,
-                                      batch_size=256,#batch_size,
+                                      batch_size=batch_size,
                                       evaluate_step=5000,
                                       load_net=False,
                                       test_net=False,
@@ -209,7 +209,7 @@ if dataset == 'cifar10':
                                       gradient_clip_value=gradient_clip_value
                                       )
 
-        #
+
         # i = 4
         # exp_name = 'gat_vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_doubleschedule_' + str(int(prune_ratio * 100)) + '_' + str(i)
         # description = exp_name + '  ' + ''
@@ -224,11 +224,9 @@ if dataset == 'cifar10':
         # print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
         #
         #
-        # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16', str(i) + '.tar'),map_location='cpu')
-        # # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_4_test/checkpoint/flop=314570250,accuracy=0.43570.tar',map_location='cpu')
-        # # net.track_running_stats(False)
+        # # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16', str(i) + '.tar'),map_location='cpu')
+        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_meanreg_test/checkpoint/flop=314570250,accuracy=0.35560.tar',map_location='cpu')
         # net.load_state_dict(checkpoint['state_dict'])
-        # # net.track_running_stats(True)
         # # train.add_forward_hook(net,module_name='extractor.network.0')
         # net.mask_net()
         # net.print_mask()
