@@ -410,7 +410,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         # temporarily used for resnet50
         # 1:0.8:16167;2:0.8:17615 ;3:0.8:19670; 4:0.9:20884 0.75:16530 0.8：19124; 5:0.8:13633,0.85:14755; 6:0.9:14166,0.85:10560,0.8:9318/9200,0.75:/8170,0.7:/7200,0.5:/3150
         if isinstance(self.net, resnet.ResNet):
-            num = 3150
+            num = 10560
             print('prune:{} filters'.format(num))
             return num
 
@@ -695,13 +695,21 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             num_feature_maps = last_conv.out_channels
             _, conv_list = named_conv_list(self.net)
             last_conv_after_prune = conv_list[-1]
-            if len(last_conv_index) > last_conv.add_shortcut_num:  # no shortcut
-                num_feature_maps_after_prune = len(last_conv_index)
+
+            # if len(last_conv_index) > last_conv.add_shortcut_num:  # no shortcut
+            #     num_feature_maps_after_prune = len(last_conv_index)
+            # else:
+            #     if last_conv.w_in != last_conv.w_out:  # conv shortcut
+            #         num_feature_maps_after_prune = last_conv.add_shortcut_num
+            #     else:  # sequential shortcut
+            #         num_feature_maps_after_prune = max(last_conv_after_prune.in_channels, last_conv_after_prune.out_channels)
+            if not isinstance(last_conv_after_prune,conv2d_with_mask_and_variable_shortcut):#no shortcut
+                num_feature_maps_after_prune = last_conv_after_prune.out_channels
             else:
-                if last_conv.w_in != last_conv.w_out:  # conv shortcut
-                    num_feature_maps_after_prune = last_conv.add_shortcut_num
+                if last_conv_after_prune.w_in != last_conv_after_prune.w_out:  # conv shortcut
+                    num_feature_maps_after_prune = last_conv_after_prune.add_shortcut_num
                 else:  # sequential shortcut
-                    num_feature_maps_after_prune = max(last_conv_after_prune.in_channels, len(last_conv_index))
+                    num_feature_maps_after_prune = max(last_conv_after_prune.in_channels, last_conv_after_prune.out_channels)
 
         return last_conv_index, num_feature_maps, num_feature_maps_after_prune
 

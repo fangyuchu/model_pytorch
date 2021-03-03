@@ -205,10 +205,21 @@ class Lighting(object):
 
 def get_imagenet_loader(root, batch_size, type='train', mobile_setting=True):
     if type == 'train':
-        pip_train = HybridTrainPipe(batch_size=batch_size, num_threads=4, device_id=0,
+        pip_train = HybridTrainPipe(batch_size=batch_size, num_threads=8, device_id=0,
                                     data_dir=root , crop=224, world_size=1, local_rank=0)
         train_loader = DALIDataloader(pipeline=pip_train, size=1281167, batch_size=batch_size,
                                       onehot_label=True)
+
+        transform = transforms.Compose([
+            transforms.Resize(int(math.floor(224 / 0.875))),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+        folder = datasets.ImageFolder(conf.imagenet['train_set_path'], transform)
+        train_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, shuffle=True,
+                                                  num_workers=8, pin_memory=True)
+
         return train_loader
     elif type =='test':
         pip_test = HybridValPipe(batch_size=batch_size, num_threads=4, device_id=0, data_dir=root ,
