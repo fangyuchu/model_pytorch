@@ -395,7 +395,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 if len(mod.downsample) > 0:
                     mod.downsample = nn.Sequential(OrderedDict([
                         ('downsampleConv', nn.Conv2d(in_channels=mod.downsample[0].in_channels,
-                                                     out_channels=mod.add_shortcut_num,
+                                                     out_channels=max(1,mod.add_shortcut_num),
                                                      stride=mod.downsample[0].stride,
                                                      kernel_size=1,
                                                      bias=False)),
@@ -776,7 +776,6 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                         num_conv_processing += 1
                     if isinstance(mod, conv2d_with_mask_and_variable_shortcut):
                         if 'conv_a' in name or 'conv1' in name:  # prune the input_channel of first conv in each blocks
-                            device = mod.weight.device
                             new_conv = conv2d_with_mask_and_variable_shortcut(
                                 torch.nn.Conv2d(in_channels=block_out_channels[i - 1],
                                                 out_channels=mod.out_channels,
@@ -852,8 +851,8 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             self.print_mask()
             print(layer_index)
             raise AttributeError
-        if len(filter_index) == 0:  # no filter need to be pruned
-            return
+        # if len(filter_index) == 0:  # no filter need to be pruned
+        #     return
         index_to_copy = [i for i in range(conv_to_prune.weight.shape[0]) if i not in filter_index]
         with torch.no_grad():
             if torch.sum(conv_to_prune.mask != 0) > conv_to_prune.add_shortcut_num:  # prune the conv since it doesn't have a shortcut

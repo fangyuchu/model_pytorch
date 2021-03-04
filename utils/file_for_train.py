@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet,mobilenet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
@@ -27,11 +27,11 @@ if dataset == 'cifar10':
     mask_update_freq = 1000
     mask_update_epochs = 900
     mask_training_start_epoch=1
-    mask_training_stop_epoch=20
+    mask_training_stop_epoch=40
 
     if net_type=='resnet56':
         learning_rate = {'default': 0.1, 'extractor': 0.0001}
-        exp_name='gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_10'
+        exp_name='gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_extractorlr1_11_test'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=126550666#125485706

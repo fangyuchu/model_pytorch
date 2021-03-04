@@ -948,7 +948,7 @@ def train_extractor_network(
                         l1 = l1 + torch.norm(mask_abs,p=1)
                         squared_l2 = squared_l2 + torch.sum(mask_abs**2)
 
-                        mean=mean+torch.abs(torch.mean(mask_abs)-0.5)
+                        mean=mean+torch.abs(torch.mean(mask_abs)-0)
 
                 weighted_penalty=lamda*(alpha * l1 + (1-alpha) * squared_l2) + gamma*mean
                 loss=loss+weighted_penalty
