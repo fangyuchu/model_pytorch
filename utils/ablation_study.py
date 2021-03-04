@@ -24,12 +24,10 @@ mask_update_freq = 1000
 mask_update_epochs = 900
 mask_training_start_epoch=1
 mask_training_stop_epoch=20
-
 exp_name='gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_nogat'
 description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch，没有gat，mask直接由梯度更新'
-
 total_flop=126550666#125485706
-prune_ratio=0.8
+prune_ratio=0.9
 flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
 gradient_clip_value=5
 learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -52,60 +50,7 @@ net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
 for mod in net.modules():
     if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
         mod.mask = nn.Parameter(torch.ones(size=mod.mask.shape),requires_grad=True)
-
-# net = resnet_cifar.resnet56(num_classes=10).to(device)
-# from prune.prune_module import get_module
-# from network.modules import conv2d_with_mask
-# for name, mod in net.named_modules():
-#     if isinstance(mod, nn.Conv2d) and 'downsample' not in name and 'conv_a' in name:
-#         device = mod.weight.device
-#         _modules = get_module(model=net, name=name)
-#         _modules[name.split('.')[-1]] = conv2d_with_mask(mod).to(device)  # replace conv
-# train.train(net,'resnet56',exp_name='test',dataset_name='cifar10',resume=False,momentum=0.9,weight_decay=0)#optimizer=optim.Adam)
-
 net=net.cuda()
-checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
-# save the output to log
-print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
-if not os.path.exists(checkpoint_path):
-    os.makedirs(checkpoint_path, exist_ok=True)
-sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-
-print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
-train.train_extractor_network(net=net,
-                              net_name='resnet56',
-                              exp_name=exp_name,
-                              description=description,
-                              dataset_name='cifar10',
-
-                              optim_method_net=optimizer_net,
-                              optim_method_extractor=optimizer_extractor,
-                              weight_decay=weight_decay,
-                              momentum=momentum,
-                              learning_rate=learning_rate,
-
-                              num_epochs=num_epochs,
-                              batch_size=batch_size,
-                              evaluate_step=5000,
-                              load_net=False,
-                              test_net=False,
-                              num_workers=4,
-                              # weight_decay=5e-4,
-                              learning_rate_decay=True,
-                              learning_rate_decay_epoch=learning_rate_decay_epoch,
-                              learning_rate_decay_factor=0.1,
-                              scheduler_name='MultiStepLR',
-                              top_acc=1,
-                              paint_loss=True,
-                              save_at_each_step=False,
-                              gradient_clip_value=gradient_clip_value,
-                              )
-print()
-# i = 9
-# exp_name = 'resnet56_predicted_mask_and_variable_shortcut_net_newinner_doubleschedule' + str(int(prune_ratio * 100)) + '_' + str(i)
-# description = exp_name + '  ' + ''
-#
 # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
 # # save the output to log
 # print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
@@ -113,45 +58,113 @@ print()
 #     os.makedirs(checkpoint_path, exist_ok=True)
 # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
 # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-# print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
 #
+# print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
+# train.train_extractor_network(net=net,
+#                               net_name='resnet56',
+#                               exp_name=exp_name,
+#                               description=description,
+#                               dataset_name='cifar10',
 #
-# checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56',str(i) + '.pth'),map_location='cpu')
-# net.load_state_dict(checkpoint['state_dict'])
-# net.mask_net()
-# net.print_mask()
-# net.prune_net()
-# net.current_epoch = net.mask_training_stop_epoch + 1
-# learning_rate_decay_epoch = [2*i for i in [80,120]]
-# num_epochs = 160*2
-# train.train(net=net,
-#             net_name='resnet56',
-#             exp_name=exp_name,
-#             description=description,
-#             dataset_name='cifar10',
-#             optimizer=optim.SGD,
-#             weight_decay=weight_decay,
-#             momentum=momentum,
-#             learning_rate=learning_rate,
-#             num_epochs=num_epochs,
-#             batch_size=batch_size,
-#             evaluate_step=5000,
-#             resume=False,
-#             test_net=True,
-#             num_workers=2,
-#             learning_rate_decay=True,
-#             learning_rate_decay_epoch=learning_rate_decay_epoch,
-#             learning_rate_decay_factor=0.1,
-#             scheduler_name='MultiStepLR',
-#             top_acc=1,
-#             data_parallel=False,
-#             paint_loss=True,
-#             save_at_each_step=False,
-#             gradient_clip_value=gradient_clip_value
-#             )
+#                               optim_method_net=optimizer_net,
+#                               optim_method_extractor=optimizer_extractor,
+#                               weight_decay=weight_decay,
+#                               momentum=momentum,
+#                               learning_rate=learning_rate,
 #
-# eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
-# evaluate.evaluate_net(net, eval_loader, save_net=False)
+#                               num_epochs=num_epochs,
+#                               batch_size=batch_size,
+#                               evaluate_step=5000,
+#                               load_net=False,
+#                               test_net=False,
+#                               num_workers=4,
+#                               # weight_decay=5e-4,
+#                               learning_rate_decay=True,
+#                               learning_rate_decay_epoch=learning_rate_decay_epoch,
+#                               learning_rate_decay_factor=0.1,
+#                               scheduler_name='MultiStepLR',
+#                               top_acc=1,
+#                               paint_loss=True,
+#                               save_at_each_step=False,
+#                               gradient_clip_value=gradient_clip_value,
+#                               )
+
+checkpoint=torch.load('/home/disk_new/model_saved/gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_nogat/checkpoint/masked_net.pth',map_location='cpu')
+net.load_state_dict(checkpoint['state_dict'])
+#mask net
+first_conv=False
+mask=None
+for mod in net.modules():
+    if isinstance(mod,conv2d_with_mask_and_variable_shortcut):
+        if first_conv is False:
+            first_conv = True
+            mask = mod.mask.detach()
+        else:
+            mask = torch.cat((mask,mod.mask.detach()))
+mask= nn.Parameter(mask,requires_grad=False)
+prune_num = net.find_prune_num(mask)
+_, mask_index = torch.topk(torch.abs(mask), k=prune_num, dim=0, largest=False)
+index = torch.ones(mask.shape).to(mask.device)
+index[mask_index] = 0
+mask = mask * index
+lo = hi = 0
+last_conv_mask = None
+for name, mod in net.net.named_modules():
+    if isinstance(mod, conv2d_with_mask_and_variable_shortcut) and 'downsample' not in name:
+        hi += mod.out_channels
+        mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+        lo = hi
+        last_conv_mask = mod.mask
+    else:
+        if isinstance(mod, nn.BatchNorm2d) and last_conv_mask is not None:
+            # prune the corresponding mean and var according to mask
+            mod.running_mean[last_conv_mask == 0] = 0
+            mod.running_var[last_conv_mask == 0] = 1
+        last_conv_mask = None
+net.print_mask()
+net.prune_net()
+
+exp_name = 'gat_resnet56_doubleschedule_nogat' + str(int(prune_ratio * 100))
+description = exp_name + '  ' + ''
+
+checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+# save the output to log
+print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+if not os.path.exists(checkpoint_path):
+    os.makedirs(checkpoint_path, exist_ok=True)
+sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value)
+
+net.current_epoch = net.mask_training_stop_epoch + 1
+learning_rate_decay_epoch = [2*i for i in [80,120]]
+num_epochs = 160*2
+train.train(net=net,
+            net_name='resnet56',
+            exp_name=exp_name,
+            description=description,
+            dataset_name='cifar10',
+            optimizer=optim.SGD,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            learning_rate=learning_rate,
+            num_epochs=num_epochs,
+            batch_size=batch_size,
+            evaluate_step=5000,
+            resume=False,
+            test_net=True,
+            num_workers=4,
+            learning_rate_decay=True,
+            learning_rate_decay_epoch=learning_rate_decay_epoch,
+            learning_rate_decay_factor=0.1,
+            scheduler_name='MultiStepLR',
+            top_acc=1,
+            data_parallel=False,
+            paint_loss=True,
+            save_at_each_step=False,
+            gradient_clip_value=gradient_clip_value
+            )
+
 
 
 # #add_shortcut_ratio

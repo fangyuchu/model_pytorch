@@ -40,7 +40,10 @@ class conv2d_with_mask(nn.modules.Conv2d):
         return out
 
     def set_mask(self,mask):
-        self.mask = mask
+        if isinstance(self.mask,nn.Parameter): # for ablation study
+            self.mask = nn.Parameter(mask,requires_grad=False)
+        else:
+            self.mask = mask
 
 
 
