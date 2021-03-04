@@ -357,7 +357,7 @@ def train(
                                   scalar_value=float(loss.detach()),
                                   global_step=int(sample_num / batch_size))
 
-            if step % 10 == 0:
+            if step % 100 == 0:
                 print('{} loss is {}'.format(datetime.now(), float(loss.data)))
 
             if step % evaluate_step == 0 and step != 0:
