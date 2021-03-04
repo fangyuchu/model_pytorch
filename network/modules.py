@@ -23,7 +23,7 @@ class conv2d_with_mask(nn.modules.Conv2d):
             self.bias = conv.bias
         mask = torch.ones(conv.out_channels)
         self.register_buffer('mask', mask)  # register self.mask as buffer in pytorch module
-        # self.mask=nn.Parameter(torch.ones(conv.out_channels))
+        # self.mask=nn.Parameter(torch.ones(conv.out_channels),requires_grad=True)
 
     def forward(self, input):
         masked_weight = self.weight * self.mask.view(-1, 1, 1, 1)
@@ -34,40 +34,15 @@ class conv2d_with_mask(nn.modules.Conv2d):
 
         out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,self.padding, self.dilation, self.groups)
 
+        # out=nn.functional.conv2d(input, self.weight, self.bias, self.stride,self.padding, self.dilation, self.groups)
+        # out=self.mask.view(1,-1,1,1)*out
+
         return out
 
     def set_mask(self,mask):
         self.mask = mask
 
 
-class block_with_mask_shortcut(conv2d_with_mask):
-    def __init__(self, conv, w_in):
-        super(block_with_mask_shortcut, self).__init__(conv)
-        w_out = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / conv.stride[0]) + 1
-        if w_in != w_out or conv.in_channels != conv.out_channels:
-            # add a shortcut with 1x1 conv
-            # (w_in+2p-k)/(w_out-1) <= stride <= (w_in+2p-k)/(w_out)
-            stride = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / (w_out - 1))
-            self.downsample = nn.Sequential(OrderedDict([
-                ('downsampleConv', nn.Conv2d(in_channels=conv.in_channels,
-                                             out_channels=conv.out_channels,
-                                             stride=stride,
-                                             kernel_size=1)),
-                ('downsampleBN', nn.BatchNorm2d(conv.out_channels))
-            ]))
-        else:
-            self.downsample = nn.Sequential()  # idendity function
-
-        self.bn=nn.BatchNorm2d(conv.out_channels)  # need to be updated in the net rather than in module
-
-
-
-    def forward(self, input):
-        x = super().forward(input)
-        downsample=self.downsample(input)
-        x = x + downsample
-        x=self.bn(x)
-        return x
 
 
 class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
@@ -181,6 +156,34 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
         return x
 
 
+class block_with_mask_shortcut(conv2d_with_mask):
+    def __init__(self, conv, w_in):
+        super(block_with_mask_shortcut, self).__init__(conv)
+        w_out = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / conv.stride[0]) + 1
+        if w_in != w_out or conv.in_channels != conv.out_channels:
+            # add a shortcut with 1x1 conv
+            # (w_in+2p-k)/(w_out-1) <= stride <= (w_in+2p-k)/(w_out)
+            stride = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / (w_out - 1))
+            self.downsample = nn.Sequential(OrderedDict([
+                ('downsampleConv', nn.Conv2d(in_channels=conv.in_channels,
+                                             out_channels=conv.out_channels,
+                                             stride=stride,
+                                             kernel_size=1)),
+                ('downsampleBN', nn.BatchNorm2d(conv.out_channels))
+            ]))
+        else:
+            self.downsample = nn.Sequential()  # idendity function
+
+        self.bn=nn.BatchNorm2d(conv.out_channels)  # need to be updated in the net rather than in module
+
+
+
+    def forward(self, input):
+        x = super().forward(input)
+        downsample=self.downsample(input)
+        x = x + downsample
+        x=self.bn(x)
+        return x
 
 
 class block_with_mask_weighted_shortcut(block_with_mask_shortcut):

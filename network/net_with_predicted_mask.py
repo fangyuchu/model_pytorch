@@ -24,7 +24,7 @@ from sklearn import manifold
 class predicted_mask_net(nn.Module):
     def __init__(self, net, net_name, dataset_name, flop_expected, feature_len=15, gcn_layer_num=2, only_gcn=False,
                  only_inner_features=False, mask_update_freq=10, mask_update_epochs=1, batch_size=128,
-                 mask_training_start_epoch=10, mask_training_stop_epoch=80):
+                 mask_training_start_epoch=10, mask_training_stop_epoch=80,no_gat=False):
         '''
         Use filter feature extractor to extract features from a cnn and predict mask for it. The mask will guide the
         cnn to skip filters when forwarding. Both extractor and cnn are updated through back-propagation.
@@ -62,6 +62,7 @@ class predicted_mask_net(nn.Module):
         self.num_train = train_set_size
         # self.num_train = train_set_size - int(train_set_size * 0.1)
         self.copied_time = 0
+        self.no_gat=no_gat #used for ablation study when the mask is only updated by the gradient
 
     # def train(self, mode=True):
     #     super().train(mode)
@@ -146,6 +147,8 @@ class predicted_mask_net(nn.Module):
     def update_mask(self):
         if self.training is False:
             raise Exception('Masks should not be updated in evaluation mode.')
+        if self.no_gat is True:
+            return #todo test
         mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
         lo = hi = 0
         for name, mod in self.net.named_modules():
@@ -229,10 +232,12 @@ class predicted_mask_net(nn.Module):
     def detach_mask(self):
         for name, mod in self.net.named_modules():
             if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+                if isinstance(mod.mask,nn.Parameter):
+                    continue # for ablation study
                 mod.mask = mod.mask.detach()  # detach masks from computation graph so the extractor will not be updated
 
     def forward(self, input):
-        if self.training is True:
+        if self.training is True :
             self.train_mask()
             if math.floor(self.step_tracked * self.batch_size / self.num_train) == 1:
                 # an epoch of training is finished
@@ -316,7 +321,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
     def __init__(self, net, net_name, dataset_name, flop_expected, add_shortcut_ratio, feature_len=15, gcn_layer_num=2,
                  only_gcn=False,
                  only_inner_features=False, mask_update_freq=10, mask_update_epochs=1, batch_size=128,
-                 mask_training_start_epoch=10, mask_training_stop_epoch=80,
+                 mask_training_start_epoch=10, mask_training_stop_epoch=80,no_gat=False
                  ):
         '''
         Use filter feature extractor to extract features from a cnn and predict mask for it. The mask will guide the
@@ -346,7 +351,8 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                                                                        mask_update_epochs=mask_update_epochs,
                                                                        batch_size=batch_size,
                                                                        mask_training_start_epoch=mask_training_start_epoch,
-                                                                       mask_training_stop_epoch=mask_training_stop_epoch)
+                                                                       mask_training_stop_epoch=mask_training_stop_epoch,
+                                                                       no_gat=no_gat)
         self.pruned = False
 
     def transform(self, net):

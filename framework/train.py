@@ -247,10 +247,10 @@ def train(
         #set up summary writer for tensorboard
         writer=SummaryWriter(log_dir=tensorboard_path,
                              purge_step=int(sample_num/batch_size))
-    if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
-        image=torch.zeros(2,3,224,224).to(device)
-    elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
-        image=torch.zeros(2,3,32,32).to(device)
+    # if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
+    #     image=torch.zeros(2,3,224,224).to(device)
+    # elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
+    #     image=torch.zeros(2,3,32,32).to(device)
 
     if use_tensorboard is True:
         # writer.add_graph(net, image)
@@ -357,7 +357,7 @@ def train(
                                   scalar_value=float(loss.detach()),
                                   global_step=int(sample_num / batch_size))
 
-            if step % 100 == 0:
+            if step % 10 == 0:
                 print('{} loss is {}'.format(datetime.now(), float(loss.data)))
 
             if step % evaluate_step == 0 and step != 0:
@@ -398,7 +398,8 @@ def train(
                     plt.close()
 
                 print('{} continue training'.format(datetime.now()))
-        scheduler.step()
+        if learning_rate_decay:
+            scheduler.step()
         if learning_rate_decay:
             print(optimizer.state_dict()['param_groups'][0]['lr'],
                   optimizer.state_dict()['param_groups'][-1]['lr'])
