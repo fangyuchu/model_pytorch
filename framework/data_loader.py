@@ -210,15 +210,15 @@ def get_imagenet_loader(root, batch_size, type='train', mobile_setting=True):
         train_loader = DALIDataloader(pipeline=pip_train, size=1281167, batch_size=batch_size,
                                       onehot_label=True)
 
-        transform = transforms.Compose([
-            transforms.Resize(int(math.floor(224 / 0.875))),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-        folder = datasets.ImageFolder(conf.imagenet['train_set_path'], transform)
-        train_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, shuffle=True,
-                                                  num_workers=8, pin_memory=True)
+        # transform = transforms.Compose([
+        #     transforms.Resize(int(math.floor(224 / 0.875))),
+        #     transforms.CenterCrop(224),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        # ])
+        # folder = datasets.ImageFolder(conf.imagenet['train_set_path'], transform)
+        # train_loader = torch.utils.data.DataLoader(folder, batch_size=batch_size, shuffle=True,
+        #                                           num_workers=8, pin_memory=True)
 
         return train_loader
     elif type =='test':

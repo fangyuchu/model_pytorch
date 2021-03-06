@@ -133,8 +133,8 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
     def forward(self, input):
         x = super().forward(input)
         # if pruned is False:  # the mask and shortcut is still working
-        # if torch.sum(self.mask != 0) <= self.add_shortcut_num:  # ratio of masked conv is large
-        if torch.sum(self.mask != 0) < self.add_shortcut_num:  # ratio of masked conv is large
+        if torch.sum(self.mask != 0) <= self.add_shortcut_num:  # ratio of masked conv is large
+        # if torch.sum(self.mask != 0) < self.add_shortcut_num:  # ratio of masked conv is large
             downsample = self.downsample(input)  # add shortcut
             #add zero if num of output feature maps differentiate between conv and shortcut
             #todo: shibushi keyi zhijie jia ,buxuyao bu 0

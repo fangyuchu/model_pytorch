@@ -64,7 +64,7 @@ def draw_masked_net(net,pic_name,path):
     max_out_channels = 0  # max number of filters in one layer
     for name, mod in net.named_modules():
         if isinstance(mod, conv2d_with_mask):
-            layer_mask += [mod.mask.detach().cpu().numpy()]
+            layer_mask += [mod.mask.detach().abs().cpu().numpy()]
             max_out_channels = max(mod.out_channels, max_out_channels)
             num_layer += 1
 
@@ -131,22 +131,22 @@ def draw_masked_net(net,pic_name,path):
     #     ax.text(1, i, str(i), fontsize=12)
 
 
-    # #resnet56
-    ax.text(18,3,'1',fontsize=fontsize)
-    ax.text(18,63,'64',fontsize=fontsize)
-    ax.text(36,18,'1',fontsize=fontsize)
-    ax.text(36,47,'32',fontsize=fontsize)
-    ax.text(52,23,'1',fontsize=fontsize)
-    ax.text(51,43,'16',fontsize=fontsize)
-    # #vgg16
-    # ax.text(5.5,25,'1',fontsize=fontsize)
-    # ax.text(5.5,505,'512',fontsize=fontsize)
-    # ax.text(8.5,140,'1',fontsize=fontsize)
-    # ax.text(8.5,380,'256',fontsize=fontsize)
-    # ax.text(10.5,205,'1',fontsize=fontsize)
-    # ax.text(10.5,335,'128',fontsize=fontsize)
-    # ax.text(11.9,215,'1',fontsize=fontsize)
-    # ax.text(11.7,315,'64',fontsize=fontsize)
+    # # #resnet56
+    # ax.text(18,3,'1',fontsize=fontsize)
+    # ax.text(18,63,'64',fontsize=fontsize)
+    # ax.text(36,18,'1',fontsize=fontsize)
+    # ax.text(36,47,'32',fontsize=fontsize)
+    # ax.text(52,23,'1',fontsize=fontsize)
+    # ax.text(51,43,'16',fontsize=fontsize)
+    #vgg16
+    ax.text(5.5,25,'1',fontsize=fontsize)
+    ax.text(5.5,505,'512',fontsize=fontsize)
+    ax.text(8.5,140,'1',fontsize=fontsize)
+    ax.text(8.5,380,'256',fontsize=fontsize)
+    ax.text(10.5,205,'1',fontsize=fontsize)
+    ax.text(10.5,335,'128',fontsize=fontsize)
+    ax.text(11.9,215,'1',fontsize=fontsize)
+    ax.text(11.7,315,'64',fontsize=fontsize)
 
 
     bwith = 2

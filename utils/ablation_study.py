@@ -3,14 +3,14 @@ sys.path.append('../')
 import torch
 from torch import nn
 import torch.optim as optim
-from framework import evaluate,data_loader,measure_flops,train
+from framework import evaluate,data_loader,measure_flops,train,draw
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet
 from framework import config as conf
 from network.modules import conv2d_with_mask_and_variable_shortcut
 import logger
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-ablation_exp_name='no_shortcut'
+ablation_exp_name='no_gat'
 
 if ablation_exp_name == 'no_gat':
     # no_gat
@@ -27,9 +27,10 @@ if ablation_exp_name == 'no_gat':
     mask_training_start_epoch=1
     mask_training_stop_epoch=20
     exp_name='gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_nogat2'
+    print(exp_name)
     description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch，没有gat，mask直接由梯度更新'
     total_flop=126550666#125485706
-    prune_ratio=0.8
+    prune_ratio=0.98
     flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
     gradient_clip_value=5
     learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -138,8 +139,8 @@ if ablation_exp_name == 'no_gat':
     print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value)
 
     net.current_epoch = net.mask_training_stop_epoch + 1
-    learning_rate_decay_epoch = [2*i for i in [80,120]]
-    num_epochs = 160*2
+    learning_rate_decay_epoch = [i for i in [80,120]]
+    num_epochs = 160
     train.train(net=net,
                 net_name='resnet56',
                 exp_name=exp_name,
@@ -168,7 +169,9 @@ if ablation_exp_name == 'no_gat':
 
 elif ablation_exp_name == 'no_shortcut':
     # no shortcut
-    exp_name='gat_resnet56_noshortcut'
+    prune_ratio=0.83
+    exp_name='gat_resnet56_noshortcut_'+str(prune_ratio*100)
+    print(exp_name)
     description='不用shortcut来训练剪完的网络'
     batch_size=128
     #网络参数
@@ -178,7 +181,6 @@ elif ablation_exp_name == 'no_shortcut':
     mask_training_start_epoch=1
     mask_training_stop_epoch=20
     total_flop=126550666#125485706
-    prune_ratio=0.8
     flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
     net=resnet_cifar.resnet56(num_classes=10).to(device)
     net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
@@ -245,14 +247,14 @@ elif ablation_exp_name == 'no_shortcut':
                 weight_decay=5e-4,
                 momentum=0.9,
                 learning_rate=0.1,
-                num_epochs=160*2,
+                num_epochs=160,
                 batch_size=batch_size,
                 evaluate_step=5000,
                 resume=False,
                 test_net=True,
                 num_workers=4,
                 learning_rate_decay=True,
-                learning_rate_decay_epoch=[2*i for i in [80,120]],
+                learning_rate_decay_epoch=[i for i in [80,120]],
                 learning_rate_decay_factor=0.1,
                 scheduler_name='MultiStepLR',
                 top_acc=1,
@@ -261,6 +263,62 @@ elif ablation_exp_name == 'no_shortcut':
                 save_at_each_step=False,
                 gradient_clip_value=None
                 )
+    print()
+
+elif ablation_exp_name == 'draw_net_mask':
+    prune_ratio=0.85
+    description='不用shortcut来训练剪完的网络'
+    batch_size=128
+    #网络参数
+    add_shortcut_ratio=0.9#不是这儿！！！
+    mask_update_freq = 1000
+    mask_update_epochs = 900
+    mask_training_start_epoch=1
+    mask_training_stop_epoch=20
+    total_flop=126550666#125485706
+    flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
+    net=resnet_cifar.resnet56(num_classes=10).to(device)
+    net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+                                                                           net_name='resnet56',
+                                                                           dataset_name='cifar10',
+                                                                           mask_update_epochs=mask_update_epochs,
+                                                                           mask_update_freq=mask_update_freq,
+                                                                           flop_expected=flop_expected,
+                                                                           mask_training_start_epoch=mask_training_start_epoch,
+                                                                           mask_training_stop_epoch=mask_training_stop_epoch,
+                                                                           batch_size=batch_size,
+                                                                           add_shortcut_ratio=add_shortcut_ratio,
+                                                                           gcn_layer_num=2,
+                                                                           no_gat=False
+                                                                           )
+    net=net.cuda()
+    checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/data/masked_net/resnet56/1.pth',map_location='cpu')
+    # checkpoint = torch.load('/home/disk_new/model_saved/gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_mean2gamma5_12/checkpoint/flop=127615626,accuracy=0.79990.tar',map_location='cpu')
+    for key in list(checkpoint['state_dict'].keys()):
+        if 'zero_vec' in key or 'eye_mat' in key or 'gat_layers.0.adj' in key or 'gat_layers.1.adj' in key:
+            checkpoint['state_dict'].pop(key)
+    net.load_state_dict(checkpoint['state_dict'])
+    draw.draw_masked_net(net,'resnet56_1','/home/victorfang')
+
+    # net=vgg.vgg16_bn(dataset_name='cifar10').to(device)
+    # net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+    #                                                                        net_name='vgg16_bn',
+    #                                                                        dataset_name='cifar10',
+    #                                                                        mask_update_epochs=mask_update_epochs,
+    #                                                                        mask_update_freq=mask_update_freq,
+    #                                                                        flop_expected=flop_expected,
+    #                                                                        mask_training_start_epoch=mask_training_start_epoch,
+    #                                                                        mask_training_stop_epoch=mask_training_stop_epoch,
+    #                                                                        batch_size=batch_size,
+    #                                                                        add_shortcut_ratio=add_shortcut_ratio
+    #                                                                        )
+    # net=net.to(device)
+    # checkpoint=torch.load('/home/victorfang/PycharmProjects/model_pytorch/data/masked_net/vgg16/9.pth',map_location='cpu')
+    # for key in list(checkpoint['state_dict'].keys()):
+    #     if 'zero_vec' in key or 'eye_mat' in key or 'gat_layers.0.adj' in key or 'gat_layers.1.adj' in key:
+    #         checkpoint['state_dict'].pop(key)
+    # net.load_state_dict(checkpoint['state_dict'])
+    # draw.draw_masked_net(net,'vgg16_9','/home/victorfang')
     print()
 
 

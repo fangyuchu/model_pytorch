@@ -7,12 +7,12 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet,mobilenet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
-dataset='cifar10'
-net_type='resnet56'
+# dataset='cifar10'
+# net_type='resnet56'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -31,7 +31,7 @@ if dataset == 'cifar10':
 
     if net_type=='resnet56':
         learning_rate = {'default': 0.1, 'extractor': 0.0001}
-        exp_name='gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_extractorlr1_11_test'
+        exp_name='gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_mean2gamma5_12'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=126550666#125485706
@@ -55,49 +55,6 @@ if dataset == 'cifar10':
                                                                                gcn_layer_num=2
                                                                                )
         net=net.to(device)
-        checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
-        # save the output to log
-        print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
-        if not os.path.exists(checkpoint_path):
-            os.makedirs(checkpoint_path, exist_ok=True)
-        sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-
-        print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
-        train.train_extractor_network(net=net,
-                                      net_name='resnet56',
-                                      exp_name=exp_name,
-                                      description=description,
-                                      dataset_name='cifar10',
-
-                                      optim_method_net=optimizer_net,
-                                      optim_method_extractor=optimizer_extractor,
-                                      weight_decay=weight_decay,
-                                      momentum=momentum,
-                                      learning_rate=learning_rate,
-
-                                      num_epochs=num_epochs,
-                                      batch_size=batch_size,
-                                      evaluate_step=5000,
-                                      load_net=False,
-                                      test_net=False,
-                                      num_workers=4,
-                                      # weight_decay=5e-4,
-                                      learning_rate_decay=True,
-                                      learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                      learning_rate_decay_factor=0.1,
-                                      scheduler_name='MultiStepLR',
-                                      top_acc=1,
-                                      paint_loss=True,
-                                      save_at_each_step=False,
-                                      gradient_clip_value=gradient_clip_value
-                                      )
-        # #
-        #
-        # i = 9
-        # exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_newinner_doubleschedule' + str(int(prune_ratio * 100)) + '_' + str(i)
-        # description = exp_name + '  ' + ''
-        #
         # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
         # # save the output to log
         # print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
@@ -105,45 +62,92 @@ if dataset == 'cifar10':
         #     os.makedirs(checkpoint_path, exist_ok=True)
         # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
         # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-        # print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
         #
+        # print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
+        # train.train_extractor_network(net=net,
+        #                               net_name='resnet56',
+        #                               exp_name=exp_name,
+        #                               description=description,
+        #                               dataset_name='cifar10',
         #
-        # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56',str(i) + '.pth'),map_location='cpu')
-        # net.load_state_dict(checkpoint['state_dict'])
-        # net.mask_net()
-        # net.print_mask()
-        # net.prune_net()
-        # net.current_epoch = net.mask_training_stop_epoch + 1
-        # learning_rate_decay_epoch = [2*i for i in [80,120]]
-        # num_epochs = 160*2
-        # train.train(net=net,
-        #             net_name='resnet56',
-        #             exp_name=exp_name,
-        #             description=description,
-        #             dataset_name='cifar10',
-        #             optimizer=optim.SGD,
-        #             weight_decay=weight_decay,
-        #             momentum=momentum,
-        #             learning_rate=learning_rate,
-        #             num_epochs=num_epochs,
-        #             batch_size=batch_size,
-        #             evaluate_step=5000,
-        #             resume=True,
-        #             test_net=True,
-        #             num_workers=2,
-        #             learning_rate_decay=True,
-        #             learning_rate_decay_epoch=learning_rate_decay_epoch,
-        #             learning_rate_decay_factor=0.1,
-        #             scheduler_name='MultiStepLR',
-        #             top_acc=1,
-        #             data_parallel=False,
-        #             paint_loss=True,
-        #             save_at_each_step=False,
-        #             gradient_clip_value=gradient_clip_value
-        #             )
+        #                               optim_method_net=optimizer_net,
+        #                               optim_method_extractor=optimizer_extractor,
+        #                               weight_decay=weight_decay,
+        #                               momentum=momentum,
+        #                               learning_rate=learning_rate,
         #
-        # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
-        # evaluate.evaluate_net(net, eval_loader, save_net=False)
+        #                               num_epochs=num_epochs,
+        #                               batch_size=batch_size,
+        #                               evaluate_step=5000,
+        #                               load_net=False,
+        #                               test_net=False,
+        #                               num_workers=4,
+        #                               # weight_decay=5e-4,
+        #                               learning_rate_decay=True,
+        #                               learning_rate_decay_epoch=learning_rate_decay_epoch,
+        #                               learning_rate_decay_factor=0.1,
+        #                               scheduler_name='MultiStepLR',
+        #                               top_acc=1,
+        #                               paint_loss=True,
+        #                               save_at_each_step=False,
+        #                               gradient_clip_value=gradient_clip_value
+        #                               )
+        # # #
+        #
+        i = 12
+        exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        description = exp_name + '  ' + ''
+
+        checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+        # save the output to log
+        print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+        if not os.path.exists(checkpoint_path):
+            os.makedirs(checkpoint_path, exist_ok=True)
+        sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+        print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
+
+
+        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56',str(i) + '.tar'),map_location='cpu')
+
+        # checkpoint = torch.load('/home/disk_new/model_saved/gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_mean2gamma5_12/checkpoint/flop=127615626,accuracy=0.81070.tar',map_location='cpu')
+        # exp_name = 'test'
+
+        net.load_state_dict(checkpoint['state_dict'])
+        net.mask_net()
+        net.print_mask()
+        net.prune_net()
+        net.current_epoch = net.mask_training_stop_epoch + 1
+        learning_rate_decay_epoch = [1*i for i in [80,120]]
+        num_epochs = 160*1
+        train.train(net=net,
+                    net_name='resnet56',
+                    exp_name=exp_name,
+                    description=description,
+                    dataset_name='cifar10',
+                    optimizer=optim.SGD,
+                    weight_decay=weight_decay,
+                    momentum=momentum,
+                    learning_rate=learning_rate,
+                    num_epochs=num_epochs,
+                    batch_size=batch_size,
+                    evaluate_step=5000,
+                    resume=True,
+                    test_net=True,
+                    num_workers=2,
+                    learning_rate_decay=True,
+                    learning_rate_decay_epoch=learning_rate_decay_epoch,
+                    learning_rate_decay_factor=0.1,
+                    scheduler_name='MultiStepLR',
+                    top_acc=1,
+                    data_parallel=False,
+                    paint_loss=True,
+                    save_at_each_step=False,
+                    gradient_clip_value=gradient_clip_value
+                    )
+
+        eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
+        evaluate.evaluate_net(net, eval_loader, save_net=False)
     elif net_type=='vgg16_bn':
         exp_name='gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_mean5gamma0reg_bn_test'
         batch_size=128
@@ -696,7 +700,7 @@ elif dataset=='imagenet':
         learning_rate = {'default': 0.1, 'extractor': 0.0001}
         weight_decay = {'default': 1e-4, 'extractor': 1e-4}
         momentum = {'default': 0.9, 'extractor': 0.9}
-        batch_size = 128
+        batch_size = 256
         # 网络参数
         add_shortcut_ratio = 0.9  # 不是这儿！！！
         mask_update_freq = 1000
@@ -708,7 +712,7 @@ elif dataset=='imagenet':
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
         total_flop = 4133641192
-        prune_ratio = 0.5
+        prune_ratio = 0.75
         flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value = None
         learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [30, 60]]
@@ -728,53 +732,7 @@ elif dataset=='imagenet':
                                                                                gcn_layer_num=2
                                                                                )
 
-        # torch.distributed.init_process_group(backend='nccl', init_method='tcp://localhost:23456', rank=0, world_size=1)
-        net = net.to(device)
-        # net = nn.parallel.DistributedDataParallel(net)
-        #
-        checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
-        # save the output to log
-        print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
-        if not os.path.exists(checkpoint_path):
-            os.makedirs(checkpoint_path, exist_ok=True)
-        sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
-
-        print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
-
-        train.train_extractor_network(net=net,
-                                      net_name='resnet50',
-                                      exp_name=exp_name,
-                                      description=description,
-                                      dataset_name='imagenet',
-                                      optim_method_net=optimizer_net,
-                                      optim_method_extractor=optimizer_extractor,
-                                      weight_decay=weight_decay,
-                                      momentum=momentum,
-                                      learning_rate=learning_rate,
-
-                                      num_epochs=num_epochs,
-                                      batch_size=batch_size,
-                                      evaluate_step=200,
-                                      load_net=False,
-                                      test_net=False,
-                                      num_workers=8,
-                                      learning_rate_decay=True,
-                                      learning_rate_decay_epoch=learning_rate_decay_epoch,
-                                      learning_rate_decay_factor=0.1,
-                                      scheduler_name='MultiStepLR',
-                                      top_acc=1,
-                                      data_distributed=False,
-                                      paint_loss=True,
-                                      save_at_each_step=False,
-                                      gradient_clip_value=gradient_clip_value
-                                      )
-
-        # #
-        # i = 6
-        # exp_name = 'resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_' + str(
-        #     int(prune_ratio * 100)) + '_' + str(i)
-        # description = exp_name + '  ' + ''
+        net = net.cuda()
         #
         # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
         # # save the output to log
@@ -782,80 +740,124 @@ elif dataset=='imagenet':
         # if not os.path.exists(checkpoint_path):
         #     os.makedirs(checkpoint_path, exist_ok=True)
         # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-        # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'),
-        #                            sys.stderr)  # redirect std err, if necessary
-        # print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
-        # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet50', str(i) + '.tar'),map_location='cpu')
-        # # checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_1/checkpoint/flop=4111413224,accuracy=0.05310.tar',map_location='cpu')
-        # net.load_state_dict(checkpoint['state_dict'])
+        # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
         #
-        # net.mask_net()
-        # # net.print_mask()
-        # net.prune_net()
+        # print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
+        #
+        # train.train_extractor_network(net=net,
+        #                               net_name='resnet50',
+        #                               exp_name=exp_name,
+        #                               description=description,
+        #                               dataset_name='imagenet',
+        #                               optim_method_net=optimizer_net,
+        #                               optim_method_extractor=optimizer_extractor,
+        #                               weight_decay=weight_decay,
+        #                               momentum=momentum,
+        #                               learning_rate=learning_rate,
+        #
+        #                               num_epochs=num_epochs,
+        #                               batch_size=batch_size,
+        #                               evaluate_step=200,
+        #                               load_net=False,
+        #                               test_net=False,
+        #                               num_workers=8,
+        #                               learning_rate_decay=True,
+        #                               learning_rate_decay_epoch=learning_rate_decay_epoch,
+        #                               learning_rate_decay_factor=0.1,
+        #                               scheduler_name='MultiStepLR',
+        #                               top_acc=1,
+        #                               data_distributed=False,
+        #                               paint_loss=True,
+        #                               save_at_each_step=False,
+        #                               gradient_clip_value=gradient_clip_value
+        #                               )
+
+        # #
+        i = 2
+        exp_name = 'gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_' + str(
+            int(prune_ratio * 100)) + '_' + str(i)
+        description = exp_name + '  ' + ''
+
+        checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+        # save the output to log
+        print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+        if not os.path.exists(checkpoint_path):
+            os.makedirs(checkpoint_path, exist_ok=True)
+        sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'),
+                                   sys.stderr)  # redirect std err, if necessary
+        print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
+        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet50', str(i) + '.pth'),map_location='cpu')
+        # checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_1/checkpoint/flop=4111413224,accuracy=0.05310.tar',map_location='cpu')
+        net.load_state_dict(checkpoint['state_dict'])
+
+        net.mask_net()
         # net.print_mask()
-        # net.current_epoch = net.mask_training_stop_epoch + 1
-        # pruned_flop = net.measure_self_flops()
-        # print('prune_ratio:', 1 - pruned_flop / total_flop)
-        # measure_flops.measure_model(net.net)
-        # learning_rate_decay_epoch = [2 * i for i in [30, 60,90]]
-        # num_epochs = 100 * 2
+        net.prune_net()
+        net.print_mask()
+        net.current_epoch = net.mask_training_stop_epoch + 1
+        pruned_flop = net.measure_self_flops()
+        print('prune_ratio:', 1 - pruned_flop / total_flop)
+        measure_flops.measure_model(net.net)
+        learning_rate_decay_epoch = [2 * i for i in [30, 60,90]]
+        num_epochs = 100 * 2
+
+        net = nn.DataParallel(net)
+
+        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_6/checkpoint/flop=1045292769,accuracy=0.49408.tar')
+        # epoch_runs=26
         #
-        # net = nn.DataParallel(net)
+        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_50_6/checkpoint/flop=2021782516,accuracy=0.53024.tar')
+        # epoch_runs=24
         #
-        # # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_6/checkpoint/flop=1045292769,accuracy=0.49408.tar')
-        # # epoch_runs=26
-        # #
-        # # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_50_6/checkpoint/flop=2021782516,accuracy=0.53024.tar')
-        # # epoch_runs=24
-        # #
-        # # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_70_6/checkpoint/flop=1248796198,accuracy=0.49992.tar')
-        # # epoch_runs=25
-        # #
-        # # num_epochs=200-epoch_runs
-        # # learning_rate_decay_epoch=[2 * i -epoch_runs for i in [30, 60,90]]
-        # #
-        # # net.load_state_dict(checkpoint['state_dict'])
+        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_70_6/checkpoint/flop=1248796198,accuracy=0.49992.tar')
+        # epoch_runs=25
         #
-        # net=net.module.net
-        # net=nn.DataParallel(net)
+        # num_epochs=200-epoch_runs
+        # learning_rate_decay_epoch=[2 * i -epoch_runs for i in [30, 60,90]]
+        #
+        # net.load_state_dict(checkpoint['state_dict'])
+
+        net=net.module.net
+        net=nn.DataParallel(net)
         # exp_name+='_onlyNet'
-        #
-        # net = net.cuda()
-        #
-        # train.train(net=net,
-        #             net_name='resnet50',
-        #             exp_name=exp_name,
-        #             description=description,
-        #             dataset_name='imagenet',
-        #             optimizer=optim.SGD,
-        #             weight_decay=weight_decay,
-        #             momentum=momentum,
-        #             # learning_rate=0.01,
-        #             # learning_rate_decay_epoch=[30],
-        #             # num_epochs=60,
-        #             # batch_size=256,
-        #             criterion=train.CrossEntropyLabelSmooth(num_classes=1000, epsilon=0.1).cuda(),
-        #             # learning_rate=0.01,
-        #             # learning_rate_decay_epoch=[17],
-        #             # num_epochs=47,
-        #             learning_rate=learning_rate,
-        #             learning_rate_decay_epoch=learning_rate_decay_epoch,
-        #             num_epochs=num_epochs,
-        #             batch_size=batch_size,
-        #             evaluate_step=2000,
-        #             resume=True,
-        #             test_net=True,
-        #             num_workers=4,
-        #             learning_rate_decay=True,
-        #             learning_rate_decay_factor=0.1,
-        #             scheduler_name='MultiStepLR',
-        #             top_acc=1,
-        #             data_parallel=True,
-        #             paint_loss=False,
-        #             save_at_each_step=False,
-        #             gradient_clip_value=gradient_clip_value,
-        #             use_tensorboard=True
-        #             )
+
+        net = net.cuda()
+
+        train.train(net=net,
+                    net_name='resnet50',
+                    exp_name=exp_name,
+                    description=description,
+                    dataset_name='imagenet',
+                    optimizer=optim.SGD,
+                    weight_decay=weight_decay,
+                    momentum=momentum,
+                    # learning_rate=0.01,
+                    # learning_rate_decay_epoch=[30],
+                    # num_epochs=60,
+                    # batch_size=256,
+                    criterion=train.CrossEntropyLabelSmooth(num_classes=1000, epsilon=0.1).cuda(),
+                    # learning_rate=0.01,
+                    # learning_rate_decay_epoch=[17],
+                    # num_epochs=47,
+                    learning_rate=learning_rate,
+                    learning_rate_decay_epoch=learning_rate_decay_epoch,
+                    num_epochs=num_epochs,
+                    batch_size=batch_size,
+                    evaluate_step=2000,
+                    resume=True,
+                    test_net=True,
+                    num_workers=4,
+                    learning_rate_decay=True,
+                    learning_rate_decay_factor=0.1,
+                    scheduler_name='MultiStepLR',
+                    top_acc=1,
+                    data_parallel=True,
+                    paint_loss=False,
+                    save_at_each_step=False,
+                    gradient_clip_value=gradient_clip_value,
+                    use_tensorboard=True
+                    )
     else:
         raise AttributeError
 
