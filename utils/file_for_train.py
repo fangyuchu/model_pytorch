@@ -7,12 +7,12 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet,mobilenet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
-# dataset='cifar10'
-# net_type='resnet56'
+dataset='cifar100'
+net_type='vgg16_bn'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -35,7 +35,7 @@ if dataset == 'cifar10':
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=126550666#125485706
-        prune_ratio=0.9
+        prune_ratio=0.5
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=5
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -94,7 +94,7 @@ if dataset == 'cifar10':
         #                               )
         # # #
         #
-        i = 12
+        i = 1
         exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_newinner_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
@@ -108,18 +108,22 @@ if dataset == 'cifar10':
         print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
 
 
-        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56',str(i) + '.tar'),map_location='cpu')
+        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56',str(i) + '.pth'),map_location='cpu')
 
         # checkpoint = torch.load('/home/disk_new/model_saved/gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_mean2gamma5_12/checkpoint/flop=127615626,accuracy=0.81070.tar',map_location='cpu')
         # exp_name = 'test'
+
+        for key in list(checkpoint['state_dict'].keys()):
+            if 'zero_vec' in key or 'eye_mat' in key or 'gat_layers.0.adj' in key or 'gat_layers.1.adj' in key:
+                checkpoint['state_dict'].pop(key)
 
         net.load_state_dict(checkpoint['state_dict'])
         net.mask_net()
         net.print_mask()
         net.prune_net()
         net.current_epoch = net.mask_training_stop_epoch + 1
-        learning_rate_decay_epoch = [1*i for i in [80,120]]
-        num_epochs = 160*1
+        learning_rate_decay_epoch = [2*i for i in [80,120]]
+        num_epochs = 160*2
         train.train(net=net,
                     net_name='resnet56',
                     exp_name=exp_name,
@@ -292,7 +296,7 @@ elif dataset == 'cifar100':
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
         batch_size=128
         total_flop=316813412
-        prune_ratio=0.87
+        prune_ratio=0.6
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]

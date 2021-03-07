@@ -30,7 +30,7 @@ if ablation_exp_name == 'no_gat':
     print(exp_name)
     description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch，没有gat，mask直接由梯度更新'
     total_flop=126550666#125485706
-    prune_ratio=0.98
+    prune_ratio=0.87
     flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
     gradient_clip_value=5
     learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
