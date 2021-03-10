@@ -320,7 +320,81 @@ elif ablation_exp_name == 'draw_net_mask':
     # net.load_state_dict(checkpoint['state_dict'])
     # draw.draw_masked_net(net,'vgg16_9','/home/victorfang')
     print()
+elif ablation_exp_name == 'gat_layer_num':
+    gat_layer_num=[1,2,3,4,5]
+    optimizer_net = optim.SGD
+    optimizer_extractor = optim.SGD
+    learning_rate = {'default': 0.1, 'extractor': 0.0001}
+    weight_decay = {'default': 5e-4, 'extractor': 5e-4}
+    momentum = {'default': 0.9, 'extractor': 0.9}
+    batch_size = 128
+    # 网络参数
+    add_shortcut_ratio = 0.9  # 不是这儿！！！
+    mask_update_freq = 1000
+    mask_update_epochs = 900
+    mask_training_start_epoch = 1
+    mask_training_stop_epoch = 20
 
+
+    total_flop = 126550666  # 125485706
+    prune_ratio = 0.9
+    flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
+    gradient_clip_value = 5
+    learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
+    num_epochs = 160 * 1 + mask_training_stop_epoch
+    for layer_num in gat_layer_num:
+        net = resnet_cifar.resnet56(num_classes=10).to(device)
+        net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+                                                                               net_name='resnet56',
+                                                                               dataset_name='cifar10',
+                                                                               mask_update_epochs=mask_update_epochs,
+                                                                               mask_update_freq=mask_update_freq,
+                                                                               flop_expected=flop_expected,
+                                                                               mask_training_start_epoch=mask_training_start_epoch,
+                                                                               mask_training_stop_epoch=mask_training_stop_epoch,
+                                                                               batch_size=batch_size,
+                                                                               add_shortcut_ratio=add_shortcut_ratio,
+                                                                               gcn_layer_num=layer_num,
+                                                                               no_gat=True
+                                                                               )
+        exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_gat_layer_num_'+str(layer_num)
+        print(exp_name)
+        net = net.cuda()
+        checkpoint_path = os.path.join(conf.root_path, 'model_saved', 'ablation_gat_layer_num',exp_name)
+        # save the output to log
+        print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+        if not os.path.exists(checkpoint_path):
+            os.makedirs(checkpoint_path, exist_ok=True)
+        sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
+
+        print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
+        train.train_extractor_network(net=net,
+                                      net_name='resnet56',
+                                      exp_name=exp_name,
+                                      dataset_name='cifar10',
+
+                                      optim_method_net=optimizer_net,
+                                      optim_method_extractor=optimizer_extractor,
+                                      weight_decay=weight_decay,
+                                      momentum=momentum,
+                                      learning_rate=learning_rate,
+
+                                      num_epochs=num_epochs,
+                                      batch_size=batch_size,
+                                      evaluate_step=5000,
+                                      load_net=False,
+                                      test_net=False,
+                                      num_workers=4,
+                                      # weight_decay=5e-4,
+                                      learning_rate_decay=True,
+                                      learning_rate_decay_epoch=learning_rate_decay_epoch,
+                                      learning_rate_decay_factor=0.1,
+                                      scheduler_name='MultiStepLR',
+                                      top_acc=1,
+                                      paint_loss=True,
+                                      save_at_each_step=False,
+                                      )
 
 # #add_shortcut_ratio
 # optimizer_extractor = optim.SGD

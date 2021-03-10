@@ -389,7 +389,8 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     :return:
     '''
     # plt.style.use('seaborn-whitegrid')
-    font_size=20    #for small figure
+    font_size=20    # for motivation
+    # font_size=20    #for small figure
     # font_size=15
     marker_size=15
     # marker_list=['v','+','*','.','d','s','o',] # for baselines
@@ -406,16 +407,17 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     for i,y in enumerate(acc_list):
         ax.plot(x,y,marker=marker_list[i],label=legends[i],markersize=marker_size)
     # plt.ylim(0.6,1)
-    ax.set_xlabel('Pruned Flops%',fontsize=font_size)
-    ax.set_ylabel('Accuracy%',fontsize=font_size)
+    ax.set_xlabel('Pruned Flops%',fontsize=font_size+5)
+    ax.set_ylabel('Accuracy%',fontsize=font_size+5)
     # plt.yticks([80,85,90],('80','85','90'))
     # ax.set_ylim(bottom=10)
     # ax.set_ylim(bottom=30)
     # ax.set_ylim(bottom=50)
+    # ax.set_ylim(bottom=55)
     # ax.set_yticks([30,40,60,80,90,100],('0','40','60','80','90','100'),)
     # ax.set_yticks([50,60,80,90,100],('50','60','80','90','100'),)
     # ax.set_ylim(bottom=79)
-    # ax.set_yticks([80,85,90],('80','85','90'))
+    # ax.set_yticks([30,70,90],('30','70','90'))
 
     ax.tick_params(labelsize=font_size)
     ax.grid()
@@ -429,7 +431,7 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     # plt.yticks([60,70,80,85,90],('60','70','80','85','90'))
     # plt.yticks([70,80,90],('70','80','90'))
     # plt.title(exp_name)
-    ax.legend(fontsize=font_size,loc='best')
+    ax.legend(fontsize=font_size+5,loc='best')
     plt.savefig('/home/victorfang/'+exp_name+'.png',dpi=fig.dpi)
     plt.show()
 
@@ -437,16 +439,30 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
 
 if __name__ == "__main__":
 
-    # # motivation
-    # acc_pruneratio(acc_list=[[0.927733,0.9172,0.907667,0.903967,0.904667,0.896867,0,0,0],
-    #                          [0.9283,0.9245,0.918933,0.913867,0.89,0.8726,0.8407,0.6393,0.4423],
-    #                          [0.9412,0.9374,0.9312,0.9162,0.9071,.836033,0.8532,0.720933,0],
-    #                          [0.9209,0.9044,0.8879,0.8743,0.87,0.855833,0.8259,0.701967,0.4044]
-    #                          ],
-    #
-    #                prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
-    #                legends=['PFS','EB-Tickets','Rethink','SFP'],
-    #                exp_name='motivation')
+    # motivation
+    acc_pruneratio(acc_list=[
+                                [0.927733,0.9172,0.907667,0.903967,0.904667,0.896867,0,0,0],
+                             [0.9283,0.9245,0.918933,0.913867,0.89,0.8726,0.8407,0.6393,0.4423],
+                             [0.9412,0.9374,0.9312,0.9162,0.9071,.836033,0.8532,0.720933,0],
+                             [0.9209,0.9044,0.8879,0.8743,0.87,0.855833,0.8259,0.701967,0.4044],
+        # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
+                             ],
+
+                   prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
+                   legends=['PFS','EB-Tickets','Rethink','SFP'],
+                   exp_name='motivation_resnet56_cifar10')
+
+    acc_pruneratio(acc_list=[
+        [0.711, 0.702933, 0.6963, 0.691567, 0.682667, 0.6694, 0.654066667,  0.5441,0.4133],
+                             [0.6584,0.6181,0.5699,0.6109,0.5156,0.5535,0.4379,0.4643666,0.2771],
+                             [0.62095,0.6134,0.528,0.54595,0.53205,.3951,0.34245,0.3141,0.147],
+                             [0.7149,0.7133,0.7008,0.6968,0.6874,0.6668,0.61545,0.42025,0.1464],
+        # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
+                             ],
+
+                   prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
+                   legends=['PFS','EB-Tickets','Rethink','SFP'],
+                   exp_name='motivation_vgg16_cifar100')
 
 
 
@@ -498,15 +514,15 @@ if __name__ == "__main__":
     #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP'],
     #                exp_name='Pruning_ResNet-56_on_CIFAR-100')
 
-    #ablation study part module
-    acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
-                            [0.8964, 0.8908, 0.8865, 0.8849, 0.8748, 0.832, 0.8076],
-                             [0.9001, 0.8915, 0.8872, 0.8792, 0.867, 0.8312, 0.798],
-                             ],
-                   prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
-                   legends=['DAP','No Graph Attention', 'No Shortcut'],
-                   exp_name='effect_of_two_modules'
-                   )
+    # #ablation study part module
+    # acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
+    #                         [0.8964, 0.8873, 0.8897, 0.8855, 0.8707, 0.862, 0.8405,0.602],
+    #                          [0.9011, 0.8918, 0.8964, 0.8849, 0, 0, 0,0],
+    #                          ],
+    #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
+    #                legends=['DAP','No Graph Attention', 'No Side-path'],
+    #                exp_name='effect_of_two_modules'
+    #                )
 
     # fontsize=14
     # pruned_flop=[9.48,31.63,63.72,84.54,88.30]
