@@ -38,9 +38,9 @@ class gat(nn.Module):
 
         self.w={}
         for key in filter_weight_num.keys():
-            self.w[str(key)]=nn.Linear(in_features=key,out_features=embedding_feature_len,bias=False)
-            # self.w[str(key)]=nn.Sequential(nn.Linear(in_features=key,out_features=embedding_feature_len,bias=False),
-            #                                nn.BatchNorm1d(num_features=embedding_feature_len,track_running_stats=False))
+            # self.w[str(key)]=nn.Linear(in_features=key,out_features=embedding_feature_len,bias=False)
+            self.w[str(key)]=nn.Sequential(nn.Linear(in_features=key,out_features=embedding_feature_len,bias=False),
+                                           nn.BatchNorm1d(num_features=embedding_feature_len,track_running_stats=False))
 
         self.w=nn.ModuleDict(self.w)
 

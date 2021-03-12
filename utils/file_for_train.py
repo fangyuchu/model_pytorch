@@ -7,12 +7,12 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet,mobilenet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '7'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
-dataset='cifar10'
-net_type='resnet56'
+# dataset='cifar10'
+# net_type='resnet56'
 # # #for cifar
 # # #训练参数
 if dataset == 'cifar10':
@@ -716,7 +716,7 @@ elif dataset=='imagenet':
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
         total_flop = 4133641192
-        prune_ratio = 0.85
+        prune_ratio = 0.75
         flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value = None
         learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [30, 60]]
@@ -777,7 +777,7 @@ elif dataset=='imagenet':
         #                               )
 
         # #
-        i = 1
+        i = 3
         exp_name = 'gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_' + str(
             int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
@@ -791,7 +791,7 @@ elif dataset=='imagenet':
         sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'),
                                    sys.stderr)  # redirect std err, if necessary
         print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
-        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet50', str(i) + '.pth'),map_location='cpu')
+        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet50', str(i) + '.tar'),map_location='cpu')
         # checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_1/checkpoint/flop=4111413224,accuracy=0.05310.tar',map_location='cpu')
         net.load_state_dict(checkpoint['state_dict'])
 
@@ -824,7 +824,14 @@ elif dataset=='imagenet':
 
         net=net.module.net
         net=nn.DataParallel(net)
-        # exp_name+='_onlyNet'
+
+
+        exp_name+='_onlyNet'
+        checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_3/checkpoint/flop=1042090494,accuracy=0.72152.pth')
+        num_epochs=30
+        learning_rate_decay_epoch=[10]
+        learning_rate=0.001
+        net.load_state_dict(checkpoint['state_dict'])
 
         net = net.cuda()
 
