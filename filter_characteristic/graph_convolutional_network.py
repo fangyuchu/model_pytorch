@@ -26,10 +26,13 @@ class gat(nn.Module):
                 filter_num+=[mod.out_channels]
                 filter_weight_num[mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]]=1
         self.embedding_feature_len=embedding_feature_len
-        self.register_buffer('initial_h',torch.ones((sum(filter_num),embedding_feature_len)))
-        self.register_buffer('adj',torch.zeros((sum(filter_num),sum(filter_num))))
+        # self.register_buffer('initial_h',torch.ones((sum(filter_num),embedding_feature_len)))
+        # self.register_buffer('adj',torch.zeros((sum(filter_num),sum(filter_num))))
+        self.initial_h = torch.ones((sum(filter_num), embedding_feature_len)).cuda()
+        self.adj = torch.zeros((sum(filter_num), sum(filter_num))).cuda()
         row=last_num=filter_num[0]
-        for i,num in enumerate(filter_num,start=1):
+
+        for i,num in enumerate(filter_num[1:]):
             self.adj[row:row+num,row-last_num:row]=1
             row+=num
             last_num=num

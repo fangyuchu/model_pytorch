@@ -4,12 +4,16 @@ import torch
 import torch.nn as nn
 import numpy as np
 from framework import data_loader, evaluate
-from network import vgg, resnet_cifar,storage
+from network import storage,resnet_cifar,vgg,net_with_predicted_mask,resnet
 from filter_characteristic import predict_dead_filter
 import matplotlib.pyplot as plt
 import copy
 import time
 import os
+from network.modules import conv2d_with_mask
+from framework import config as conf
+from framework.draw import draw_masked_net,draw_gat_attention
+from framework.train import show_feature_map
 
 
 def dead_neural_rate():
@@ -439,30 +443,30 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
 
 if __name__ == "__main__":
 
-    # motivation
-    acc_pruneratio(acc_list=[
-                                [0.927733,0.9172,0.907667,0.903967,0.904667,0.896867,0,0,0],
-                             [0.9283,0.9245,0.918933,0.913867,0.89,0.8726,0.8407,0.6393,0.4423],
-                             [0.9412,0.9374,0.9312,0.9162,0.9071,.836033,0.8532,0.720933,0],
-                             [0.9209,0.9044,0.8879,0.8743,0.87,0.855833,0.8259,0.701967,0.4044],
-        # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
-                             ],
-
-                   prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
-                   legends=['PFS','EB-Tickets','Rethink','SFP'],
-                   exp_name='motivation_resnet56_cifar10')
-
-    acc_pruneratio(acc_list=[
-        [0.711, 0.702933, 0.6963, 0.691567, 0.682667, 0.6694, 0.654066667,  0.5441,0.4133],
-                             [0.6584,0.6181,0.5699,0.6109,0.5156,0.5535,0.4379,0.4643666,0.2771],
-                             [0.62095,0.6134,0.528,0.54595,0.53205,.3951,0.34245,0.3141,0.147],
-                             [0.7149,0.7133,0.7008,0.6968,0.6874,0.6668,0.61545,0.42025,0.1464],
-        # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
-                             ],
-
-                   prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
-                   legends=['PFS','EB-Tickets','Rethink','SFP'],
-                   exp_name='motivation_vgg16_cifar100')
+    # # motivation
+    # acc_pruneratio(acc_list=[
+    #                             [0.927733,0.9172,0.907667,0.903967,0.904667,0.896867,0,0,0],
+    #                          [0.9283,0.9245,0.918933,0.913867,0.89,0.8726,0.8407,0.6393,0.4423],
+    #                          [0.9412,0.9374,0.9312,0.9162,0.9071,.836033,0.8532,0.720933,0],
+    #                          [0.9209,0.9044,0.8879,0.8743,0.87,0.855833,0.8259,0.701967,0.4044],
+    #     # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
+    #                          ],
+    #
+    #                prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
+    #                legends=['PFS','EB-Tickets','Rethink','SFP'],
+    #                exp_name='motivation_resnet56_cifar10')
+    #
+    # acc_pruneratio(acc_list=[
+    #     [0.711, 0.702933, 0.6963, 0.691567, 0.682667, 0.6694, 0.654066667,  0.5441,0.4133],
+    #                          [0.6584,0.6181,0.5699,0.6109,0.5156,0.5535,0.4379,0.4643666,0.2771],
+    #                          [0.62095,0.6134,0.528,0.54595,0.53205,.3951,0.34245,0.3141,0.147],
+    #                          [0.7149,0.7133,0.7008,0.6968,0.6874,0.6668,0.61545,0.42025,0.1464],
+    #     # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
+    #                          ],
+    #
+    #                prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
+    #                legends=['PFS','EB-Tickets','Rethink','SFP'],
+    #                exp_name='motivation_vgg16_cifar100')
 
 
 
@@ -537,4 +541,105 @@ if __name__ == "__main__":
     # plt.savefig('/home/victorfang/Desktop/vgg16_cifar10_tolerance.eps', format='eps')
     # plt.show()
 
+    # #draw the side-attention of the net
+    # # resnet56
+    # net = resnet_cifar.resnet56(num_classes=10).cuda()
+    # net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+    #                                                                        net_name='resnet56',
+    #                                                                        dataset_name='cifar10',
+    #                                                                        mask_update_epochs=900,
+    #                                                                        mask_update_freq=1000,
+    #                                                                        flop_expected=126550666 * (1 - 0.9),
+    #                                                                        gcn_layer_num=2,
+    #                                                                        mask_training_start_epoch=1,
+    #                                                                        mask_training_stop_epoch=80,
+    #                                                                        batch_size=128,
+    #                                                                        add_shortcut_ratio=0.9
+    #                                                                        )
+    # net = net.cuda()
+    # i = 3
+    # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56', str(i) + '.pth'),map_location='cpu')
+    # for key in list(checkpoint['state_dict'].keys()):
+    #     if 'zero_vec' in key or 'eye_mat' in key or 'gat_layers.0.adj' in key or 'gat_layers.1.adj' in key:
+    #         checkpoint['state_dict'].pop(key)
+    # net.load_state_dict(checkpoint['state_dict'])
+    # mask = net.extractor(net)  # predict mask using extractor
+    # mask=mask.abs()
+    # lo = hi = 0
+    # last_conv_mask = None
+    # for name, mod in net.net.named_modules():
+    #     if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+    #         hi += mod.out_channels
+    #         mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+    #         lo = hi
+    #         last_conv_mask = mod.mask
+    # fig=draw_masked_net(net,pic_name='resnet56_'+str(i),path='/home/victorfang/')
+    # print()
 
+    #draw the gat attention of the network
+    #draw the side-attention of the net
+    # resnet56
+    net = resnet_cifar.resnet56(num_classes=10).cuda()
+    net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+                                                                           net_name='resnet56',
+                                                                           dataset_name='cifar10',
+                                                                           mask_update_epochs=900,
+                                                                           mask_update_freq=1000,
+                                                                           flop_expected=126550666 * (1 - 0.9),
+                                                                           gcn_layer_num=2,
+                                                                           mask_training_start_epoch=1,
+                                                                           mask_training_stop_epoch=80,
+                                                                           batch_size=128,
+                                                                           add_shortcut_ratio=0.9
+                                                                           )
+    net = net.cuda()
+    i = 3
+    checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56', str(i) + '.pth'),map_location='cpu')
+    for key in list(checkpoint['state_dict'].keys()):
+        if 'zero_vec' in key or 'eye_mat' in key or 'gat_layers.0.adj' in key or 'gat_layers.1.adj' in key:
+            checkpoint['state_dict'].pop(key)
+    net.load_state_dict(checkpoint['state_dict'])
+    mask = net.extractor(net)  # predict mask using extractor
+    mask=mask.abs()
+    lo = hi = 0
+    last_conv_mask = None
+    for name, mod in net.net.named_modules():
+        if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+            hi += mod.out_channels
+            mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+            lo = hi
+            last_conv_mask = mod.mask
+    fig=draw_gat_attention(net,pic_name='resnet56_gat_'+str(i),path='/home/victorfang/')
+    print()
+
+    # #draw the feature map
+    # # resnet56
+    # net = resnet_cifar.resnet56(num_classes=10).cuda()
+    # net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+    #                                                                        net_name='resnet56',
+    #                                                                        dataset_name='cifar10',
+    #                                                                        mask_update_epochs=900,
+    #                                                                        mask_update_freq=1000,
+    #                                                                        flop_expected=126550666 * (1 - 0.9),
+    #                                                                        gcn_layer_num=2,
+    #                                                                        mask_training_start_epoch=1,
+    #                                                                        mask_training_stop_epoch=80,
+    #                                                                        batch_size=128,
+    #                                                                        add_shortcut_ratio=0.9
+    #                                                                        )
+    # net = net.cuda()
+    # i = 3
+    # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56', str(i) + '.pth'), map_location='cpu')
+    # for key in list(checkpoint['state_dict'].keys()):
+    #     if 'zero_vec' in key or 'eye_mat' in key or 'gat_layers.0.adj' in key or 'gat_layers.1.adj' in key:
+    #         checkpoint['state_dict'].pop(key)
+    # dl, _ = data_loader.create_train_loader(batch_size=64,
+    #                                         num_workers=0,
+    #                                         dataset_name='cifar10',
+    #                                         )
+    # net.load_state_dict(checkpoint['state_dict'])
+    # show_feature_map(net,
+    #                  data_loader=dl,
+    #                  layer_indexes=0,
+    #                  num_image_show=16,
+    #                  col=4)

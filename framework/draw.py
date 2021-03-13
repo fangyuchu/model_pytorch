@@ -6,6 +6,7 @@ import numpy as np
 from network import net_with_predicted_mask
 import torch
 from framework import config as conf
+from filter_characteristic.graph_convolutional_network import GAT_layer
 import os
 def draw_masked_net_pruned(net):
     num_layer = 0  # num of total conv layers
@@ -97,7 +98,6 @@ def draw_masked_net(net,pic_name,path):
     # plt.style.use('fivethirtyeight')
 
     fig,ax=plt.subplots(figsize=(8,5))
-
     im=ax.imshow(layer_mask,cmap=plt.cm.YlOrRd,interpolation='nearest',vmin=0, vmax=1,aspect='auto')
     cmap_custom=plt.get_cmap('YlOrRd')
     cmap_custom.set_under('#A9A9A9')
@@ -131,22 +131,22 @@ def draw_masked_net(net,pic_name,path):
     #     ax.text(1, i, str(i), fontsize=12)
 
 
-    # # #resnet56
-    # ax.text(18,3,'1',fontsize=fontsize)
-    # ax.text(18,63,'64',fontsize=fontsize)
-    # ax.text(36,18,'1',fontsize=fontsize)
-    # ax.text(36,47,'32',fontsize=fontsize)
-    # ax.text(52,23,'1',fontsize=fontsize)
-    # ax.text(51,43,'16',fontsize=fontsize)
-    #vgg16
-    ax.text(5.5,25,'1',fontsize=fontsize)
-    ax.text(5.5,505,'512',fontsize=fontsize)
-    ax.text(8.5,140,'1',fontsize=fontsize)
-    ax.text(8.5,380,'256',fontsize=fontsize)
-    ax.text(10.5,205,'1',fontsize=fontsize)
-    ax.text(10.5,335,'128',fontsize=fontsize)
-    ax.text(11.9,215,'1',fontsize=fontsize)
-    ax.text(11.7,315,'64',fontsize=fontsize)
+    # #resnet56
+    ax.text(18,3,'1',fontsize=fontsize)
+    ax.text(18,63,'64',fontsize=fontsize)
+    ax.text(36,18,'1',fontsize=fontsize)
+    ax.text(36,47,'32',fontsize=fontsize)
+    ax.text(52,23,'1',fontsize=fontsize)
+    ax.text(51,43,'16',fontsize=fontsize)
+    # #vgg16
+    # ax.text(5.5,25,'1',fontsize=fontsize)
+    # ax.text(5.5,505,'512',fontsize=fontsize)
+    # ax.text(8.5,140,'1',fontsize=fontsize)
+    # ax.text(8.5,380,'256',fontsize=fontsize)
+    # ax.text(10.5,205,'1',fontsize=fontsize)
+    # ax.text(10.5,335,'128',fontsize=fontsize)
+    # ax.text(11.9,215,'1',fontsize=fontsize)
+    # ax.text(11.7,315,'64',fontsize=fontsize)
 
 
     bwith = 2
@@ -165,58 +165,38 @@ def draw_masked_net(net,pic_name,path):
     plt.show()
     return fig
 
+def draw_gat_attention(net,pic_name,path):
+    net.mask_net()
+    filter_num=0
+    for name,mod in net.named_modules():
+        if isinstance(mod, conv2d_with_mask):
+            filter_num += mod.out_channels
+        if name == 'net.stage_3.0.conv_a':
+            break
+
+    for name,mod in net.named_modules():
+        if isinstance(mod,GAT_layer):
+            print()
+            fig, ax = plt.subplots(figsize=(8, 5))
+            second_layer_a=2*mod.A.detach().cpu().numpy()[320:352,304:320] # for resnet-56
+            # im = ax.imshow(second_layer_a, cmap=plt.cm.YlOrRd, interpolation='nearest', vmin=0, vmax=0.1, aspect='auto')
+            im = ax.imshow(second_layer_a, cmap=plt.cm.YlOrRd, interpolation='nearest',  aspect='auto')
+            cmap_custom = plt.get_cmap('YlOrRd')
+            cmap_custom.set_under('#A9A9A9')
+            fontsize = 20
+            cb = ax.figure.colorbar(im, ax=ax)
+            cb.ax.tick_params(labelsize=fontsize)
+            # ax.tick_params(labelsize=fontsize)
+            fig.tight_layout()
+            plt.savefig(os.path.join(path, pic_name + '.png'))
+            plt.show()
+            print()
+    print()
+
+
 
 
 if __name__ == "__main__":
-    from network import resnet_cifar,vgg
-    import torch.nn as nn
-    # resnet56
-    add_shortcut_ratio = 0.9  # 不是这儿！！！
-    mask_update_freq = 1000
-    mask_update_epochs = 900
-    mask_training_start_epoch = 1
-    mask_training_stop_epoch = 80
-
-    total_flop = 126550666
-    prune_ratio = 0
-    flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
-    gradient_clip_value = None
-    learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
-    num_epochs = 160 * 1 + mask_training_stop_epoch
-    #
-    net = resnet_cifar.resnet56(num_classes=10).cuda()
-    net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
-                                                                           net_name='resnet56',
-                                                                           dataset_name='cifar10',
-                                                                           mask_update_epochs=mask_update_epochs,
-                                                                           mask_update_freq=mask_update_freq,
-                                                                           flop_expected=flop_expected,
-                                                                           gcn_layer_num=2,
-                                                                           mask_training_start_epoch=mask_training_start_epoch,
-                                                                           mask_training_stop_epoch=mask_training_stop_epoch,
-                                                                           batch_size=128,
-                                                                           add_shortcut_ratio=add_shortcut_ratio
-                                                                           )
-    net = net.cuda()
-    i = 10086
-
-    # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56', str(i) + '.tar'),map_location='cpu')
-
-    checkpoint=torch.load('/home/disk_new/model_saved/resnet56_predicted_mask_and_variable_shortcut_net_mask_newinner_80epoch_std_8/checkpoint/masked_net.pth')
-
-    net.load_state_dict(checkpoint['state_dict'])
-    mask = net.extractor(net, net.net_name, net.dataset_name)  # predict mask using extractor
-    mask=mask.abs()
-    lo = hi = 0
-    last_conv_mask = None
-    for name, mod in net.net.named_modules():
-        if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
-            hi += mod.out_channels
-            mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
-            lo = hi
-            last_conv_mask = mod.mask
-
-    fig=draw_masked_net(net,pic_name='resnet56_'+str(i),path='/home/victorfang/')
     print()
 
 
