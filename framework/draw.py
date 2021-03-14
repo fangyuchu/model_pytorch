@@ -97,7 +97,7 @@ def draw_masked_net(net,pic_name,path):
     square_w = 0.5 * w_delta  # width of a square
     # plt.style.use('fivethirtyeight')
 
-    fig,ax=plt.subplots(figsize=(8,5))
+    fig,ax=plt.subplots(figsize=(8,8))
     im=ax.imshow(layer_mask,cmap=plt.cm.YlOrRd,interpolation='nearest',vmin=0, vmax=1,aspect='auto')
     cmap_custom=plt.get_cmap('YlOrRd')
     cmap_custom.set_under('#A9A9A9')
@@ -106,7 +106,7 @@ def draw_masked_net(net,pic_name,path):
     # heatmap.cmap.set_under('black')
     # bar = fig.colorbar(heatmap, extend='both')
 
-    fontsize = 20
+    fontsize = 25
 
     cb=ax.figure.colorbar(im,ax=ax)
     cb.ax.tick_params(labelsize=fontsize)
@@ -168,29 +168,58 @@ def draw_masked_net(net,pic_name,path):
 def draw_gat_attention(net,pic_name,path):
     net.mask_net()
     filter_num=0
+    layer = 0
     for name,mod in net.named_modules():
         if isinstance(mod, conv2d_with_mask):
             filter_num += mod.out_channels
+            layer +=1
         if name == 'net.stage_3.0.conv_a':
             break
-
+    fig_num=0
+    fig, ax_list = plt.subplots(2, sharex=True,figsize=(8,8))
     for name,mod in net.named_modules():
         if isinstance(mod,GAT_layer):
             print()
-            fig, ax = plt.subplots(figsize=(8, 5))
-            second_layer_a=2*mod.A.detach().cpu().numpy()[320:352,304:320] # for resnet-56
-            # im = ax.imshow(second_layer_a, cmap=plt.cm.YlOrRd, interpolation='nearest', vmin=0, vmax=0.1, aspect='auto')
-            im = ax.imshow(second_layer_a, cmap=plt.cm.YlOrRd, interpolation='nearest',  aspect='auto')
+            ax=ax_list[fig_num]
+            fig_num+=1
+            third_stage_layer_a=2*mod.A.detach().cpu().numpy()[880:944,848:880].T # for resnet-56
+            # im = ax.imshow(third_stage_layer_a, cmap=plt.cm.YlOrRd, interpolation='nearest', vmin=0, vmax=0.1, aspect='auto')
+            im = ax.imshow(third_stage_layer_a, cmap=plt.cm.YlOrRd, interpolation='nearest',  aspect='auto')
             cmap_custom = plt.get_cmap('YlOrRd')
             cmap_custom.set_under('#A9A9A9')
-            fontsize = 20
+            fontsize = 25
             cb = ax.figure.colorbar(im, ax=ax)
             cb.ax.tick_params(labelsize=fontsize)
-            # ax.tick_params(labelsize=fontsize)
-            fig.tight_layout()
-            plt.savefig(os.path.join(path, pic_name + '.png'))
-            plt.show()
-            print()
+
+
+
+            ax.tick_params(labelsize=fontsize)
+            xtick_num = 7
+            gap = int(third_stage_layer_a.shape[1] / xtick_num)
+            xticks = [i for i in range(0, third_stage_layer_a.shape[1], gap)]
+            ytick_num = 4
+            gap = int(third_stage_layer_a.shape[0] / ytick_num)
+            yticks = [i for i in range(0, third_stage_layer_a.shape[0], gap)]
+            yticks+=[third_stage_layer_a.shape[0]-1]
+            xticks = np.array(xticks)
+            yticks = np.array(yticks)
+            ax.set_xticks(xticks)
+            ax.set_yticks(yticks)
+            # xticks = xticks[::-1]
+            ax.set_xticklabels(xticks + 1)
+            ax.set_yticklabels(yticks + 1)
+            yticks = yticks[::-1]
+            ax.set_yticklabels(yticks + 1)
+            ax.set_title('GAT Layer '+str(fig_num),fontsize=fontsize)
+
+    plt.xlabel('Filters in Layer 38', fontsize=fontsize)
+    plt.ylabel(' ', fontsize=fontsize)   #create space for the text below
+    fig.text(0.02,0.5,'Filters in Layer 37',va='center',rotation='vertical',fontsize=fontsize)
+
+    fig.tight_layout()
+    plt.savefig(os.path.join(path, pic_name + '.png'))
+    plt.show()
+    print()
     print()
 
 
