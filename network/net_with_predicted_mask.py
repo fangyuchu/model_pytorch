@@ -416,7 +416,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         # temporarily used for resnet50
         # 1:0.5:9400,0.75:16200,0.85:19900,,0.8:16167;2:0.5:12050,0.75:15400,0.85:17200;3:0.5:8530, 0.75:12300,0.85:15050;5:0.75:12470;6:0.75:10850,0.85:14350
         if isinstance(self.net, resnet.ResNet):
-            num = 14350
+            num = 10850
             print('prune:{} filters'.format(num))
             return num
 
