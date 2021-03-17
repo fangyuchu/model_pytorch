@@ -888,12 +888,17 @@ def train_extractor_network(
                     #     mask_last_step[i]=mod.mask.clone().detach()
                     #     i+=1
                 # alpha = 0.2#resnet56:0.02,vgg16bn:0.05/0.4 for cifar100, resnet50:0.2
-                lamda=0.05
+                lamda=0.02#used to be 0.05 for all net
                 if isinstance(net.net,vgg.VGG):
+                    # if net.dataset_name == 'cifar100':
+                    #     alpha=0.05
+                    # else:
+                    #     alpha=0.05
                     if net.dataset_name == 'cifar100':
-                        alpha=0.05
+                        alpha=0.02
                     else:
-                        alpha=0.05
+                        alpha=0.02
+
                 elif isinstance(net.net,resnet_cifar.CifarResNet):
                     # alpha=0.02
 

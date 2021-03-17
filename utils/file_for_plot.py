@@ -518,26 +518,26 @@ if __name__ == "__main__":
     #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP'],
     #                exp_name='Pruning_ResNet-56_on_CIFAR-100')
 
-    #ablation study part module
-    acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
-                            [0.8964, 0.8873, 0.8897, 0.8855, 0.8707, 0.862, 0.8405,0.602],
-                             [0.9011, 0.8918, 0.8964, 0.8849, 0, 0, 0,0],
-                             ],
-                   prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
-                   legends=['DAP','w/o Graph Attention', 'w/o Side-path'],
-                   exp_name='effect_of_two_modules'
-                   )
-    fontsize=14
-    pruned_flop=[9.48,31.63,63.72,84.54,88.30]
-    acc_drop=[0.1,0.2,0.5,1,2]
-    plt.figure()
-    plt.plot(acc_drop, pruned_flop, 'bo--')
-    plt.yticks(fontsize=fontsize)
-    plt.xticks(acc_drop,acc_drop,fontsize=fontsize-2)
-    plt.xlabel('Tolerance Accuracy Drop%', fontsize=fontsize)
-    plt.ylabel('Pruned FLOPs%', fontsize=fontsize)
-    plt.savefig('/home/victorfang/Desktop/vgg16_cifar10_tolerance.eps', format='eps')
-    plt.show()
+    # #ablation study part module
+    # acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
+    #                         [0.8964, 0.8873, 0.8897, 0.8855, 0.8707, 0.862, 0.8405,0.602],
+    #                          [0.9011, 0.8918, 0.8964, 0.8849, 0, 0, 0,0],
+    #                          ],
+    #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
+    #                legends=['DAP','w/o Graph Attention', 'w/o Side-path'],
+    #                exp_name='effect_of_two_modules'
+    #                )
+    # fontsize=14
+    # pruned_flop=[9.48,31.63,63.72,84.54,88.30]
+    # acc_drop=[0.1,0.2,0.5,1,2]
+    # plt.figure()
+    # plt.plot(acc_drop, pruned_flop, 'bo--')
+    # plt.yticks(fontsize=fontsize)
+    # plt.xticks(acc_drop,acc_drop,fontsize=fontsize-2)
+    # plt.xlabel('Tolerance Accuracy Drop%', fontsize=fontsize)
+    # plt.ylabel('Pruned FLOPs%', fontsize=fontsize)
+    # plt.savefig('/home/victorfang/Desktop/vgg16_cifar10_tolerance.eps', format='eps')
+    # plt.show()
 
     # #draw the side-attention of the net
     # # resnet56
@@ -555,8 +555,9 @@ if __name__ == "__main__":
     #                                                                        add_shortcut_ratio=0.9
     #                                                                        )
     # net = net.cuda()
-    # i = 14
+    # i = 3
     # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56', str(i) + '.pth'),map_location='cpu')
+    #
     # for key in list(checkpoint['state_dict'].keys()):
     #     if 'zero_vec' in key or 'eye_mat' in key or 'gat_layers.0.adj' in key or 'gat_layers.1.adj' in key:
     #         checkpoint['state_dict'].pop(key)
@@ -572,7 +573,44 @@ if __name__ == "__main__":
     #         lo = hi
     #         last_conv_mask = mod.mask
     # fig=draw_masked_net(net,pic_name='resnet56_'+str(i),path='/home/victorfang/')
+    # # fig = draw_gat_attention(net, pic_name='resnet56_gat_' + str(i), path='/home/victorfang/')
     # print()
+
+    total_flop = 314017290
+    prune_ratio = 0.9
+    flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
+    num_epochs = 160 * 1 + 20
+    learning_rate = {'default': 0.1, 'extractor': 0.0001}
+    weight_decay = {'default': 5e-4, 'extractor': 0}
+    net = vgg.vgg16_bn(dataset_name='cifar10').cuda()
+    net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+                                                                           net_name='vgg16_bn',
+                                                                           dataset_name='cifar10',
+                                                                           mask_update_epochs=900,
+                                                                           mask_update_freq=1000,
+                                                                           flop_expected=flop_expected,
+                                                                           mask_training_start_epoch=1,
+                                                                           mask_training_stop_epoch=80,
+                                                                           batch_size=128,
+                                                                           add_shortcut_ratio=0.9
+                                                                           )
+    net = net.cuda()
+    i=11
+    # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'vgg16', str(i) + '.pth'), map_location='cpu')
+    checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_meanstd_sameparam_11/checkpoint/masked_net.pth')
+    net.load_state_dict(checkpoint['state_dict'])
+    mask = net.extractor(net)  # predict mask using extractor
+    mask = mask.abs()
+    lo = hi = 0
+    last_conv_mask = None
+    for name, mod in net.net.named_modules():
+        if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+            hi += mod.out_channels
+            mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+            lo = hi
+            last_conv_mask = mod.mask
+    fig = draw_masked_net(net, pic_name='vgg16_' + str(i), path='/home/victorfang/')
+    print()
 
     # #draw the gat attention of the network
     # #draw the side-attention of the net
