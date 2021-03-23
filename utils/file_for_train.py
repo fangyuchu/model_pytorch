@@ -7,7 +7,7 @@ from framework import evaluate,data_loader,measure_flops,train
 from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifar,resnet,mobilenet
 from framework import config as conf
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
@@ -712,17 +712,18 @@ elif dataset=='imagenet':
         mask_training_start_epoch = 1
         mask_training_stop_epoch = 3
 
-        exp_name = 'gat_resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_revised_6'
+        exp_name = 'gat_resnet50_predicted_mask_and_variable_shortcut_net_mask_newinner_bn_revised_oldreg_7'
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
         total_flop = 4133641192
-        prune_ratio = 0.75
+        prune_ratio = 0.85
         flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value = None
         learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [30, 60]]
         num_epochs = 90 * 1 + mask_training_stop_epoch
 
         net = resnet.resnet50(pretrained=False)
+        # batch_size=128
         net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
                                                                                net_name='resnet50',
                                                                                dataset_name='imagenet',
@@ -747,7 +748,7 @@ elif dataset=='imagenet':
         # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stderr)  # redirect std err, if necessary
         #
         # print( weight_decay, momentum, learning_rate, mask_update_freq, mask_update_epochs, flop_expected, gradient_clip_value)
-        # batch_size=128
+        #
         # train.train_extractor_network(net=net,
         #                               net_name='resnet50',
         #                               exp_name=exp_name,
@@ -777,78 +778,38 @@ elif dataset=='imagenet':
         #                               )
 
         # #
-        # i = 6
-        # exp_name = 'gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_' + str(
-        #     int(prune_ratio * 100)) + '_' + str(i)
-        # description = exp_name + '  ' + ''
-        #
-        # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
-        # # save the output to log
-        # print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
-        # if not os.path.exists(checkpoint_path):
-        #     os.makedirs(checkpoint_path, exist_ok=True)
-        # sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
-        # sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'),
-        #                            sys.stderr)  # redirect std err, if necessary
-        # print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
-        # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet50', str(i) + '.pth'),map_location='cpu')
-        # net.load_state_dict(checkpoint['state_dict'])
-        #
-        # net.mask_net()
-        # # net.print_mask()
-        # net.prune_net()
-        # net.print_mask()
-        # net.current_epoch = net.mask_training_stop_epoch + 1
-        # pruned_flop = net.measure_self_flops()
-        # print('prune_ratio:', 1 - pruned_flop / total_flop)
-        # measure_flops.measure_model(net.net)
-        # learning_rate_decay_epoch = [2 * i for i in [30, 60,90]]
-        # num_epochs = 100 * 2
-        #
-        # net = nn.DataParallel(net)
-        # net=net.module.net
-        # net=nn.DataParallel(net)
+        i = 7
+        exp_name = 'gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_' + str(
+            int(prune_ratio * 100)) + '_' + str(i) #+'_4gpu'
+        description = exp_name + '  ' + ''
 
-
-        # exp_name+='_onlyNet'
-        # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_3/checkpoint/flop=1042090494,accuracy=0.72152.pth')
-        # num_epochs=30
-        # learning_rate_decay_epoch=[10]
-        # learning_rate=0.001
-        # net.load_state_dict(checkpoint['state_dict'])
-
-        checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_50_1/checkpoint/flop=2077968727,accuracy=0.73902.pth')
-        learning_rate = 0.0001
-        num_epochs = 20
-        learning_rate_decay_epoch =[1000]
-        net = checkpoint['net']
-        exp_name='gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_50_1'+'_tmp_train'
-
-
-        checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_5/checkpoint/flop=1049972257,accuracy=0.70805.pth')
-        learning_rate = 0.0001
-        num_epochs = 20
-        learning_rate_decay_epoch =[1000]
-        net = checkpoint['net']
-        exp_name='gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_5'+'_tmp_train'
-
-        checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_6_4gpu/checkpoint/flop=1045786327,accuracy=0.66731.pth')
-        learning_rate = 0.001
-        num_epochs = 20
-        learning_rate_decay_epoch =[10]
-        net = checkpoint['net']
-        exp_name='gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_75_6_4gpu'+'_tmp_train'
-
-        checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_85_6/checkpoint/flop=625522421,accuracy=0.63317.pth')
-        learning_rate = 0.001
-        num_epochs = 20
-        learning_rate_decay_epoch =[10]
-        net = checkpoint['net']
-        exp_name='gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_85_6'+'_tmp_train'
-
-
+        checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
+        # save the output to log
+        print('save log in:' + os.path.join(checkpoint_path, 'log.txt'))
+        if not os.path.exists(checkpoint_path):
+            os.makedirs(checkpoint_path, exist_ok=True)
+        sys.stdout = logger.Logger(os.path.join(checkpoint_path, 'log.txt'), sys.stdout)
+        sys.stderr = logger.Logger(os.path.join(checkpoint_path, 'log.txt'),
+                                   sys.stderr)  # redirect std err, if necessary
+        print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
+        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet50', str(i) + '.pth'),map_location='cpu')
         net.load_state_dict(checkpoint['state_dict'])
+
+        net.mask_net()
+        # net.print_mask()
+        net.prune_net()
+        net.print_mask()
+        net.current_epoch = net.mask_training_stop_epoch + 1
+        pruned_flop = net.measure_self_flops()
+        print('prune_ratio:', 1 - pruned_flop / total_flop)
+        measure_flops.measure_model(net.net)
+        learning_rate_decay_epoch = [2 * i for i in [30, 60,90]]
+        num_epochs = 100 * 2
+
+        net = nn.DataParallel(net)
+        net=net.module.net
         net=nn.DataParallel(net)
+
 
         net = net.cuda()
         train.train(net=net,
