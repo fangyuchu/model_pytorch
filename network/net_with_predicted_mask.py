@@ -509,29 +509,38 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         if 'resnet' in self.net_name:
             return self.compute_net_structure_resnet(filter_num_list)
         elif 'vgg' in self.net_name:
-            in_channel_list = [3]
-            first_conv = False
-            i = -1
-            for name, mod in self.net.named_modules():
-                if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
-                    i += 1
-                    if first_conv is False:
-                        first_conv = True
-                        last_conv = mod
-                        continue
-                    last_conv_filter_num = filter_num_list[i - 1]
-                    last_conv_in_channels = in_channel_list[i - 1]
-                    if last_conv_filter_num > last_conv.add_shortcut_num:  # last conv doesn't have a shortcut
-                        in_channel_list += [last_conv_filter_num]
-                    else:  # last conv has a shortcut
-                        if last_conv.w_in != last_conv.w_out:  # a conv shortcut
-                            in_channel_list += [last_conv.add_shortcut_num]
-                        else:  # a sequential shortcut
-                            in_channel_list += [max(last_conv_in_channels, last_conv_filter_num)]
-                    last_conv = mod
-            return in_channel_list
+            return self.compute_net_structure_vgg(filter_num_list)
+        elif 'mobilenetv1' in self.net_name:
+            return self.compute_net_structure_mobilenetv1(filter_num_list)
         else:
             raise Exception('Unsupported net.')
+
+    def compute_net_structure_vgg(self, filter_num_list):
+        in_channel_list = [3]
+        first_conv = False
+        i = -1
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+                i += 1
+                if first_conv is False:
+                    first_conv = True
+                    last_conv = mod
+                    continue
+                last_conv_filter_num = filter_num_list[i - 1]
+                last_conv_in_channels = in_channel_list[i - 1]
+                if not isinstance(last_conv,conv2d_with_mask_and_variable_shortcut) \
+                        or last_conv_filter_num > last_conv.add_shortcut_num:  # last conv doesn't have a shortcut
+                    in_channel_list += [last_conv_filter_num]
+                else:  # last conv has a shortcut
+                    if last_conv.w_in != last_conv.w_out:  # a conv shortcut
+                        in_channel_list += [last_conv.add_shortcut_num]
+                    else:  # a sequential shortcut
+                        in_channel_list += [max(last_conv_in_channels, last_conv_filter_num)]
+                last_conv = mod
+        return in_channel_list
+
+    def compute_net_structure_mobilenetv1(self,filter_num_list):
+        return self.compute_net_structure_vgg(filter_num_list)  #todo: seems to be the same as vgg
 
     def compute_net_structure_resnet(self, filter_num_list):
         '''

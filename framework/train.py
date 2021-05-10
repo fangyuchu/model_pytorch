@@ -9,7 +9,7 @@ import math
 import matplotlib.pyplot as plt
 from framework import data_loader, measure_flops, evaluate, config as conf
 from math import ceil
-from network import storage,vgg,resnet,resnet_cifar
+from network import storage,vgg,resnet,resnet_cifar,mobilenet
 from torch.utils.tensorboard import SummaryWriter
 from framework.draw import draw_masked_net_pruned
 from PIL import Image
@@ -876,7 +876,7 @@ def train_extractor_network(
                 # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
                 i = 0
                 for name, mod in net.named_modules():
-                    if isinstance(mod, modules.conv2d_with_mask):
+                    if isinstance(mod, modules.conv2d_with_mask) and mod.groups == 1:
                         # mask_abs = mod.shortcut_mask.abs()
                         mask_mean=torch.mean(mod.mask.abs())
                         std=torch.std(mod.mask.abs())
@@ -903,11 +903,13 @@ def train_extractor_network(
                     # alpha=0.02
 
                     if net.dataset_name == 'cifar100':
-                        alpha=0.002
+                        alpha=0.02
                     else:
                         alpha=0.02
 
                 elif isinstance(net.net,resnet.ResNet):
+                    alpha=0.02
+                elif isinstance(net.net,mobilenet.MobileNet):
                     alpha=0.02
                 else:
                     raise Exception('What is this net???')

@@ -41,7 +41,7 @@ class ConvDepthWise(nn.Module):
     def __init__(self, inp, oup, stride):
         super(ConvDepthWise, self).__init__()
         self.conv1 = nn.Conv2d(inp, inp, 3, stride, 1, groups=inp, bias=False)
-        self.bn_1 = nn.BatchNorm2d(inp)
+        self.bn1 = nn.BatchNorm2d(inp)
         self.relu1 = nn.ReLU()
 
         self.conv2 = nn.Conv2d(inp, oup, 1, 1, 0, bias=False)

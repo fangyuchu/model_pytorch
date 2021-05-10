@@ -21,10 +21,12 @@ class gat(nn.Module):
 
         filter_num=[]
         filter_weight_num={}
+        filter_list=[]
         for name,mod in net.named_modules():
             if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
                 filter_num+=[mod.out_channels]
-                filter_weight_num[mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]]=1
+                filter_weight_num[int(mod.in_channels/mod.groups*mod.kernel_size[0]*mod.kernel_size[1])]=1
+                filter_list +=[mod]
         self.embedding_feature_len=embedding_feature_len
         # self.register_buffer('initial_h',torch.ones((sum(filter_num),embedding_feature_len)))
         # self.register_buffer('adj',torch.zeros((sum(filter_num),sum(filter_num))))
@@ -32,9 +34,15 @@ class gat(nn.Module):
         self.adj = torch.zeros((sum(filter_num), sum(filter_num))).cuda()
         row=last_num=filter_num[0]
 
-        for i,num in enumerate(filter_num[1:]):
-            #
-            self.adj[row:row+num,row-last_num:row]=1
+        for i,num in enumerate(filter_num):
+            if i == 0 : continue
+            if filter_list[i].groups==1: #normal conv
+                self.adj[row:row+num,row-last_num:row]=1 #fully connected with previous layer
+            elif filter_list[i].groups == filter_list[i].in_channels: # depthwise conv in mobilenet
+                for j in range(filter_list[i].in_channels):
+                    self.adj[row+j][row-last_num+j]=1
+            else:
+                raise Exception('Unknown type of convolution')
             row+=num
             last_num=num
         for i in range(sum(filter_num)):
@@ -53,12 +61,12 @@ class gat(nn.Module):
         # self.gat_layers=nn.Sequential(*gat_layers)
 
     def forward(self,net):
-        self.initial_h=torch.ones_like(self.initial_h)
+        self.initial_h=torch.ones_like(self.initial_h) # todo: is this necessary?
         i=0
         for name,mod in net.named_modules():
             if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
                 weight=conv_to_matrix(mod)
-                filter_weight_num=mod.in_channels*mod.kernel_size[0]*mod.kernel_size[1]
+                filter_weight_num = int(mod.in_channels / mod.groups * mod.kernel_size[0] * mod.kernel_size[1])
                 # self.initial_h[i:i+mod.out_channels]=pca(weight,dim=self.embedding_feature_len)
                 self.initial_h[i:i+mod.out_channels]=self.w[str(filter_weight_num)](weight)
                 i+=mod.out_channels
@@ -91,7 +99,7 @@ class GAT_layer(nn.Module):
         # self.A = self.A/2
         # self.A = (self.A + self.eye_mat)/2  # set the attention of the node itself to 0.5.(the sum of neighbor's attention is also 0.5)
 
-        num_filter_first_layer=torch.sum(adj[:,0]!=0)
+        num_filter_first_layer=torch.where(adj[:,0]!=0)[0][0]
         # self.A[:num_filter_first_layer]=self.eye_mat[:num_filter_first_layer]
         self.A[:num_filter_first_layer]=torch.where(self.A[:num_filter_first_layer]==0.5,torch.ones(1).cuda(),torch.zeros(1).cuda())
 

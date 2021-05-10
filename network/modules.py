@@ -51,17 +51,18 @@ class conv2d_with_mask(nn.modules.Conv2d):
 class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
     def __init__(self, conv, w_in, add_shortcut_ratio=0, specified_add_shortcut_num=None):
         super(conv2d_with_mask_and_variable_shortcut, self).__init__(conv)
-        w_out = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / conv.stride[0]) + 1
+        self.w_out = w_out = int((w_in + 2 * conv.padding[0] - conv.kernel_size[0]) / conv.stride[0]) + 1
         self.w_in=w_in
+        if conv.groups!=1:  #depthwise conv
+            self.add_shortcut_num=0
+            return
+
         self.add_shortcut_ratio=add_shortcut_ratio
         #shortcut will be added if number of unmasked filter <= self.add_shortcut_num
         if specified_add_shortcut_num is not None:
             self.add_shortcut_num = specified_add_shortcut_num
         else:
             self.add_shortcut_num = math.ceil(self.out_channels * (1 - add_shortcut_ratio))
-
-        self.w_out = int((self.w_in + 2 * self.padding[0] - self.kernel_size[0]) //
-                         self.stride[0] + 1)
         self.flops=None
         self.__out_channels_after_prune = max(self.in_channels,self.out_channels)
         if w_in != w_out :
@@ -98,7 +99,7 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
         return self.flops
 
     def compute_downsample_flops(self, in_channels,multi_add=1):
-        if len(self.downsample) == 0 or in_channels == 0:
+        if len(self.downsample) == 0 or in_channels == 0 or self.add_shortcut_num==0:
             return 0
         else:
             # flops of conv
@@ -116,7 +117,7 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
             return flops
 
     def get_out_channels_after_prune(self):
-        if 0 in self.mask and torch.sum(self.mask != 0) <= self.add_shortcut_num and self.w_in == self.w_out:
+        if 0 in self.mask and torch.sum(self.mask != 0) <= self.add_shortcut_num:
             raise AttributeError(
                 'This conv will have a sequential shortcut but has not been pruned yet. So the out_channels_after_prune can not be determined inside this conv.')
         return self.__out_channels_after_prune
@@ -132,25 +133,15 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
 
     def forward(self, input):
         x = super().forward(input)
-        # if pruned is False:  # the mask and shortcut is still working
         if torch.sum(self.mask != 0) <= self.add_shortcut_num:  # ratio of masked conv is large
-        # if torch.sum(self.mask != 0) < self.add_shortcut_num:  # ratio of masked conv is large
             downsample = self.downsample(input)  # add shortcut
             #add zero if num of output feature maps differentiate between conv and shortcut
             #todo: shibushi keyi zhijie jia ,buxuyao bu 0
             if downsample.size()[1]< x.size()[1]:  # downsample has less feature maps
-                # add_zeros = torch.zeros(x.shape[0], x.shape[1] - downsample.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
-                # downsample = torch.cat((downsample, add_zeros), 1)
                 downsample = nn.functional.pad(downsample, (0, 0, 0, 0, 0, x.shape[1] - downsample.shape[1]))
 
-                # x[:, :downsample.shape[1]]=x[:, :downsample.shape[1]] + downsample
             elif downsample.size()[1]> x.size()[1]:
-                # add_zeros = torch.zeros(x.shape[0], downsample.shape[1]-x.shape[1], x.shape[2], x.shape[3]).cuda(device=self.weight.device)
-                # x = torch.cat((x, add_zeros), 1)
                 x = nn.functional.pad(x, (0, 0, 0, 0, 0, downsample.shape[1] - x.shape[1]))
-
-                # downsample[:, :x.shape[1]]=x + downsample[:, :x.shape[1]]
-                # x=downsample
 
             x = x + downsample
 
