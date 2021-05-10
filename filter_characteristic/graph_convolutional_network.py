@@ -33,6 +33,7 @@ class gat(nn.Module):
         row=last_num=filter_num[0]
 
         for i,num in enumerate(filter_num[1:]):
+            #
             self.adj[row:row+num,row-last_num:row]=1
             row+=num
             last_num=num
