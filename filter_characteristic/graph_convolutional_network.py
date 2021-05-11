@@ -36,9 +36,9 @@ class gat(nn.Module):
 
         for i,num in enumerate(filter_num):
             if i == 0 : continue
-            if filter_list[i].groups==1: #normal conv
+            if not(filter_list[i].groups == filter_list[i].in_channels and filter_list[i].in_channels == filter_list[i].out_channels): #normal conv
                 self.adj[row:row+num,row-last_num:row]=1 #fully connected with previous layer
-            elif filter_list[i].groups == filter_list[i].in_channels: # depthwise conv in mobilenet
+            elif filter_list[i].groups == filter_list[i].in_channels and filter_list[i].in_channels ==filter_list[i].out_channels: # depthwise conv in mobilenet
                 for j in range(filter_list[i].in_channels):
                     self.adj[row+j][row-last_num+j]=1
             else:

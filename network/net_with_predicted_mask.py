@@ -11,7 +11,7 @@ import math
 import matplotlib.pyplot as plt
 from framework import data_loader, measure_flops, evaluate, train, config as conf
 # import torchsnooper
-from network import storage, resnet_cifar, resnet
+from network import storage, resnet_cifar, resnet, mobilenet
 import os, sys
 import numpy as np
 from collections import OrderedDict
@@ -155,7 +155,10 @@ class predicted_mask_net(nn.Module):
             if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
                 hi += mod.out_channels
                 _modules = get_module(model=self.net, name=name)
-                mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+                if not (mod.groups == mod.in_channels and mod.in_channels==mod.out_channels): #normal conv
+                    mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+                elif mod.groups == mod.in_channels and mod.in_channels==mod.out_channels:
+                    mod.set_mask(torch.ones_like(mask[lo:hi].view(-1))) #mask of depthwise filter remains 1
                 lo = hi
 
     def set_bn_momentum(self, momentum):
@@ -263,16 +266,18 @@ class predicted_mask_net(nn.Module):
         mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
         mask_clone = mask.detach().clone()
 
-        # if 'resnet' in self.net_name:#preserve all filters in first conv for resnet
-        #     for name,mod in self.net.named_modules():
-        #         if isinstance(mod,nn.Conv2d):
-        #             out_channels=mod.out_channels
-        #             mask_clone[:out_channels]=1
-        #             break
+        index = 0
+        conv_list=[]
+        for name, mod in self.net.named_modules():
+            if isinstance(mod, nn.Conv2d) and 'downsample' not in name:
+                conv_list+=[mod]
+                if mod.groups == mod.in_channels and mod.in_channels==mod.out_channels:   #depthwise conv
+                    mask_clone[index:index + mod.out_channels] = 1
+                index += mod.out_channels
 
         prune_num = self.find_prune_num(mask_clone)
         _, mask_index = torch.topk(torch.abs(mask_clone), k=prune_num, dim=0, largest=False)
-        index = torch.ones(mask.shape).to(mask.device)
+        index = torch.ones_like(mask)
         index[mask_index] = 0
         mask = mask * index
 
@@ -281,17 +286,20 @@ class predicted_mask_net(nn.Module):
         for name, mod in self.net.named_modules():
             if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
                 hi += mod.out_channels
-                # _modules = get_module(model=self.net, name=name)
+                if mod.groups == mod.in_channels and mod.in_channels==mod.out_channels: #depthwise conv
+                    mask[lo:hi]=1
                 mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+
                 lo = hi
                 last_conv_mask = mod.mask
-            else:
-                if isinstance(mod, nn.BatchNorm2d) and last_conv_mask is not None:
-                    # prune the corresponding mean and var according to mask
-                    # todo:在有shortcut的结构中，bn中的值还和shortcut有关，直接剪不一定合理
-                    mod.running_mean[last_conv_mask == 0] = 0
-                    mod.running_var[last_conv_mask == 0] = 1
-                last_conv_mask = None
+            # else:
+                # if isinstance(mod, nn.BatchNorm2d) and last_conv_mask is not None:
+                #     # prune the corresponding mean and var according to mask
+                #     # todo:在有shortcut的结构中，bn中的值还和shortcut有关，直接剪不一定合理
+                #     #todo:现有框架下没啥用了，mask_net完就直接prune了
+                #     mod.running_mean[last_conv_mask == 0] = 0
+                #     mod.running_var[last_conv_mask == 0] = 1
+                # last_conv_mask = None
 
     def t_sne(self):
         hidden_states=self.extractor.gat(self)
@@ -421,6 +429,11 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             print('prune:{} filters'.format(num))
             return num
 
+        if isinstance(self.net,mobilenet.MobileNet):
+            num = 4000
+            print('prune:{} filters'.format(num))
+            return num
+
         is_training = self.training
         mask = np.abs(mask.clone().view(-1).detach().cpu().numpy())
         out_channel_list = []
@@ -510,8 +523,8 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             return self.compute_net_structure_resnet(filter_num_list)
         elif 'vgg' in self.net_name:
             return self.compute_net_structure_vgg(filter_num_list)
-        elif 'mobilenetv1' in self.net_name:
-            return self.compute_net_structure_mobilenetv1(filter_num_list)
+        elif 'mobilenet_v1' in self.net_name:
+            return self.compute_net_structure_mobilenet_v1(filter_num_list)
         else:
             raise Exception('Unsupported net.')
 
@@ -539,7 +552,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 last_conv = mod
         return in_channel_list
 
-    def compute_net_structure_mobilenetv1(self,filter_num_list):
+    def compute_net_structure_mobilenet_v1(self,filter_num_list):
         return self.compute_net_structure_vgg(filter_num_list)  #todo: seems to be the same as vgg
 
     def compute_net_structure_resnet(self, filter_num_list):
@@ -661,6 +674,8 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             last_conv_index, num_feature_maps, num_feature_maps_after_prune = self.prune_net_resnet()
         elif 'vgg' in self.net_name:
             last_conv_index, num_feature_maps, num_feature_maps_after_prune = self.prune_net_vgg()
+        elif 'mobilenet_v1' in self.net_name:
+            last_conv_index, num_feature_maps, num_feature_maps_after_prune = self.prune_net_mobilenet_v1()
         else:
             raise Exception('What is this net?')
 
@@ -694,6 +709,9 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             self.net(data)
         self.track_running_stats(True)
 
+    def prune_net_mobilenet_v1(self):
+        return self.prune_net_vgg() #seems to be the same
+
     def prune_net_vgg(self):
         self.detach_mask()
         layer = -1
@@ -708,17 +726,11 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     if torch.sum(mod.mask != 0) == 0:
                         num_layer_pruned += 1
             last_conv_index = index
-            num_feature_maps = last_conv.out_channels
+            num_feature_maps_before_prune = last_conv.out_channels #number of the feature maps before prune
             _, conv_list = named_conv_list(self.net)
             last_conv_after_prune = conv_list[-1]
 
-            # if len(last_conv_index) > last_conv.add_shortcut_num:  # no shortcut
-            #     num_feature_maps_after_prune = len(last_conv_index)
-            # else:
-            #     if last_conv.w_in != last_conv.w_out:  # conv shortcut
-            #         num_feature_maps_after_prune = last_conv.add_shortcut_num
-            #     else:  # sequential shortcut
-            #         num_feature_maps_after_prune = max(last_conv_after_prune.in_channels, last_conv_after_prune.out_channels)
+            #num_feature_maps_after_prune: number of feature maps after prune including the shortcut
             if not isinstance(last_conv_after_prune,conv2d_with_mask_and_variable_shortcut):#no shortcut
                 num_feature_maps_after_prune = last_conv_after_prune.out_channels
             else:
@@ -727,7 +739,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 else:  # sequential shortcut
                     num_feature_maps_after_prune = max(last_conv_after_prune.in_channels, last_conv_after_prune.out_channels)
 
-        return last_conv_index, num_feature_maps, num_feature_maps_after_prune
+        return last_conv_index, num_feature_maps_before_prune, num_feature_maps_after_prune
 
     def prune_net_resnet(self):
         self.detach_mask()
@@ -832,6 +844,8 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         conv_to_prune = None  # 获取要删filter的那层conv
         batch_norm = None  # 如果有的话：获取要删的conv后的batch normalization层
         next_conv = None  # 如果有的话：获取要删的那层后一层的conv，用于删除对应通道
+        depthwise_conv=None
+        depthwise_conv_name=None
         i = -1
         for name, mod in self.net.named_modules():
             if isinstance(mod, nn.Conv2d):
@@ -844,15 +858,20 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                     if conv_to_prune is not None:
                         if 'downsample' in name:
                             raise Exception('Pruning bypass conv in block is not implemented yet.')
-                        next_conv_name, next_conv = name, mod
-                        break
+                        if mod.groups == mod.in_channels and mod.in_channels == mod.out_channels: #depthwise conv
+                            depthwise_conv_name, depthwise_conv= name,mod
+                        else: #normal conv
+                            next_conv_name, next_conv = name, mod
+                            break
             if isinstance(mod, nn.BatchNorm2d) and conv_to_prune is not None and 'downsample' not in name:
                 if next_conv is not None:
                     raise Exception('Where is this bn from?')
+                if depthwise_conv is not None: #this is the bn after depthwise conv
+                    continue
                 batch_norm_name, batch_norm = name, mod
-                if 'bn_b' in name or 'bn_1' in name \
-                        or (
-                        'layer' not in name and 'bn1' in name) or 'bn3' in name:  # do not prune the in_channels of first conv in each block(because it will be pruned in prune_net())
+                if (isinstance(self.net,resnet.ResNet) or isinstance(self.net,resnet_cifar.CifarResNet)) \
+                        and ('bn_b' in name or 'bn_1' in name or ('layer' not in name and 'bn1' in name) or 'bn3' in name):  # do not prune the in_channels of first conv in resnet for each block(because it will be pruned in prune_net())
+                    # shit code, too lazy to clean it
                     next_conv = 0
                     break
         try:
@@ -896,8 +915,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 new_conv.weight[:] = conv_to_prune.weight[index_to_copy] * conv_to_prune.mask[index_to_copy].view(-1, 1,1,1)  # 复制剩余的filters的weight
 
                 if conv_to_prune.bias is not None:
-                    new_conv.bias[:] = conv_to_prune.bias[index_to_copy] * conv_to_prune.mask[
-                        index_to_copy]  # 复制剩余的filters的bias
+                    new_conv.bias[:] = conv_to_prune.bias[index_to_copy] * conv_to_prune.mask[index_to_copy]  # 复制剩余的filters的bias
             new_conv.cuda()
             # replace
             _modules = get_module(model=self.net, name=conv_name)
@@ -906,10 +924,10 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             if batch_norm is not None:
                 if isinstance(new_conv, nn.Conv2d):
                     if isinstance(new_conv, conv2d_with_mask_and_variable_shortcut):  # new_conv has a shortcut
-                        out_channels = new_conv.get_out_channels_after_prune()
+                        pruned_conv_out_channels = new_conv.get_out_channels_after_prune()
                     else:  # new_conv is a norm conv
-                        out_channels = new_conv.out_channels
-                    new_batch_norm = torch.nn.BatchNorm2d(out_channels)
+                        pruned_conv_out_channels = new_conv.out_channels
+                    new_batch_norm = torch.nn.BatchNorm2d(pruned_conv_out_channels)
                     new_batch_norm.num_batches_tracked = batch_norm.num_batches_tracked
                     new_batch_norm.weight[:len(index_to_copy)] = batch_norm.weight[index_to_copy]
                     new_batch_norm.bias[:len(index_to_copy)] = batch_norm.bias[index_to_copy]
@@ -922,19 +940,20 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 _modules = get_module(model=self.net, name=batch_norm_name)
                 _modules[batch_norm_name.split('.')[-1]] = new_batch_norm
 
-            if next_conv is not None:  # prune corresponding channel in the next conv(first conv in each block will not enter here)
+            #calculate the out channels of the pruned conv including the shortcut
+            if isinstance(new_conv, nn.Conv2d) and not isinstance(new_conv,conv2d_with_mask_and_variable_shortcut):  # new_conv is a normal conv
+                pruned_conv_out_channels = new_conv.out_channels
+            elif isinstance(new_conv,conv2d_with_mask_and_variable_shortcut) and conv_to_prune.w_out != conv_to_prune.w_in:  # new_conv is a conv with shortcut
+                pruned_conv_out_channels = new_conv.get_out_channels_after_prune()
+            elif conv_to_prune.w_out == conv_to_prune.w_in:  # new_conv is a sequential shortcut
+                pruned_conv_out_channels = max(conv_to_prune.in_channels, len(index_to_copy))
+            else:  # new_conv is a conv shortcut
+                pruned_conv_out_channels = conv_to_prune.add_shortcut_num
+
+            if next_conv is not None :  # prune corresponding channel in the next conv(first conv in each block will not enter here)
                 if next_conv == 0:
                     return
-                if isinstance(new_conv, nn.Conv2d) and not isinstance(new_conv,
-                                                                      conv2d_with_mask_and_variable_shortcut):  # new_conv is a normal conv
-                    in_channels = new_conv.out_channels
-                elif isinstance(new_conv,
-                                conv2d_with_mask_and_variable_shortcut) and conv_to_prune.w_out != conv_to_prune.w_in:  # new_conv is a conv with shortcut
-                    in_channels = new_conv.get_out_channels_after_prune()
-                elif conv_to_prune.w_out == conv_to_prune.w_in:  # new_conv is a sequential shortcut
-                    in_channels = max(conv_to_prune.in_channels, len(index_to_copy))
-                else:  # new_conv is a conv shortcut
-                    in_channels = conv_to_prune.add_shortcut_num
+                in_channels=pruned_conv_out_channels
 
                 new_next_conv = conv2d_with_mask_and_variable_shortcut(
                     torch.nn.Conv2d(in_channels=in_channels,
@@ -951,12 +970,45 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
                 new_next_conv.weight[:, :len(index_to_copy), :, :] = next_conv.weight[:, index_to_copy, :, :]
                 if next_conv.bias is not None:
                     new_next_conv.bias = next_conv.bias
-                # new_next_conv.mask=next_conv.mask
                 new_next_conv.set_mask(next_conv.mask)
                 new_next_conv.cuda()
                 # 替换
                 _modules = get_module(model=self.net, name=next_conv_name)
                 _modules[next_conv_name.split('.')[-1]] = new_next_conv
+
+            if depthwise_conv is not None:
+                new_depthwise_conv= conv2d_with_mask_and_variable_shortcut(
+                    torch.nn.Conv2d(in_channels=in_channels,
+                                    out_channels=in_channels,
+                                    kernel_size=depthwise_conv.kernel_size,
+                                    stride=depthwise_conv.stride,
+                                    padding=depthwise_conv.padding,
+                                    dilation=depthwise_conv.dilation,
+                                    groups=in_channels,
+                                    bias=(depthwise_conv.bias is not None)),
+                    depthwise_conv.w_in,
+                    depthwise_conv.add_shortcut_ratio
+                )
+                new_depthwise_conv.weight[:] = depthwise_conv.weight[index_to_copy]  # 复制剩余的filters的weight
+                if depthwise_conv.bias is not None:
+                    new_depthwise_conv.bias[:] = depthwise_conv.bias[index_to_copy]  # 复制剩余的filters的bias
+                new_depthwise_conv.cuda()
+                _modules = get_module(model=self.net, name=depthwise_conv_name)
+                _modules[depthwise_conv_name.split('.')[-1]] = new_depthwise_conv
+
+                next_bn_name='.'.join(depthwise_conv_name.split('.')[:-1])+'.bn1'
+                next_bn=get_module(model=self.net,name=next_bn_name)['bn1']
+                new_next_bn = torch.nn.BatchNorm2d(new_depthwise_conv.out_channels)
+                new_next_bn.num_batches_tracked = next_bn.num_batches_tracked
+                new_next_bn.weight[:len(index_to_copy)] = next_bn.weight[index_to_copy]
+                new_next_bn.bias[:len(index_to_copy)] = next_bn.bias[index_to_copy]
+                new_next_bn.running_mean[:len(index_to_copy)] = next_bn.running_mean[index_to_copy]
+                new_next_bn.running_var[:len(index_to_copy)] = next_bn.running_var[index_to_copy]
+                new_next_bn.cuda()
+                _modules = get_module(model=self.net, name=next_bn_name)
+                _modules[next_bn_name.split('.')[-1]] = new_next_bn
+
+            return pruned_conv_out_channels, new_conv
 
     def forward(self, input):
         if self.training and self.current_epoch == self.mask_training_stop_epoch and self.step_tracked == 1:  # training of mask is finished

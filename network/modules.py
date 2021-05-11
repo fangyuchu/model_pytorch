@@ -55,6 +55,7 @@ class conv2d_with_mask_and_variable_shortcut(conv2d_with_mask):
         self.w_in=w_in
         if conv.groups!=1:  #depthwise conv
             self.add_shortcut_num=0
+            self.add_shortcut_ratio = 1
             return
 
         self.add_shortcut_ratio=add_shortcut_ratio

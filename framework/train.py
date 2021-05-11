@@ -876,7 +876,7 @@ def train_extractor_network(
                 # last_conv_prune = True  # to push to the direction that two consecutive layers will not be pruned together
                 i = 0
                 for name, mod in net.named_modules():
-                    if isinstance(mod, modules.conv2d_with_mask) and mod.groups == 1:
+                    if isinstance(mod, modules.conv2d_with_mask) and not(mod.groups == mod.in_channels and mod.in_channels==mod.out_channels) :
                         # mask_abs = mod.shortcut_mask.abs()
                         mask_mean=torch.mean(mod.mask.abs())
                         std=torch.std(mod.mask.abs())
