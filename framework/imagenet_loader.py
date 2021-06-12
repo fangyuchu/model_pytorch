@@ -63,6 +63,12 @@ class HybridTrainPipe(Pipeline):
                                             mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
                                             std=[0.229 * 255, 0.224 * 255, 0.225 * 255])
         self.coin = ops.CoinFlip(probability=0.5)
+        jitter_param=0.4
+        self.brightness = ops.Uniform(range=(1-jitter_param,1+jitter_param))
+        self.contrast = ops.Uniform(range=(1-jitter_param,1+jitter_param))
+        self.saturation = ops.Uniform(range=(1-jitter_param,1+jitter_param))
+        # self.hue = ops.Uniform(range=(-0.3, 0.3))
+        self.color_jitter = ops.ColorTwist(device='gpu')
         print('DALI "{0}" variant'.format(dali_device))
 
     def define_graph(self):
@@ -70,6 +76,7 @@ class HybridTrainPipe(Pipeline):
         self.jpegs, self.labels = self.input(name="Reader")
         images = self.decode(self.jpegs)
         images = self.res(images)
+        images = self.color_jitter(images,brightness=self.brightness(),contrast=self.contrast())
         output = self.cmnp(images, mirror=rng)
         return [output, self.labels]
 

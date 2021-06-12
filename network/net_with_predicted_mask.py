@@ -428,9 +428,9 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             num = 4950
             print('prune:{} filters'.format(num))
             return num
-
+        #2:150:3310,0.85:3980，0.5：1987; 3: 0.85:3835,150:3115，0.5：1750; 4:150:3075,0.85:3835,0.5:1965
         if isinstance(self.net,mobilenet.MobileNet):
-            num = 4000
+            num = 1965
             print('prune:{} filters'.format(num))
             return num
 
