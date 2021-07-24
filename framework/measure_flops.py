@@ -16,6 +16,8 @@ def measure_layer(name,layer, x, multi_add=1):
             print('Sorry about this crap code.')
             raise Exception('Measure flops by using self.measure_net_flops in predicted_mask_and_variable_shortcut_net.')
         delta_ops=layer.flops
+        nonzero_ratio = float((layer.column_mask != 0).sum()) / float(layer.column_mask.numel())
+        delta_ops = delta_ops*nonzero_ratio
     elif isinstance(layer,nn.Conv2d):
         out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) //
                     layer.stride[0] + 1)
@@ -28,6 +30,10 @@ def measure_layer(name,layer, x, multi_add=1):
 
         delta_ops = in_channels * out_channels * layer.kernel_size[0] *  \
                 layer.kernel_size[1] * out_h * out_w // layer.groups * multi_add
+
+        nonzero_ratio = float((layer.column_mask != 0).sum()) / float(layer.column_mask.numel())
+        delta_ops = delta_ops*nonzero_ratio
+
         # print(name,in_channels,out_channels,delta_ops)
     ## ops_linear
     elif isinstance(layer,nn.Linear):
@@ -71,9 +77,9 @@ def is_leaf(module):
 def should_measure(name,mod):
     if isinstance(mod,nn.Conv2d) :
         return True
-    if isinstance(mod,nn.Linear):
+    elif isinstance(mod,nn.Linear):
         return True
-    if  isinstance(mod,nn.BatchNorm2d):
+    elif  isinstance(mod,nn.BatchNorm2d):
         return True
     else:
         return False

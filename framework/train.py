@@ -144,7 +144,8 @@ def train(
         save_at_each_step=False,
         gradient_clip_value=None,
         use_tensorboard=True,
-        train_val_split_ratio='all'
+        train_val_split_ratio='all',
+        regularizer_func = None
 ):
     '''
 
@@ -334,6 +335,8 @@ def train(
             outputs = net(images)
             loss = criterion(outputs, labels)
             #torch.sum(torch.argmax(outputs,dim=1) == labels)/float(batch_size) #code for debug in watches to calculate acc
+            if regularizer_func is not None:
+                loss = loss + regularizer_func(net,writer,global_step=int(sample_num / batch_size))
 
             if save_at_each_step:
                 torch.save(net,os.path.join(crash_path, 'net.pt'))
@@ -423,7 +426,7 @@ def train(
         'sample_num': sample_num,
         'flop_num': flop_num}
     checkpoint.update(storage.get_net_information(net, dataset_name, net_name))
-    torch.save(checkpoint, '%s/flop=%d,accuracy=%.5f.tar' % (checkpoint_path, flop_num, accuracy))
+    torch.save(checkpoint, '%s/final_model_flop=%d,accuracy=%.5f.pth' % (checkpoint_path, flop_num, accuracy))
     print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
     writer.close()
     return not success

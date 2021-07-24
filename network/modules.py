@@ -13,8 +13,27 @@ def named_conv_list(module):
             conv_list+=[mod]
     return name_list,conv_list
 
+
+# class conv2d_with_column_mask(nn.Module):
+#     def __init__(self, conv):
+#         super(conv2d_with_column_mask, self).__init__()
+#         self.conv=conv
+#         self.column_mask = nn.Parameter(torch.ones(conv.kernel_size[0]*conv.kernel_size[0]*conv.in_channels), requires_grad=True)
+#
+#
+#     def forward(self, input):
+#         with torch.no_grad():
+#             weight_matrix = self.conv.weight.view(self.conv.weight.size(0), -1) #weight_matrix and conv.weight share the same memory
+#             weight_matrix *= self.column_mask #this will alternate the value in conv.weight
+#
+#         out = self.conv(input)
+#
+#         return out
+
+
+
 class conv2d_with_mask(nn.modules.Conv2d):
-    def __init__(self, conv):
+    def __init__(self, conv,column_prune=False):
         super(conv2d_with_mask, self).__init__(
             conv.in_channels, conv.out_channels, conv.kernel_size, stride=conv.stride,
             padding=conv.padding, dilation=conv.dilation, groups=conv.groups, bias=(conv.bias is not None))
@@ -25,12 +44,14 @@ class conv2d_with_mask(nn.modules.Conv2d):
         self.register_buffer('mask', mask)  # register self.mask as buffer in pytorch module
         # self.mask=nn.Parameter(torch.ones(conv.out_channels),requires_grad=True)
 
+
     def forward(self, input):
         masked_weight = self.weight * self.mask.view(-1, 1, 1, 1)
         if self.bias is None:
             masked_bias = None
         else:
             masked_bias = self.bias * self.mask.view(-1)
+
 
         out = nn.functional.conv2d(input, masked_weight, masked_bias, self.stride,self.padding, self.dilation, self.groups)
 

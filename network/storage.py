@@ -19,7 +19,7 @@ def get_net_information(net,dataset_name,net_name):
     checkpoint['dataset_name']=dataset_name
     checkpoint['state_dict']=net.state_dict()
 
-    checkpoint['net']=net
+    # checkpoint['net']=net
 
     structure=[]                                                                                #number of filters for each conv
     for name,mod in net.named_modules():
