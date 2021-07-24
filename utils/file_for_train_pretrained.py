@@ -12,8 +12,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
-dataset='cifar10'
-net_type='resnet56'
+dataset='cifar100'
+net_type='vgg16_bn'
 # net_type='vgg16_bn'
 # # #for cifar
 # # #训练参数
@@ -312,7 +312,7 @@ if dataset == 'cifar10':
 elif dataset == 'cifar100':
     optimizer_net = optim.SGD
     optimizer_extractor = optim.SGD
-    learning_rate = {'default': 0.1, 'extractor': 0.0001}
+    learning_rate = {'default': 0.001, 'extractor': 0.0001}
     weight_decay = {'default':5e-4,'extractor':5e-4}
     momentum = {'default':0.9,'extractor':0.9}
     batch_size=128
@@ -324,11 +324,11 @@ elif dataset == 'cifar100':
     mask_training_stop_epoch=20
 
     if net_type =='vgg16_bn':
-        exp_name='test'#'gat_vgg16bn_cifar100_net_mask_newinner_9'
+        exp_name='gat_pretrained_vgg16bn_cifar100_net_mask_newinner_2'
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
         batch_size=128
         total_flop=316813412
-        prune_ratio=0.6
+        prune_ratio=0.9
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -338,6 +338,9 @@ elif dataset == 'cifar100':
 
 
         net=vgg.vgg16_bn(dataset_name='cifar100').to(device)
+        checkpoint = torch.load(conf.root_path+'/baseline/vgg16bn_cifar100_0.7450.pth')
+        net.load_state_dict(checkpoint['state_dict'])
+
         measure_flops.measure_model(net,dataset_name='cifar100')
         net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
                                                                                net_name='vgg16_bn',
@@ -391,8 +394,8 @@ elif dataset == 'cifar100':
                                       )
 
         #
-        # i = 5
-        # exp_name = 'gat_vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_doubleschedule_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        # i = 1
+        # exp_name = 'gat_pretrained_vgg16bn_cifar100_predicted_mask_and_variable_shortcut_net_newinner_doubleschedule_' + str(int(prune_ratio * 100)) + '_' + str(i)
         # description = exp_name + '  ' + ''
         #
         # checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -405,8 +408,7 @@ elif dataset == 'cifar100':
         # print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
         #
         #
-        # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16_cifar100', str(i) + '.pth'),map_location='cpu')
-        # # checkpoint=torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_vgg16bn_cifar100_net_mask_newinner_mean5gamma5reg_test/checkpoint/masked_net.pth',map_location='cpu')
+        # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net','vgg16_cifar100', 'pretrained_'+str(i) + '.pth'),map_location='cpu')
         # net.load_state_dict(checkpoint['state_dict'])
         #
         # net.mask_net()
@@ -416,6 +418,7 @@ elif dataset == 'cifar100':
         # learning_rate_decay_epoch = [2*i for i in [80,120]]
         # learning_rate_decay_factor=0.1
         # net=net.net
+        # net.cuda()
         # num_epochs = 320#160*1
         # train.train(net=net,
         #             net_name='vgg16_bn',
@@ -443,7 +446,7 @@ elif dataset == 'cifar100':
         #             gradient_clip_value=gradient_clip_value,
         #             use_tensorboard=True
         #             )
-        #
+
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
         # evaluate.evaluate_net(net, eval_loader, save_net=False)
     elif net_type == 'resnet56':
