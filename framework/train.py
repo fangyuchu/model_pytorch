@@ -166,7 +166,6 @@ def train(
     :param resume: boolean, whether loading net from previous checkpoint. The newest checkpoint will be selected.
     :param test_net:boolean, if true, the net will be tested before training.
     :param root_path:
-    :param checkpoint_path:
     :param momentum:
     :param num_workers:
     :param weight_decay:
@@ -248,10 +247,6 @@ def train(
         #set up summary writer for tensorboard
         writer=SummaryWriter(log_dir=tensorboard_path,
                              purge_step=int(sample_num/batch_size))
-    # if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
-    #     image=torch.zeros(2,3,224,224).to(device)
-    # elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
-    #     image=torch.zeros(2,3,32,32).to(device)
 
     if use_tensorboard is True:
         # writer.add_graph(net, image)
@@ -374,6 +369,15 @@ def train(
                                                  net_name=net_name,
                                                  exp_name=exp_name,
                                                 optimizer=optimizer)
+                flop_num = measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
+                checkpoint = {'highest_accuracy': accuracy,
+                              'sample_num': sample_num,
+                              'exp_name': exp_name,
+                              'optimizer':optimizer,
+                              'optimizer_state_dict':optimizer.state_dict(),
+                              'flop_num':flop_num}
+                checkpoint.update(storage.get_net_information(net, dataset_name, net_name))
+                torch.save(checkpoint, '%s/last_model.pth' % checkpoint_path)
 
                 if accuracy >= target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))

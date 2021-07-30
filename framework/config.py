@@ -21,15 +21,15 @@ root_path=get_root_path()       #./model_pytorch/data
 
 
 #training params
-num_epochs=10                       #times for the use of all training data
-batch_size=512                       #number of images for one batch
+num_epochs=160                       #times for the use of all training data
+batch_size=128                       #number of images for one batch
 learning_rate=0.1
-learning_rate_decay_factor=0.5     #decay factor for learning rate decay
+learning_rate_decay_factor=0.1     #decay factor for learning rate decay
 weight_decay=5e-4                   # weight decay (L2 penalty)
 num_epochs_per_decay=2.5
 dropout_rate=0.5
 momentum=0.9
-learning_rate_decay_epoch=[]
+learning_rate_decay_epoch=[80,120]
 
 #dataset processing params
 num_workers=6

@@ -16,8 +16,11 @@ def measure_layer(name,layer, x, multi_add=1):
             print('Sorry about this crap code.')
             raise Exception('Measure flops by using self.measure_net_flops in predicted_mask_and_variable_shortcut_net.')
         delta_ops=layer.flops
-        nonzero_ratio = float((layer.column_mask != 0).sum()) / float(layer.column_mask.numel())
-        delta_ops = delta_ops*nonzero_ratio
+        try:
+            nonzero_ratio = float((layer.column_mask != 0).sum()) / float(layer.column_mask.numel())
+            delta_ops = delta_ops*nonzero_ratio
+        except AttributeError:#torch.nn.modules.module.ModuleAttributeError:
+            pass
     elif isinstance(layer,nn.Conv2d):
         out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) //
                     layer.stride[0] + 1)
@@ -31,8 +34,11 @@ def measure_layer(name,layer, x, multi_add=1):
         delta_ops = in_channels * out_channels * layer.kernel_size[0] *  \
                 layer.kernel_size[1] * out_h * out_w // layer.groups * multi_add
 
-        nonzero_ratio = float((layer.column_mask != 0).sum()) / float(layer.column_mask.numel())
-        delta_ops = delta_ops*nonzero_ratio
+        try:
+            nonzero_ratio = float((layer.column_mask != 0).sum()) / float(layer.column_mask.numel())
+            delta_ops = delta_ops*nonzero_ratio
+        except AttributeError:  # torch.nn.modules.module.ModuleAttributeError:
+            pass
 
         # print(name,in_channels,out_channels,delta_ops)
     ## ops_linear
@@ -95,7 +101,7 @@ def measure_model(net, dataset_name='imagenet', print_flop=True):
     if dataset_name == 'imagenet'or dataset_name == 'tiny_imagenet':
         shape=(1,3,224,224)
     elif dataset_name == 'cifar10' or dataset_name == 'cifar100':
-        shape=(2,3,32,32)
+        shape=(1,3,32,32)
 
     if isinstance(net, nn.DataParallel):
         net_entity = net.module

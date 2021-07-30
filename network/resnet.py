@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 import torch
 import os
+from network import resnet_cifar
 
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
@@ -109,20 +110,9 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
 
         if out.shape[1] < identity.shape[1]:
-            # shape = out.shape
-            # add_zeros = torch.zeros((shape[0], identity.shape[1] - shape[1], shape[2], shape[3])).to(out.device)
-            # out = torch.cat((out, add_zeros), 1)
             out=nn.functional.pad(out,(0,0,0,0,0,identity.shape[1]-out.shape[1]))
-            # identity[:,:out.shape[1]] = out+identity[:,:out.shape[1]]
-            # out=identity
-
         elif out.shape[1] > identity.shape[1]:
-            # shape = out.shape
-            # add_zeros = torch.zeros((shape[0], shape[1] - identity.shape[1], shape[2], shape[3])).to(out.device)
-            # identity = torch.cat((identity, add_zeros), 1)
             identity = nn.functional.pad(identity,(0,0,0,0,0,out.shape[1]-identity.shape[1]))
-
-            # out[:,:identity.shape[1]]=out[:,:identity.shape[1]]+identity
 
 
         out += identity
@@ -136,11 +126,18 @@ class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False):
         super(ResNet, self).__init__()
         self.inplanes = 64
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        if num_classes==1000:
+            self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+                                   bias=False)
+        elif num_classes==10:
+            self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1,
+                                   bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        if num_classes==1000:
+            self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        else:
+            self.maxpool = nn.Sequential()
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
@@ -205,7 +202,7 @@ def resnet18(pretrained=False, **kwargs):
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
+    model = ResNet(resnet_cifar.BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
     return model

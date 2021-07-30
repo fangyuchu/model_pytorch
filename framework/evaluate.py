@@ -140,7 +140,8 @@ def evaluate_net(  net,
         file_new = checkpoint_path
         if len(lists) > 0:
             lists.sort(key=lambda fn: os.path.getmtime(checkpoint_path + "/" + fn))  # 按时间排序
-            file_new = os.path.join(checkpoint_path, lists[-1])  # 获取最新的文件保存到file_new
+            file_name = lists[-1] if 'last_model' not in lists[-1] else lists[-2]
+            file_new = os.path.join(checkpoint_path, file_name)  # 获取最新的文件保存到file_new
 
         if os.path.isfile(file_new):
             checkpoint=torch.load(file_new)

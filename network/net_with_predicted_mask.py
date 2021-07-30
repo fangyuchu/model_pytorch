@@ -256,14 +256,15 @@ class predicted_mask_net(nn.Module):
                 layer += 1
                 mod.mask[structure[layer]:] = 0
 
-    def mask_net(self):
+    def mask_net(self,mask=None):
         '''
         set top k mask to 0
         :return:
         '''
         if self.training is False:
             raise Exception('Masks should not be updated in evaluation mode.')
-        mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
+        if mask is None:
+            mask = self.extractor(self, self.net_name, self.dataset_name)  # predict mask using extractor
         mask_clone = mask.detach().clone()
 
         index = 0
@@ -424,7 +425,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
         # temporarily used for resnet50
         # 1:0.5:9400,0.75:16200,0.85:19900,,0.8:16167;2:0.5:12050,0.75:15400,0.85:17200;3:0.5:8530, 0.75:12300,0.85:15050;
         # 5:0.75:12470;6:0.75:10850,0.85:14350;7:0.85:13170,0.75:9650,0.5:5300;8:0.75:10180,0.5:6000,0.85:13100;9:0.85:13640,0.5:4950,0.75:10380
-        if isinstance(self.net, resnet.ResNet):
+        if isinstance(self.net, resnet.ResNet) and self.net_name != 'resnet18':
             num = 4950
             print('prune:{} filters'.format(num))
             return num

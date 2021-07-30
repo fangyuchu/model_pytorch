@@ -65,7 +65,10 @@ def restore_net(checkpoint,pretrained=True,data_parallel=False):
         elif 'tiny_imagenet' == dataset_name:
             net = getattr(globals()['resnet'], net_name)(pretrained=False,num_classes=200)
         elif 'cifar10' == dataset_name:
-            net = getattr(globals()['resnet_cifar'], net_name)()
+            if net_name =='resnet18' :
+                net = getattr(globals()['resnet'], 'resnet18')(num_classes=10)
+            else:
+                net = getattr(globals()['resnet_cifar'], net_name)()
         elif 'cifar100'==dataset_name:
             net = getattr(globals()['resnet_cifar'], net_name)(num_classes=100)
         else:

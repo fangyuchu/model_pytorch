@@ -70,18 +70,24 @@ class BasicBlock(nn.Module):
         basicblock = self.conv_b(basicblock)
         basicblock = self.bn_b(basicblock)
 
+        if self.downsample is not None and isinstance(self.downsample[0],nn.Conv2d): #this downsample is a conv shortcut
+            # if predicted_mask_and_variable_shortcut_net is pruned, number of input and output feature maps may differs.
+            # if that happens, just create a new downsample(for simplicity, without copying the weights)
+            downsample_conv = self.downsample[0]
+            if x.shape[1] != downsample_conv.in_channels or basicblock.shape[1] != downsample_conv.out_channels:
+                new_downsample = nn.Sequential(
+                    nn.Conv2d(x.shape[1], basicblock.shape[1], kernel_size=1, stride=downsample_conv.stride, bias=False),
+                    nn.BatchNorm2d(basicblock.shape[1])
+                )
+                new_downsample.cuda()
+                self.downsample = new_downsample
+
         if self.downsample is not None:
             residual = self.downsample(x)
 
         if basicblock.shape[1] < residual.shape[1]:
-            # shape = basicblock.shape
-            # add_zeros = torch.zeros((shape[0], residual.shape[1] - shape[1], shape[2], shape[3])).to(basicblock.device)
-            # basicblock = torch.cat((basicblock, add_zeros), 1)
             basicblock = nn.functional.pad(basicblock,(0,0,0,0,0,residual.shape[1] - basicblock.shape[1]))
         elif basicblock.shape[1] > residual.shape[1]:
-            # shape = basicblock.shape
-            # add_zeros = torch.zeros((shape[0], shape[1] - residual.shape[1], shape[2], shape[3])).to(basicblock.device)
-            # residual = torch.cat((residual, add_zeros), 1)
             residual= nn.functional.pad(residual,(0,0,0,0,0,basicblock.shape[1] - residual.shape[1]))
 
         return F.relu(residual + basicblock, inplace=False)
