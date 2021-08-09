@@ -13,8 +13,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
 # net_type ='mobilenet_v1'
-dataset='cifar10'
-net_type='resnet18'
+dataset='cifar100'
+net_type='resnet56'
 
 def regularizer_func(net,writer,global_step,coefficient=0.02):
     mean = 0
@@ -62,7 +62,7 @@ if dataset == 'cifar10':
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
 
         total_flop=126550666#125485706
-        prune_ratio=0.9
+        prune_ratio=0.95
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=5
         # learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -239,9 +239,10 @@ if dataset == 'cifar10':
 
         # #
 
-        i = 15
+        i = 17
         weight_decay = {'default': 1e-4, 'extractor': 1e-4}
-        exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_newinner_wd1e5_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        batch_size=64
+        exp_name = 'gat_resnet56_predicted_mask_and_variable_shortcut_net_newinner_wd1e5_bs64_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
         checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -317,7 +318,7 @@ if dataset == 'cifar10':
         batch_size=128
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
         total_flop=556651530
-        prune_ratio=0.9
+        prune_ratio=0.8
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -379,7 +380,7 @@ if dataset == 'cifar10':
         #                               )
 
 
-        i = 2
+        i = 1
         exp_name = 'gat_resnet18_doubleschedule_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
@@ -693,11 +694,11 @@ elif dataset == 'cifar100':
         # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
         # evaluate.evaluate_net(net, eval_loader, save_net=False)
     elif net_type == 'resnet56':
-        exp_name = 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_5'
+        exp_name = 'gat_resnet56_cifar100_predicted_mask_and_variable_shortcut_net_mask_newinner_9'
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch'
 
         total_flop = 126556516
-        prune_ratio = 0.90
+        prune_ratio = 0.80
         flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value = None
         learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
@@ -711,7 +712,7 @@ elif dataset == 'cifar100':
                                                                                mask_update_epochs=mask_update_epochs,
                                                                                mask_update_freq=mask_update_freq,
                                                                                flop_expected=flop_expected,
-                                                                               gcn_rounds=2,
+                                                                               gcn_layer_num=2,
                                                                                mask_training_start_epoch=mask_training_start_epoch,
                                                                                mask_training_stop_epoch=mask_training_stop_epoch,
                                                                                batch_size=batch_size,
@@ -756,9 +757,10 @@ elif dataset == 'cifar100':
         #                               gradient_clip_value=gradient_clip_value
         #                               )
         #
-
-        i = 5
-        exp_name = 'resnet56_cifar100_predicted_mask_and_variable_shortcut_net_newinner_repeat' + str(
+        # batch_size=64
+        # weight_decay=1e-4
+        i = 9
+        exp_name = 'gat_resnet56_cifar100_predicted_mask_and_variable_shortcut_net_newinner_' + str(
             int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
@@ -772,7 +774,7 @@ elif dataset == 'cifar100':
                                    sys.stderr)  # redirect std err, if necessary
         print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
 
-        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56_cifar100', str(i) + '.tar'),
+        checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'resnet56_cifar100', str(i) + '.pth'),
                                 map_location='cpu')
         net.load_state_dict(checkpoint['state_dict'])
 
@@ -790,7 +792,7 @@ elif dataset == 'cifar100':
         learning_rate_decay_factor = 0.1
 
         num_epochs = 320  # 160*1
-        train.train(net=net,
+        train.train(net=net.net,
                     net_name='resnet56',
                     exp_name=exp_name,
                     description=description,
@@ -816,9 +818,9 @@ elif dataset == 'cifar100':
                     gradient_clip_value=gradient_clip_value,
                     use_tensorboard=True
                     )
-
-        eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
-        evaluate.evaluate_net(net, eval_loader, save_net=False)
+        #
+        # eval_loader = data_loader.create_test_loader(batch_size=batch_size, num_workers=0, dataset_name='cifar10')
+        # evaluate.evaluate_net(net.net, eval_loader, save_net=False)
 
 
 

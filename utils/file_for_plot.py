@@ -393,12 +393,11 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     :return:
     '''
     # plt.style.use('seaborn-whitegrid')
-    font_size=20    # for motivation
-    # font_size=20    #for small figure
-    font_size=15
+    # font_size=20    # for motivation
+    font_size=20    #for small figure
     marker_size=15
     # marker_list=['v','+','*','.','d','s','o',] # for baselines
-    marker_list=['v','o','*','d','.','s','+',]
+    marker_list=['v','o','*','d','.','+','s']
     if type(acc_list[0]) is not list:
         acc_list=[acc_list]
     if acc_list[0][0]<1:
@@ -414,10 +413,10 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     ax.set_xlabel('Pruned Flops%',fontsize=font_size)
     ax.set_ylabel('Accuracy%',fontsize=font_size)
     # plt.yticks([80,85,90],('80','85','90'))
-    # ax.set_ylim(bottom=10)
+    ax.set_ylim(bottom=10)
     # ax.set_ylim(bottom=30)
     # ax.set_ylim(bottom=50)
-    ax.set_ylim(bottom=55)
+    # ax.set_ylim(bottom=55)
     # ax.set_yticks([30,40,60,80,90,100],('0','40','60','80','90','100'),)
     # ax.set_yticks([50,60,80,90,100],('50','60','80','90','100'),)
     # ax.set_ylim(bottom=79)
@@ -445,16 +444,18 @@ if __name__ == "__main__":
 
     # # motivation
     # acc_pruneratio(acc_list=[
-    #                             [0.927733,0.9172,0.907667,0.903967,0.904667,0.896867,0,0,0],
-    #                          [0.9283,0.9245,0.918933,0.913867,0.89,0.8726,0.8407,0.6393,0.4423],
-    #                          [0.9412,0.9374,0.9312,0.9162,0.9071,.836033,0.8532,0.720933,0],
-    #                          [0.9209,0.9044,0.8879,0.8743,0.87,0.855833,0.8259,0.701967,0.4044],
-    #     # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
-    #                          ],
+    #     [0.927733, 0.9172, 0.907667, 0.903967, 0.904667, 0.896867, 0, 0, 0],
+    #     [0.9283, 0.9245, 0.918933, 0.913867, 0.89, 0.8726, 0.8407, 0.6393, 0.4423],
+    #     [0.9412, 0.9374, 0.9312, 0.9162, 0.9071, .836033, 0.8532, 0.720933, 0],
+    #     [0.9209, 0.9044, 0.8879, 0.8743, 0.87, 0.855833, 0.8259, 0.701967, 0.4044],
+    #     [0.932, 0.9308, 0.9201, 0.915, 0.9139, 0.9064, 0, 0, 0],
     #
-    #                prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
-    #                legends=['PFS','EB-Tickets','Rethink','SFP'],
-    #                exp_name='motivation_resnet56_cifar10')
+    #     # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
+    # ],
+    #
+    #     prune_ratio=[0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98],
+    #     legends=['PFS', 'EB-Tickets', 'Rethink', 'SFP', 'DPFPS'],
+    #     exp_name='motivation_resnet56_cifar10')
     #
     # acc_pruneratio(acc_list=[
     #     [0.711, 0.702933, 0.6963, 0.691567, 0.682667, 0.6694, 0.654066667,  0.5441,0.4133],
@@ -470,16 +471,17 @@ if __name__ == "__main__":
 
 
 
-    # # Pruning ResNet-56 on CIFAR-10
+    # # # Pruning ResNet-56 on CIFAR-10
     # acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
     #                          [0.904667, 0.89613, 0.896867, 0.886733, 0, 0, 0, 0],
     #                          [0.89, 0.8842, 0.8726, 0.8643, 0.8407, 0.7488, 0.6393, 0.4423],
     #                          [0.871133,0.8438,0.836033,0.80906667,0.7579,0.785,0.720933,0],
-    #                          [0.874367,0.8573,0.855833,0.84,0.8259,0.7791,0.701967,0.404383]
+    #                          [0.874367,0.8573,0.855833,0.84,0.8259,0.7791,0.701967,0.404383],
+    #                          [0.9139,0.9134,0.9064,0.9027,0,0,0,0]
     #
     #                          ],
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],#[0.7,0.75,0.8,0.85,0.9,0.95],
-    #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP'],
+    #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP','DPFPS'],
     #                exp_name='Pruning_ResNet-56_on_CIFAR-10')
 
     # # Pruning VGG-16 on CIFAR-10
@@ -507,16 +509,17 @@ if __name__ == "__main__":
     #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP'],
     #                exp_name='Pruning_VGG-16_on_CIFAR-100')
 
-    # # Pruning ResNet-56 on CIFAR-100
-    # acc_pruneratio(acc_list=[[0.6579, 0.6659, 0.6527, 0.6457, 0.619, 0.5897, 0.5585, 0.4197],
-    #                          [0.643, 0.6319, 0.6272, 0.61365, 0.596, 0, 0, 0],
-    #                          [0.6437, 0.6360333333, 0.6229333333, 0.6069, 0.5615333333, 0.49486666669999996, 0.43573333329999997, 0.18109999999999998],
-    #                          [0.5213, 0.48755, 0.4587, 0.4381, 0.42025, 0, 0, 0],
-    #                          [0.62945, 0.6123, 0.608, 0.5983, 0.52245, 0.5352, 0.4929, 0.07775]
-    #                          ],
-    #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],#[0.7,0.75,0.8,0.85,0.9,0.95],
-    #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP'],
-    #                exp_name='Pruning_ResNet-56_on_CIFAR-100')
+    # Pruning ResNet-56 on CIFAR-100
+    acc_pruneratio(acc_list=[[0.6579, 0.6659, 0.6527, 0.6457, 0.619, 0.5897, 0.5585, 0.4197],
+                             [0.643, 0.6319, 0.6272, 0.61365, 0.596, 0, 0, 0],
+                             [0.6437, 0.6360333333, 0.6229333333, 0.6069, 0.5615333333, 0.49486666669999996, 0.43573333329999997, 0.18109999999999998],
+                             [0.5213, 0.48755, 0.4587, 0.4381, 0.42025, 0, 0, 0],
+                             [0.62945, 0.6123, 0.608, 0.5983, 0.52245, 0.5352, 0.4929, 0.07775],
+                             [0.6579,0.65,0,0,0,0,0,0]
+                             ],
+                   prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],#[0.7,0.75,0.8,0.85,0.9,0.95],
+                   legends=['DAP','PFS','EB-Tickets','Rethink','SFP','DPFPS'],
+                   exp_name='Pruning_ResNet-56_on_CIFAR-100')
 
     # #ablation study part module
     # acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
@@ -576,41 +579,41 @@ if __name__ == "__main__":
     # # fig = draw_gat_attention(net, pic_name='resnet56_gat_' + str(i), path='/home/victorfang/')
     # print()
 
-    total_flop = 314017290
-    prune_ratio = 0.9
-    flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
-    num_epochs = 160 * 1 + 20
-    learning_rate = {'default': 0.1, 'extractor': 0.0001}
-    weight_decay = {'default': 5e-4, 'extractor': 0}
-    net = vgg.vgg16_bn(dataset_name='cifar10').cuda()
-    net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
-                                                                           net_name='vgg16_bn',
-                                                                           dataset_name='cifar10',
-                                                                           mask_update_epochs=900,
-                                                                           mask_update_freq=1000,
-                                                                           flop_expected=flop_expected,
-                                                                           mask_training_start_epoch=1,
-                                                                           mask_training_stop_epoch=80,
-                                                                           batch_size=128,
-                                                                           add_shortcut_ratio=0.9
-                                                                           )
-    net = net.cuda()
-    i=11
-    # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'vgg16', str(i) + '.pth'), map_location='cpu')
-    checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_meanstd_sameparam_11/checkpoint/masked_net.pth')
-    net.load_state_dict(checkpoint['state_dict'])
-    mask = net.extractor(net)  # predict mask using extractor
-    mask = mask.abs()
-    lo = hi = 0
-    last_conv_mask = None
-    for name, mod in net.net.named_modules():
-        if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
-            hi += mod.out_channels
-            mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
-            lo = hi
-            last_conv_mask = mod.mask
-    fig = draw_masked_net(net, pic_name='vgg16_' + str(i), path='/home/victorfang/')
-    print()
+    # total_flop = 314017290
+    # prune_ratio = 0.9
+    # flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
+    # num_epochs = 160 * 1 + 20
+    # learning_rate = {'default': 0.1, 'extractor': 0.0001}
+    # weight_decay = {'default': 5e-4, 'extractor': 0}
+    # net = vgg.vgg16_bn(dataset_name='cifar10').cuda()
+    # net = net_with_predicted_mask.predicted_mask_and_variable_shortcut_net(net,
+    #                                                                        net_name='vgg16_bn',
+    #                                                                        dataset_name='cifar10',
+    #                                                                        mask_update_epochs=900,
+    #                                                                        mask_update_freq=1000,
+    #                                                                        flop_expected=flop_expected,
+    #                                                                        mask_training_start_epoch=1,
+    #                                                                        mask_training_stop_epoch=80,
+    #                                                                        batch_size=128,
+    #                                                                        add_shortcut_ratio=0.9
+    #                                                                        )
+    # net = net.cuda()
+    # i=11
+    # # checkpoint = torch.load(os.path.join(conf.root_path, 'masked_net', 'vgg16', str(i) + '.pth'), map_location='cpu')
+    # checkpoint = torch.load('/home/victorfang/model_pytorch/data/model_saved/gat_vgg16bn_predicted_mask_and_variable_shortcut_net_mask_newinner_meanstd_sameparam_11/checkpoint/masked_net.pth')
+    # net.load_state_dict(checkpoint['state_dict'])
+    # mask = net.extractor(net)  # predict mask using extractor
+    # mask = mask.abs()
+    # lo = hi = 0
+    # last_conv_mask = None
+    # for name, mod in net.net.named_modules():
+    #     if isinstance(mod, conv2d_with_mask) and 'downsample' not in name:
+    #         hi += mod.out_channels
+    #         mod.set_mask(mask[lo:hi].view(-1))  # update mask for each conv
+    #         lo = hi
+    #         last_conv_mask = mod.mask
+    # fig = draw_masked_net(net, pic_name='vgg16_' + str(i), path='/home/victorfang/')
+    # print()
 
     # #draw the gat attention of the network
     # #draw the side-attention of the net

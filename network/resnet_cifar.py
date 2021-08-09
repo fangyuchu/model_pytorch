@@ -70,7 +70,7 @@ class BasicBlock(nn.Module):
         basicblock = self.conv_b(basicblock)
         basicblock = self.bn_b(basicblock)
 
-        if self.downsample is not None and isinstance(self.downsample[0],nn.Conv2d): #this downsample is a conv shortcut
+        if self.downsample is not None and not isinstance(self.downsample,DownsampleA) and isinstance(self.downsample[0],nn.Conv2d): #this downsample is a conv shortcut
             # if predicted_mask_and_variable_shortcut_net is pruned, number of input and output feature maps may differs.
             # if that happens, just create a new downsample(for simplicity, without copying the weights)
             downsample_conv = self.downsample[0]

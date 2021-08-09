@@ -174,7 +174,11 @@ def evaluate_net(  net,
             checkpoint['optimizer_state_dict']=optimizer.state_dict()
 
         checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
-        torch.save(checkpoint,'%s/flop=%d,accuracy=%.5f.pth' % (checkpoint_path, flop_num,accuracy))
+        try:
+            torch.save(checkpoint,'%s/flop=%d,accuracy=%.5f.pth' % (checkpoint_path, flop_num,accuracy))
+        except AttributeError:
+            checkpoint.pop('net')  # AttributeError: Can't pickle local object 'new_forward.<locals>.lambda_forward'
+            torch.save(checkpoint, '%s/flop=%d,accuracy=%.5f.pth' % (checkpoint_path, flop_num, accuracy))
         print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
 
     return accuracy

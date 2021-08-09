@@ -377,7 +377,11 @@ def train(
                               'optimizer_state_dict':optimizer.state_dict(),
                               'flop_num':flop_num}
                 checkpoint.update(storage.get_net_information(net, dataset_name, net_name))
-                torch.save(checkpoint, '%s/last_model.pth' % checkpoint_path)
+                try:
+                    torch.save(checkpoint, '%s/last_model.pth' % checkpoint_path)
+                except AttributeError:
+                    checkpoint.pop('net')  # AttributeError: Can't pickle local object 'new_forward.<locals>.lambda_forward'
+                    torch.save(checkpoint, '%s/last_model.pth' % checkpoint_path)
 
                 if accuracy >= target_accuracy:
                     print('{} net reached target accuracy.'.format(datetime.now()))
