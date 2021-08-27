@@ -160,6 +160,7 @@ def count_params(net):
     num_param=0
     for param in net.parameters():
         num_param+=param.numel()
+    print('param_num:{}'.format(num_param))
     return num_param
 
 if __name__ == '__main__':

@@ -891,6 +891,7 @@ def train_extractor_network(
                         # mask_abs = mod.shortcut_mask.abs()
                         mask_mean=torch.mean(mod.mask.abs())
                         std=torch.std(mod.mask.abs())
+                        std = std if std!=0 else 0 # no std penalty if all masks are the same
                         mean_penalty = mean_penalty + (target_mask_mean - mask_mean).abs()
                         std_penalty = std_penalty + std#-std
 

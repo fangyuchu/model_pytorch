@@ -4,7 +4,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 from framework import data_loader, evaluate
-from network import storage,resnet_cifar,vgg,net_with_predicted_mask,resnet
+from network import storage,resnet_cifar,vgg,net_with_predicted_mask,resnet,mobilenet
+from framework.measure_flops import measure_model,count_params
 from filter_characteristic import predict_dead_filter
 import matplotlib.pyplot as plt
 import copy
@@ -14,6 +15,7 @@ from network.modules import conv2d_with_mask
 from framework import config as conf
 from framework.draw import draw_masked_net,draw_gat_attention
 from framework.train import show_feature_map
+import matplotlib.patches as mpathes
 
 
 def dead_neural_rate():
@@ -384,6 +386,62 @@ def tolerance():
     plt.savefig('resnet56_cifar100_tolerance.eps', format='eps')
     plt.show()
 
+def plot_layer_structure(baseline_net,net1,net_name):
+    structure=[[],[],[]]
+    for name,mod in baseline_net.named_modules():
+        if isinstance(mod,nn.Conv2d) and 'downsample' not in name and mod.groups==1:
+            structure[0]+=[mod.out_channels]
+    for name,mod in net1.named_modules():
+        if isinstance(mod,nn.Conv2d) and 'downsample' not in name and mod.groups==1:
+            structure[1]+=[mod.out_channels]
+    fig, ax = plt.subplots(figsize=(24, 6))
+    # for name,mod in net2.named_modules:
+    #     if isinstance(mod,nn.Conv2d) and 'downsample' not in name:
+    #         structure[2]+=[mod.out_channels]
+    if net_name=='resnet50':
+        net1_name='DualPrune,Acc=70.74%,FLOPs=625M,Param=4.95M'
+        # net1_name='DualPrune,FLOPs=625M,Param=4.95M'
+        # net2_name='PFS,FLOPs=645M,Param=5.44M'
+        net2_name='PFS,Acc=63.64%,FLOPs=645M,Param=5.44M'
+        structure[2]=[64, 6, 7, 256, 2, 5, 256, 5, 5, 256, 12, 10, 512, 13, 8, 512, 8, 11, 512, 10, 9, 512, 19, 20, 1024, 20, 19, 1024, 19, 20, 1024, 16, 19, 1024, 17, 18, 1024, 22, 17, 1024, 24, 22, 2048, 17, 29, 2048, 22, 28, 2048]
+    elif net_name=='mobilenet_v1':
+        net1_name='DualPrune,Acc=61.99%,FLOPs=89M,Param=0.84M'
+        # net1_name='DualPrune,FLOPs=89M,Param=0.84M'
+        net2_name='PFS,Acc=44.62%,FLOPs=95M,Param=0.56M'
+        # net2_name='PFS,FLOPs=95M,Param=0.56M'
+        structure[2]=[22, 38, 71, 68, 125, 118, 198, 159, 117, 65, 38, 11, 11, 427]
+        ax.set_xticks([0,2,4,6,8,10,13])
+        ax.set_yscale('log')
+    font_size=40    #for small figure
+    marker_size=15
+    line_width=3
+    marker_list = ['v', 'o', '*', 'd', '.', '+', 's']
+
+    # structure[1]=np.array(structure[1])/np.array(structure[0])
+    # structure[2]=np.array(structure[2])/np.array(structure[0])
+    # structure[0]=np.array(structure[0])/np.array(structure[0])
+    # rect = mpathes.Rectangle((0,0),height=1,width=len(structure[0]-2), color='g',alpha=0.3)
+    # ax.add_patch(rect)
+
+    ax.bar(list(range(len(structure[0]))),structure[0],label='Full Network',color='g',alpha=0.3)
+    ax.plot(list(range(len(structure[1]))),structure[1] , marker=marker_list[0], label=net1_name, markersize=marker_size,linewidth=line_width)
+    ax.plot(list(range(len(structure[2]))),structure[2] , marker=marker_list[1], label=net2_name, markersize=marker_size,linewidth=line_width)
+    ax.set_xlim(right=len(structure[0]))
+    ax.set_xlabel('Layer Index',fontsize=font_size)
+    ax.set_ylabel('Filter Number',fontsize=font_size)
+    ax.tick_params(labelsize=font_size)
+    ax.legend(fontsize=font_size,loc='best',frameon=False)
+
+    bwith = 2
+    ax.spines['bottom'].set_linewidth(bwith)
+    ax.spines['left'].set_linewidth(bwith)
+    ax.spines['top'].set_linewidth(bwith)
+    ax.spines['right'].set_linewidth(bwith)
+    # ax.set_ylim(bottom=5)
+
+    plt.show()
+
+
 def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     '''
 
@@ -395,6 +453,7 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     # plt.style.use('seaborn-whitegrid')
     # font_size=20    # for motivation
     font_size=20    #for small figure
+    # font_size=25 #for part module
     marker_size=15
     # marker_list=['v','+','*','.','d','s','o',] # for baselines
     marker_list=['v','o','*','d','.','+','s']
@@ -449,12 +508,13 @@ if __name__ == "__main__":
     #     [0.9412, 0.9374, 0.9312, 0.9162, 0.9071, .836033, 0.8532, 0.720933, 0],
     #     [0.9209, 0.9044, 0.8879, 0.8743, 0.87, 0.855833, 0.8259, 0.701967, 0.4044],
     #     [0.932, 0.9308, 0.9201, 0.915, 0.9139, 0.9064, 0, 0, 0],
+    #     [0.9317,0.9188,0.9146,0.9072,0.9034,0.8658,0,0,0]
     #
     #     # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
     # ],
     #
     #     prune_ratio=[0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98],
-    #     legends=['PFS', 'EB-Tickets', 'Rethink', 'SFP', 'DPFPS'],
+    #     legends=['PFS', 'EB-Tickets', 'Rethink', 'SFP', 'DPFPS','HRank'],
     #     exp_name='motivation_resnet56_cifar10')
     #
     # acc_pruneratio(acc_list=[
@@ -463,6 +523,7 @@ if __name__ == "__main__":
     #                          [0.62095,0.6134,0.528,0.54595,0.53205,.3951,0.34245,0.3141,0.147],
     #                          [0.7149,0.7133,0.7008,0.6968,0.6874,0.6668,0.61545,0.42025,0.1464],
     #     # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
+    #
     #                          ],
     #
     #                prune_ratio=[0.5,0.6,0.7,0.75,0.8,0.85,0.9,0.95,0.98],
@@ -471,33 +532,44 @@ if __name__ == "__main__":
 
 
 
-    # # # Pruning ResNet-56 on CIFAR-10
-    # acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
+    # # # # Pruning ResNet-56 on CIFAR-10
+    # acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8937,0.876,0.8613,0.8096],
     #                          [0.904667, 0.89613, 0.896867, 0.886733, 0, 0, 0, 0],
     #                          [0.89, 0.8842, 0.8726, 0.8643, 0.8407, 0.7488, 0.6393, 0.4423],
     #                          [0.871133,0.8438,0.836033,0.80906667,0.7579,0.785,0.720933,0],
     #                          [0.874367,0.8573,0.855833,0.84,0.8259,0.7791,0.701967,0.404383],
-    #                          [0.9139,0.9134,0.9064,0.9027,0,0,0,0]
-    #
+    #                          [0.9139,0.9134,0.9064,0.9027,0,0,0,0],
+    #                         [0.9034,0.8795,0.8658,0,0,0,0,0]
     #                          ],
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],#[0.7,0.75,0.8,0.85,0.9,0.95],
-    #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP','DPFPS'],
+    #                legends=['DualPrune','PFS','EB-Tickets','Rethink','SFP','DPFPS','HRank'],
     #                exp_name='Pruning_ResNet-56_on_CIFAR-10')
 
-    # # Pruning VGG-16 on CIFAR-10
+    # # # Pruning VGG-16 on CIFAR-10
     # acc_pruneratio(acc_list=[[0.9264, 0.9245, 0.924, 0.9204, 0.9169, 0.9135, 0.9052, 0.8655],
     #                          [0.9144, 0.9147, 0.9101, 0.908167, 0.8978, 0.895967, 0.8816, 0],
     #                          [0.919933, 0.9102, 0.9115, 0.9044, 0.901167, 0.897, 0.881567, 0.566033],
     #                          [ 0.865566667, 0.8399, 0.851433333, 0.875833333, 0.850033333, 0.857266667,0.749133333, 0.543666667],
-    #                          [0.9179,0.9149,0.91235,0.91305,0.90595,0.896,0.8723,0.59765]
+    #                          [0.9179,0.9149,0.91235,0.91305,0.90595,0.896,0.8723,0.59765],
+    #                          [0.8876,0.871,0.8599,0.8426,0.7974,0.7245,0.6038,0]
     #                          ],
-    #
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
-    #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP'],
+    #                legends=['DualPrune','PFS','EB-Tickets','Rethink','SFP','HRank'],
     #                exp_name='Pruning_VGG-16_on_CIFAR-10')
+    #
+    # #plot structure
+    # # #resnet50
+    # checkpoint = torch.load('/home/disk_new/model_saved_4gpu/model_saved/gat_resnet50_predicted_mask_and_variable_shortcut_net_newinner_newtrain_85_7/checkpoint/flop=625447007,accuracy=0.70741.pth')
+    # net = checkpoint['net'].module.cuda()
+    # plot_layer_structure(resnet.resnet50(),net,'resnet50')
+    # # #mobilenet_v1
+    checkpoint = torch.load('/home/disk_new/model_saved_4gpu/model_saved/gat_mobilenet_v1_predicted_mask_and_variable_shortcut_net_newinner_newtrain_85_3/checkpoint/flop=89121118,accuracy=0.61999.pth')
+
+    net = checkpoint['net'].module.cuda()
+    plot_layer_structure(mobilenet.MobileNet(n_class=1000), net, 'mobilenet_v1')
 
 
-    # # Pruning VGG-16 on CIFAR-100
+    # # # Pruning VGG-16 on CIFAR-100
     # acc_pruneratio(acc_list=[[0.704,0.7002,0.6948,0.6835,0.6802,0.6544,0.6307,0.5429],
     #                          [0.682667,0.679367,0.6694,0.663167,0.654067,0.636767,0.5441,0.4133],
     #                          [0.5156,0.54867,0.55353,0.5317,0.43793,0.50293,0.464367,0.2717],
@@ -506,20 +578,20 @@ if __name__ == "__main__":
     #                          ],
     #
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
-    #                legends=['DAP','PFS','EB-Tickets','Rethink','SFP'],
+    #                legends=['DualPrune','PFS','EB-Tickets','Rethink','SFP'],
     #                exp_name='Pruning_VGG-16_on_CIFAR-100')
 
-    # Pruning ResNet-56 on CIFAR-100
-    acc_pruneratio(acc_list=[[0.6579, 0.6659, 0.6527, 0.6457, 0.619, 0.5897, 0.5585, 0.4197],
-                             [0.643, 0.6319, 0.6272, 0.61365, 0.596, 0, 0, 0],
-                             [0.6437, 0.6360333333, 0.6229333333, 0.6069, 0.5615333333, 0.49486666669999996, 0.43573333329999997, 0.18109999999999998],
-                             [0.5213, 0.48755, 0.4587, 0.4381, 0.42025, 0, 0, 0],
-                             [0.62945, 0.6123, 0.608, 0.5983, 0.52245, 0.5352, 0.4929, 0.07775],
-                             [0.6579,0.65,0,0,0,0,0,0]
-                             ],
-                   prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],#[0.7,0.75,0.8,0.85,0.9,0.95],
-                   legends=['DAP','PFS','EB-Tickets','Rethink','SFP','DPFPS'],
-                   exp_name='Pruning_ResNet-56_on_CIFAR-100')
+    # # # Pruning ResNet-56 on CIFAR-100
+    # acc_pruneratio(acc_list=[[0.6579, 0.6659, 0.6527, 0.6457, 0.619, 0.5897, 0.5585, 0.4197],
+    #                          [0.643, 0.6319, 0.6272, 0.61365, 0.596, 0, 0, 0],
+    #                          [0.6437, 0.6360333333, 0.6229333333, 0.6069, 0.5615333333, 0.49486666669999996, 0.43573333329999997, 0.18109999999999998],
+    #                          [0.5213, 0.48755, 0.4587, 0.4381, 0.42025, 0, 0, 0],
+    #                          [0.62945, 0.6123, 0.608, 0.5983, 0.52245, 0.5352, 0.4929, 0.07775],
+    #                          [0.6579,0.65,0,0,0,0,0,0]
+    #                          ],
+    #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],#[0.7,0.75,0.8,0.85,0.9,0.95],
+    #                legends=['DualPrune','PFS','EB-Tickets','Rethink','SFP','DPFPS'],
+    #                exp_name='Pruning_ResNet-56_on_CIFAR-100')
 
     # #ablation study part module
     # acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
@@ -527,7 +599,7 @@ if __name__ == "__main__":
     #                          [0.9011, 0.8918, 0.8964, 0.8849, 0, 0, 0,0],
     #                          ],
     #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
-    #                legends=['DAP','w/o Graph Attention', 'w/o Side-path'],
+    #                legends=['DualPrune','w/o Graph Attention', 'w/o Side-path'],
     #                exp_name='effect_of_two_modules'
     #                )
     # fontsize=14
