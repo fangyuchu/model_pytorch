@@ -453,7 +453,7 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     # plt.style.use('seaborn-whitegrid')
     # font_size=20    # for motivation
     font_size=20    #for small figure
-    # font_size=25 #for part module
+    font_size=25 #for part module
     marker_size=15
     # marker_list=['v','+','*','.','d','s','o',] # for baselines
     marker_list=['v','o','*','d','.','+','s']
@@ -472,7 +472,7 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     ax.set_xlabel('Pruned Flops%',fontsize=font_size)
     ax.set_ylabel('Accuracy%',fontsize=font_size)
     # plt.yticks([80,85,90],('80','85','90'))
-    ax.set_ylim(bottom=10)
+    # ax.set_ylim(bottom=10)
     # ax.set_ylim(bottom=30)
     # ax.set_ylim(bottom=50)
     # ax.set_ylim(bottom=55)
@@ -501,20 +501,21 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
 
 if __name__ == "__main__":
 
-    # # motivation
+    # # # motivation
     # acc_pruneratio(acc_list=[
     #     [0.927733, 0.9172, 0.907667, 0.903967, 0.904667, 0.896867, 0, 0, 0],
     #     [0.9283, 0.9245, 0.918933, 0.913867, 0.89, 0.8726, 0.8407, 0.6393, 0.4423],
     #     [0.9412, 0.9374, 0.9312, 0.9162, 0.9071, .836033, 0.8532, 0.720933, 0],
     #     [0.9209, 0.9044, 0.8879, 0.8743, 0.87, 0.855833, 0.8259, 0.701967, 0.4044],
-    #     [0.932, 0.9308, 0.9201, 0.915, 0.9139, 0.9064, 0, 0, 0],
-    #     [0.9317,0.9188,0.9146,0.9072,0.9034,0.8658,0,0,0]
+    #     # [0.932, 0.9308, 0.9201, 0.915, 0.9139, 0.9064, 0, 0, 0],
+    #     # [0.9317,0.9188,0.9146,0.9072,0.9034,0.8658,0,0,0]
     #
     #     # [0.9228, 0.9174, 0.9145, 0.912, 0.9107, 0.8903, 0.8871, 0.8613, 0.8096],
     # ],
     #
     #     prune_ratio=[0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98],
-    #     legends=['PFS', 'EB-Tickets', 'Rethink', 'SFP', 'DPFPS','HRank'],
+    #     # legends=['PFS', 'EB-Tickets', 'Rethink', 'SFP', 'DPFPS','HRank'],
+    #     legends=['PFS', 'EB-Tickets', 'Rethink', 'SFP'],
     #     exp_name='motivation_resnet56_cifar10')
     #
     # acc_pruneratio(acc_list=[
@@ -563,10 +564,10 @@ if __name__ == "__main__":
     # net = checkpoint['net'].module.cuda()
     # plot_layer_structure(resnet.resnet50(),net,'resnet50')
     # # #mobilenet_v1
-    checkpoint = torch.load('/home/disk_new/model_saved_4gpu/model_saved/gat_mobilenet_v1_predicted_mask_and_variable_shortcut_net_newinner_newtrain_85_3/checkpoint/flop=89121118,accuracy=0.61999.pth')
-
-    net = checkpoint['net'].module.cuda()
-    plot_layer_structure(mobilenet.MobileNet(n_class=1000), net, 'mobilenet_v1')
+    # checkpoint = torch.load('/home/disk_new/model_saved_4gpu/model_saved/gat_mobilenet_v1_predicted_mask_and_variable_shortcut_net_newinner_newtrain_85_3/checkpoint/flop=89121118,accuracy=0.61999.pth')
+    #
+    # net = checkpoint['net'].module.cuda()
+    # plot_layer_structure(mobilenet.MobileNet(n_class=1000), net, 'mobilenet_v1')
 
 
     # # # Pruning VGG-16 on CIFAR-100
@@ -593,7 +594,7 @@ if __name__ == "__main__":
     #                legends=['DualPrune','PFS','EB-Tickets','Rethink','SFP','DPFPS'],
     #                exp_name='Pruning_ResNet-56_on_CIFAR-100')
 
-    # #ablation study part module
+    #ablation study part module
     # acc_pruneratio(acc_list=[[0.9107,0.8984,0.8903,0.8916,0.8871,0.876,0.8613,0.8096],
     #                         [0.8964, 0.8873, 0.8897, 0.8855, 0.8707, 0.862, 0.8405,0.602],
     #                          [0.9011, 0.8918, 0.8964, 0.8849, 0, 0, 0,0],
@@ -602,17 +603,16 @@ if __name__ == "__main__":
     #                legends=['DualPrune','w/o Graph Attention', 'w/o Side-path'],
     #                exp_name='effect_of_two_modules'
     #                )
-    # fontsize=14
-    # pruned_flop=[9.48,31.63,63.72,84.54,88.30]
-    # acc_drop=[0.1,0.2,0.5,1,2]
-    # plt.figure()
-    # plt.plot(acc_drop, pruned_flop, 'bo--')
-    # plt.yticks(fontsize=fontsize)
-    # plt.xticks(acc_drop,acc_drop,fontsize=fontsize-2)
-    # plt.xlabel('Tolerance Accuracy Drop%', fontsize=fontsize)
-    # plt.ylabel('Pruned FLOPs%', fontsize=fontsize)
-    # plt.savefig('/home/victorfang/Desktop/vgg16_cifar10_tolerance.eps', format='eps')
-    # plt.show()
+
+    acc_pruneratio(acc_list=[[0.704,0.7002,0.6948,0.6835,0.6802,0.6544,0.6307,0.5429],
+                             [0.6946,0.6838,0.6782,0.6722,0.6579,0.6458,0.6167,0.3187],
+                             [0.6936, 0.6864, 0.6897, 0.6733, 0.6695, 0.64, 0.6195, 0.5488],
+                             ],
+                   prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
+                   legends=['DualPrune','w/o Graph Attention', 'w/o Side-path'],
+                   exp_name='effect_of_two_modules'
+                   )
+
 
     # #draw the side-attention of the net
     # # resnet56

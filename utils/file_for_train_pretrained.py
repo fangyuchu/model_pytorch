@@ -12,7 +12,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset='imagenet'
 net_type='resnet50'
-dataset='cifar100'
+dataset='cifar10'
 net_type='vgg16_bn'
 # net_type='vgg16_bn'
 # # #for cifar
@@ -178,7 +178,7 @@ if dataset == 'cifar10':
         batch_size=128
         description=exp_name+'  '+'专门训练mask,没有warmup，训练20epoch'
         total_flop=314017290
-        prune_ratio=0.9
+        prune_ratio=0.7
         flop_expected=total_flop*(1 - prune_ratio)#0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value=None
         learning_rate_decay_epoch = [mask_training_stop_epoch+1*i for i in [80,120]]
@@ -244,7 +244,7 @@ if dataset == 'cifar10':
 
 
         i = 1
-        exp_name = 'gat_pretrained_vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_finetune40_' + str(int(prune_ratio * 100)) + '_' + str(i)
+        exp_name = 'gat_pretrained_vgg16bn_predicted_mask_and_variable_shortcut_net_newinner_tfs_' + str(int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
 
         checkpoint_path = os.path.join(conf.root_path, 'model_saved', exp_name)
@@ -264,15 +264,15 @@ if dataset == 'cifar10':
         net.print_mask()
         net.prune_net()
         net.current_epoch = net.mask_training_stop_epoch + 1
-        # learning_rate = 0.1
-        # learning_rate_decay_epoch = [2*i for i in [80,120]]
-        # num_epochs = 160*2
+        learning_rate = 0.1
+        learning_rate_decay_epoch = [2*i for i in [80,120]]
+        num_epochs = 160*2
 
-        learning_rate = 0.01
-        # learning_rate_decay_epoch=[40,80]
-        # num_epochs = 120
-        num_epochs=40
-        net=net.net
+        # learning_rate = 0.01
+        # # learning_rate_decay_epoch=[40,80]
+        # # num_epochs = 120
+        # num_epochs=40
+        # net=net.net
 
         print(weight_decay, momentum, learning_rate, flop_expected, gradient_clip_value, i)
 
@@ -289,7 +289,7 @@ if dataset == 'cifar10':
                     batch_size=batch_size,
                     evaluate_step=5000,
                     resume=True,
-                    test_net=False,
+                    test_net=True,
                     num_workers=2,
                     learning_rate_decay=True,
                     learning_rate_decay_epoch=learning_rate_decay_epoch,

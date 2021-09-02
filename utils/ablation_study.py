@@ -187,7 +187,7 @@ if ablation_exp_name == 'no_gat':
         print(exp_name)
         description = exp_name + '  ' + '专门训练mask,没有warmup，训练20epoch，没有gat，mask直接由梯度更新'
         total_flop = 316813412  # 125485706
-        prune_ratio = 0.98
+        prune_ratio = 0.8
         flop_expected = total_flop * (1 - prune_ratio)  # 0.627e7#1.25e7#1.88e7#2.5e7#3.6e7#
         gradient_clip_value = 5
         learning_rate_decay_epoch = [mask_training_stop_epoch + 1 * i for i in [80, 120]]
@@ -427,8 +427,8 @@ elif ablation_exp_name == 'no_shortcut':
                     )
     elif net_name=='vgg16_bn':
         # no shortcut
-        prune_ratio=0.98
-        exp_name='gat_resnet56_noshortcut_'+str(prune_ratio*100)
+        prune_ratio=0.8
+        exp_name='gat_vgg16_bn_noshortcut_'+str(prune_ratio*100)
         print(exp_name)
         description='不用shortcut来训练剪完的网络'
         batch_size=128
@@ -502,21 +502,22 @@ elif ablation_exp_name == 'no_shortcut':
                     weight_decay=5e-4,
                     momentum=0.9,
                     learning_rate=0.1,
-                    num_epochs=160,
+                    num_epochs=320,
                     batch_size=batch_size,
                     evaluate_step=5000,
-                    resume=False,
+                    resume=True,
                     test_net=True,
                     num_workers=4,
                     learning_rate_decay=True,
-                    learning_rate_decay_epoch=[i for i in [80,120]],
+                    learning_rate_decay_epoch=[2*i for i in [80,120]],
                     learning_rate_decay_factor=0.1,
                     scheduler_name='MultiStepLR',
                     top_acc=1,
                     data_parallel=False,
                     paint_loss=True,
                     save_at_each_step=False,
-                    gradient_clip_value=None
+                    gradient_clip_value=None,
+
                     )
 
 elif ablation_exp_name == 'draw_net_mask':
