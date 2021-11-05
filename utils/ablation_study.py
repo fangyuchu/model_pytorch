@@ -8,9 +8,10 @@ from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifa
 from framework import config as conf
 from network.modules import conv2d_with_mask_and_variable_shortcut
 import logger
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ablation_exp_name='no_shortcut'
+ablation_exp_name='layer_collapse'
 
 if ablation_exp_name == 'no_gat':
     net_name='resnet56'
@@ -702,6 +703,43 @@ elif ablation_exp_name == 'gat_layer_num':
                     save_at_each_step=False,
                     gradient_clip_value=gradient_clip_value
                     )
+elif ablation_exp_name=='layer_collapse':
+    from prune import prune_module
+    layer = 1
+    print('layer:',layer)
+    net = vgg.vgg16_bn(num_classes=10,dataset_name = 'cifar10').cuda()
+    filter_num = 41
+    print(filter_num)
+    prune_module.prune_conv_layer_vgg(net,layer,[i for i in range(filter_num)])
+    # prune_module.prune_conv_layer_vgg(net,layer,[i for i in range(254)])
+    # prune_module.prune_conv_layer_vgg(net,layer,[i for i in range(507)])
+
+    train.train(net=net,
+                net_name='vgg16_bn',
+                exp_name='layer_callapse_layer_'+str(layer)+'_'+str(filter_num),
+                # description=description,
+                dataset_name='cifar10',
+                optimizer=optim.SGD,
+                weight_decay=5e-4,
+                momentum=0.9,
+                learning_rate=0.1,
+                num_epochs=160,
+                batch_size=128,
+                evaluate_step=5000,
+                resume=False,
+                test_net=False,
+                num_workers=2,
+                learning_rate_decay=True,
+                learning_rate_decay_epoch=[80,120],
+                learning_rate_decay_factor=0.1,
+                scheduler_name='MultiStepLR',
+                top_acc=1,
+                data_parallel=False,
+                paint_loss=False,
+                save_at_each_step=False,
+                gradient_clip_value=None,
+                use_tensorboard=True
+                )
 
 
 # #add_shortcut_ratio

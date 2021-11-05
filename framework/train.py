@@ -228,8 +228,8 @@ def train(
     sample_num=0
     if os.path.isfile(file_new):
         if resume:
+            print('{} load net from previous checkpoint:{}'.format(datetime.now(), file_new))
             checkpoint = torch.load(file_new,map_location='cpu')
-            print('{} load net from previous checkpoint:{}'.format(datetime.now(),file_new))
             # net=storage.restore_net(checkpoint,pretrained=True,data_parallel=data_parallel)
             if isinstance(net,nn.DataParallel) and 'module.' not in list(checkpoint['state_dict'])[0]:
                 net.module.load_state_dict(checkpoint['state_dict'])
@@ -921,7 +921,7 @@ def train_extractor_network(
 
                 elif isinstance(net.net,resnet.ResNet):
                     alpha=0.02
-                elif isinstance(net.net,mobilenet.MobileNet):
+                elif isinstance(net.net,mobilenet.MobileNet) or isinstance(net.net,mobilenet.MobileNetV2):
                     alpha=0.02
                 else:
                     raise Exception('What is this net???')

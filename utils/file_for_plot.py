@@ -497,9 +497,32 @@ def acc_pruneratio(acc_list,prune_ratio,legends,exp_name):
     plt.savefig('/home/victorfang/'+exp_name+'.png',dpi=fig.dpi)
     plt.show()
 
+def layer_collapse():
+    font_size = 25
+    marker_size = 23
+    ratio = [50,65,78.125,84.375,89.0625,93.75,96.875]
+    acc = [93.3,93.2,93.0,92.68,92.3,91.01,83.83]
+    flop_reduction =[9.04,11.57,14.12,15.25,16.10,16.94,17.19]
 
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(ratio, acc,  markersize=marker_size,marker = 'o')
+    # ax.plot(ratio, acc,  marker = 'o')
+
+    for i,flop in enumerate(flop_reduction):
+        if i != len(acc)-1:
+            ax.annotate(str(flop)+'%',xy=(ratio[i],acc[i]),xytext = (ratio[i]-2,acc[i]-1.5),fontsize = font_size-2)
+        else:
+            ax.annotate(str(flop)+'%',xy=(ratio[i],acc[i]),xytext = (ratio[i]-7,acc[i]+0.5),fontsize = font_size-2)
+
+    ax.set_xlabel('Pruned Filter Ratio%',fontsize=font_size)
+    ax.set_ylabel('Accuracy%',fontsize=font_size)
+    # ax.set_xlabel('Pruned Filter Ratio%')
+    # ax.set_ylabel('Accuracy%')
+    ax.tick_params(labelsize=font_size)
+    plt.show()
 
 if __name__ == "__main__":
+    layer_collapse()
 
     # # # motivation
     # acc_pruneratio(acc_list=[
@@ -604,14 +627,14 @@ if __name__ == "__main__":
     #                exp_name='effect_of_two_modules'
     #                )
 
-    acc_pruneratio(acc_list=[[0.704,0.7002,0.6948,0.6835,0.6802,0.6544,0.6307,0.5429],
-                             [0.6946,0.6838,0.6782,0.6722,0.6579,0.6458,0.6167,0.3187],
-                             [0.6936, 0.6864, 0.6897, 0.6733, 0.6695, 0.64, 0.6195, 0.5488],
-                             ],
-                   prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
-                   legends=['DualPrune','w/o Graph Attention', 'w/o Side-path'],
-                   exp_name='effect_of_two_modules'
-                   )
+    # acc_pruneratio(acc_list=[[0.704,0.7002,0.6948,0.6835,0.6802,0.6544,0.6307,0.5429],
+    #                          [0.6946,0.6838,0.6782,0.6722,0.6579,0.6458,0.6167,0.3187],
+    #                          [0.6936, 0.6864, 0.6897, 0.6733, 0.6695, 0.64, 0.6195, 0.5488],
+    #                          ],
+    #                prune_ratio=[0.8,0.83,0.85,0.87,0.9,0.93,0.95,0.98],
+    #                legends=['DualPrune','w/o Graph Attention', 'w/o Side-path'],
+    #                exp_name='effect_of_two_modules'
+    #                )
 
 
     # #draw the side-attention of the net

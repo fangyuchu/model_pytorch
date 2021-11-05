@@ -166,9 +166,21 @@ class InvertedResidual(nn.Module):
 
     def forward(self, x):
         if self.use_res_connect:
-            return x + self.conv(x)
+            residual = x
+            out = self.conv(x)
+
+            if out.shape[1] < residual.shape[1]:
+                out = nn.functional.pad(out, (0, 0, 0, 0, 0, residual.shape[1] - out.shape[1]))
+            elif out.shape[1] > residual.shape[1]:
+                residual = nn.functional.pad(residual, (0, 0, 0, 0, 0, out.shape[1] - residual.shape[1]))
+
+            # return x + self.conv(x)
+            return out+residual
         else:
             return self.conv(x)
+        
+    def __str__(self):
+        return 'use_res_connect:'+str(self.use_res_connect)+'\n'+super(InvertedResidual, self).__str__()
 
 
 class MobileNetV2(nn.Module):
