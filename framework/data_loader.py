@@ -32,7 +32,8 @@ def create_train_loader(
                                       transforms.RandomCrop(32, 4),
                                       transforms.ToTensor(),
                                       transforms.Normalize(mean=mean, std=std),
-                                  ]), download=True)
+                                  ])
+                                        , download=True)
         val_folder = datasets.CIFAR10(root=dataset_path, train=True,
                                              transform=transforms.Compose([
                                                  transforms.ToTensor(),

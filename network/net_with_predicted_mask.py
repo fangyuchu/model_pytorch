@@ -436,7 +436,7 @@ class predicted_mask_and_variable_shortcut_net(predicted_mask_net):
             return num
         if isinstance(self.net,mobilenet.MobileNetV2):
             #1:0.25:1040,0.4:2050, #2:0.25:1500, 0.4:2400
-            num = 1040
+            num = 1340
             print('prune:{} filters'.format(num))
             return num
 

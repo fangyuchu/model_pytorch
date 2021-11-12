@@ -102,6 +102,19 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(1 / batch_size))                  #each item is one k_accuracy
     return res
 
+def best_checkpoint(checkpoint_dir):
+    lists = os.listdir(checkpoint_dir)
+    top_checkpoint=''
+    top_acc=0
+    for file_name in lists: #example: 'flop=128516746,accuracy=0.88333.pth'
+        index=file_name.find('accuracy=')
+        if index>-1:
+            acc=float(file_name[index+9:].split('.')[1])
+            if acc>top_acc:
+                top_checkpoint=file_name
+                top_acc=acc
+    return os.path.join(checkpoint_dir,top_checkpoint)
+
 
 def evaluate_net(  net,
                    data_loader,
@@ -131,6 +144,16 @@ def evaluate_net(  net,
     :param top_acc: top 1 or top 5 accuracy
     '''
     net.eval()
+
+    print("{} Start Evaluation".format(datetime.now()))
+    print("{} sample num = {}".format(datetime.now(), sample_num))
+
+    top1_accuracy, top5_accuracy = validate(data_loader, net, max_data_to_test, device)
+    if top_acc==1:
+        accuracy=top1_accuracy
+    elif top_acc==5:
+        accuracy=top5_accuracy
+
     if save_net:
         flop_num = measure_flops.measure_model(net=net, dataset_name=dataset_name, print_flop=False)
         if checkpoint_path is None :
@@ -152,36 +175,37 @@ def evaluate_net(  net,
         else:
             highest_accuracy=0
 
-    print("{} Start Evaluation".format(datetime.now()))
-    print("{} sample num = {}".format(datetime.now(), sample_num))
+        if accuracy > highest_accuracy or accuracy>target_accuracy:
+            # save net
+            print("{} Saving net...".format(datetime.now()))
+            checkpoint={'highest_accuracy':accuracy,
+                        'sample_num':sample_num,
+                        'flop_num':flop_num,
+                        'exp_name':exp_name}
 
-    top1_accuracy, top5_accuracy = validate(data_loader, net, max_data_to_test, device)
-    if top_acc==1:
-        accuracy=top1_accuracy
-    elif top_acc==5:
-        accuracy=top5_accuracy
+            if optimizer is not None:
+                checkpoint['optimizer']=optimizer
+                checkpoint['optimizer_state_dict']=optimizer.state_dict()
 
-    if save_net and (accuracy > highest_accuracy or accuracy>target_accuracy):
-        # save net
-        print("{} Saving net...".format(datetime.now()))
-        checkpoint={'highest_accuracy':accuracy,
-                    'sample_num':sample_num,
-                    'flop_num':flop_num,
-                    'exp_name':exp_name}
-
-        if optimizer is not None:
-            checkpoint['optimizer']=optimizer
-            checkpoint['optimizer_state_dict']=optimizer.state_dict()
-
-        checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
-        try:
+            checkpoint.update(storage.get_net_information(net,dataset_name,net_name))
             torch.save(checkpoint,'%s/flop=%d,accuracy=%.5f.pth' % (checkpoint_path, flop_num,accuracy))
-        except AttributeError:
-            checkpoint.pop('net')  # AttributeError: Can't pickle local object 'new_forward.<locals>.lambda_forward'
-            torch.save(checkpoint, '%s/flop=%d,accuracy=%.5f.pth' % (checkpoint_path, flop_num, accuracy))
-        print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
+            print("{} net saved at sample num = {}".format(datetime.now(), sample_num))
+
+            model_file_list = [] #acquire all temporary models (defined by the same model flop)
+            for file in lists:
+                if 'flop=' + str(flop_num) in file:
+                    model_file_list += [file]
+            if len(model_file_list) >= 5:  # only save the top 5 models with highest accuracy
+                lowest_acc = 1
+                for file in model_file_list:
+                    model_acc = float(file.split('=')[-1].rstrip('.pth'))
+                    if model_acc < lowest_acc:
+                        lowest_acc = model_acc
+                        del_file = file
+                os.remove(path=os.path.join(checkpoint_path,del_file))
 
     return accuracy
+
 
 #
 

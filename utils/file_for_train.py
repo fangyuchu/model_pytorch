@@ -8,7 +8,7 @@ from network import vgg,storage,net_with_predicted_mask,resnet_cifar,resnet_cifa
 from framework import config as conf
 from network.modules import conv2d_with_mask
 import logger
-which_gpu = '0'
+which_gpu = '5'
 os.environ["CUDA_VISIBLE_DEVICES"] = which_gpu
 print('Using gpu:',which_gpu)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -1211,7 +1211,7 @@ elif dataset=='imagenet':
         #                               gradient_clip_value=gradient_clip_value
         #                               )
 
-        i = 1
+        i = 3
         exp_name = 'gat_mobilenet_v2_predicted_mask_and_variable_shortcut_net_newinner_newtrain_' + str(
             int(prune_ratio * 100)) + '_' + str(i)
         description = exp_name + '  ' + ''
@@ -1244,6 +1244,7 @@ elif dataset=='imagenet':
         # net = nn.DataParallel(net)
         # net = net.module.net
         # net = nn.DataParallel(net)
+        net = net.net
         net = net.cuda()
 
         train.train(net=net,
